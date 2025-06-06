@@ -1,6 +1,9 @@
-import PropTypes from 'prop-types'
+export interface PaymentProps {
+  onSuccess: (result: { paymentIntentId: string }) => void
+  amount?: number
+}
 
-export default function Payment({ onSuccess, amount }) {
+export default function Payment({ onSuccess, amount = 0 }: PaymentProps) {
   function handlePay() {
     // pretend payment succeeded
     setTimeout(() => onSuccess({ paymentIntentId: 'test' }), 500)
@@ -14,7 +17,4 @@ export default function Payment({ onSuccess, amount }) {
   )
 }
 
-Payment.propTypes = {
-  onSuccess: PropTypes.func.isRequired,
-  amount: PropTypes.number,
-}
+

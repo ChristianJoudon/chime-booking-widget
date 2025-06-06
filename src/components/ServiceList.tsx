@@ -1,6 +1,9 @@
-import PropTypes from 'prop-types'
+export interface ServiceListProps {
+  services: Array<{ id: string; name: string; duration?: number; deposit?: number }>
+  onSelect: (service: any) => void
+}
 
-export default function ServiceList({ services, onSelect }) {
+export default function ServiceList({ services, onSelect }: ServiceListProps) {
   return (
     <div className="service-list">
       {services.map((s) => (
@@ -14,7 +17,4 @@ export default function ServiceList({ services, onSelect }) {
   )
 }
 
-ServiceList.propTypes = {
-  services: PropTypes.arrayOf(PropTypes.object).isRequired,
-  onSelect: PropTypes.func.isRequired,
-}
+

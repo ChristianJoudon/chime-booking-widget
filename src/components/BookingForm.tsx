@@ -1,7 +1,11 @@
-import PropTypes from 'prop-types'
 import { useState } from 'react'
 
-export default function BookingForm({ onSubmit, deposit }) {
+export interface BookingFormProps {
+  onSubmit: (details: { name: string; email: string }) => void
+  deposit?: number
+}
+
+export default function BookingForm({ onSubmit, deposit = 0 }: BookingFormProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
 
@@ -24,7 +28,4 @@ export default function BookingForm({ onSubmit, deposit }) {
   )
 }
 
-BookingForm.propTypes = {
-  onSubmit: PropTypes.func.isRequired,
-  deposit: PropTypes.number,
-}
+

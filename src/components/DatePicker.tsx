@@ -1,7 +1,12 @@
 // DatePicker.jsx
 import { motion } from "framer-motion";
 
-export function DatePicker({ selectedDate, onChange }) {
+export interface DatePickerProps {
+  selectedDate: string | null
+  onChange: (date: string) => void
+}
+
+export function DatePicker({ selectedDate, onChange }: DatePickerProps) {
     return (
         <motion.div
             className="space-y-2"

@@ -1,7 +1,14 @@
 // ContinueButton.jsx
 import { motion } from "framer-motion";
+import type { ReactNode } from 'react'
 
-export function ContinueButton({ children, disabled, onClick }) {
+export interface ContinueButtonProps {
+  children: ReactNode
+  disabled?: boolean
+  onClick?: () => void
+}
+
+export function ContinueButton({ children, disabled = false, onClick }: ContinueButtonProps) {
     return (
         <motion.button
             type="button"
@@ -18,3 +25,4 @@ export function ContinueButton({ children, disabled, onClick }) {
         </motion.button>
     );
 }
+

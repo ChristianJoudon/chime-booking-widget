@@ -1,6 +1,9 @@
-import PropTypes from 'prop-types'
+export interface CalendarProps {
+  value: string
+  onChange: (value: string) => void
+}
 
-export default function Calendar({ value, onChange }) {
+export default function Calendar({ value, onChange }: CalendarProps) {
   const today = new Date().toISOString().split('T')[0]
   return (
     <div className="calendar-picker">
@@ -12,7 +15,4 @@ export default function Calendar({ value, onChange }) {
   )
 }
 
-Calendar.propTypes = {
-  value: PropTypes.string,
-  onChange: PropTypes.func.isRequired,
-}
+

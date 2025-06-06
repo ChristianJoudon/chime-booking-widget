@@ -1,6 +1,15 @@
-import PropTypes from 'prop-types'
+export interface ConfirmationProps {
+  booking: {
+    id: string
+    service: { name: string; deposit?: number }
+    date: string
+    time: string
+    customer: { name: string; email: string }
+    payment?: boolean
+  }
+}
 
-export default function Confirmation({ booking }) {
+export default function Confirmation({ booking }: ConfirmationProps) {
   return (
     <div className="confirmation">
       <h2>Booking Confirmed!</h2>
@@ -12,6 +21,4 @@ export default function Confirmation({ booking }) {
   )
 }
 
-Confirmation.propTypes = {
-  booking: PropTypes.object.isRequired,
-}
+

@@ -1,8 +1,11 @@
-import PropTypes from 'prop-types'
-
 import { useState } from 'react'
 
-export default function TimeSlots({ slots, onSelect }) {
+export interface TimeSlotsProps {
+  slots: string[]
+  onSelect: (time: string) => void
+}
+
+export default function TimeSlots({ slots, onSelect }: TimeSlotsProps) {
   const [selected, setSelected] = useState('')
   function handleClick(t) {
     setSelected(t)
@@ -23,7 +26,4 @@ export default function TimeSlots({ slots, onSelect }) {
   )
 }
 
-TimeSlots.propTypes = {
-  slots: PropTypes.arrayOf(PropTypes.string).isRequired,
-  onSelect: PropTypes.func.isRequired,
-}
+

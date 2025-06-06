@@ -1,7 +1,12 @@
 // HeroTitle.jsx
 import { motion } from "framer-motion";
 
-export function HeroTitle({ title, subtitle }) {
+export interface HeroTitleProps {
+  title: string
+  subtitle?: string
+}
+
+export function HeroTitle({ title, subtitle }: HeroTitleProps) {
     return (
         <motion.div
             className="text-center py-2"
