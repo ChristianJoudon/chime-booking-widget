@@ -1,7 +1,20 @@
 // ServiceGrid.jsx
 import { ServiceCard } from "./ServiceCard";
 
-export function ServiceGrid({ services, selectedId, onSelect }) {
+export interface Service {
+  id: number | string
+  name: string
+  duration?: string
+  description?: string
+}
+
+export interface ServiceGridProps {
+  services: Service[]
+  selectedId?: number | string
+  onSelect: (service: Service) => void
+}
+
+export function ServiceGrid({ services, selectedId, onSelect }: ServiceGridProps) {
     return (
         <div>
             <h2 className="text-xl font-medium text-gray-900 mb-3">Select a Service</h2>

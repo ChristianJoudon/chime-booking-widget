@@ -1,7 +1,13 @@
 // ServiceCard.jsx
 import { motion } from "framer-motion";
 
-export function ServiceCard({ service, selected, onSelect }) {
+export interface ServiceCardProps {
+  service: { id: number | string; name: string; duration?: string; description?: string }
+  selected?: boolean
+  onSelect: (service: any) => void
+}
+
+export function ServiceCard({ service, selected = false, onSelect }: ServiceCardProps) {
     return (
         <motion.button
             className={

@@ -1,12 +1,19 @@
 import { useState } from 'react'
-import ServiceList from './ServiceList.jsx'
-import Calendar from './Calendar.jsx'
-import TimeSlots from './TimeSlots.jsx'
-import BookingForm from './BookingForm.jsx'
-import Payment from './Payment.jsx'
-import Confirmation from './Confirmation.jsx'
+import ServiceList from './ServiceList.tsx'
+import Calendar from './Calendar.tsx'
+import TimeSlots from './TimeSlots.tsx'
+import BookingForm from './BookingForm.tsx'
+import Payment from './Payment.tsx'
+import Confirmation from './Confirmation.tsx'
 
-const dummyServices = [
+interface Service {
+  id: string
+  name: string
+  duration: number
+  deposit: number
+}
+
+const dummyServices: Service[] = [
   { id: 'svc1', name: 'Consultation', duration: 30, deposit: 20 },
   { id: 'svc2', name: 'Repair', duration: 60, deposit: 50 },
 ]
@@ -25,15 +32,15 @@ function generateTimes(duration) {
 }
 
 export default function WidgetShell() {
-  const [step, setStep] = useState('services')
-  const [service, setService] = useState(null)
+  const [step, setStep] = useState<'services' | 'date' | 'time' | 'form' | 'payment' | 'confirm'>('services')
+  const [service, setService] = useState<Service | null>(null)
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
-  const [customer, setCustomer] = useState(null)
-  const [booking, setBooking] = useState(null)
-  const [times, setTimes] = useState([])
+  const [customer, setCustomer] = useState<{ name: string; email: string } | null>(null)
+  const [booking, setBooking] = useState<any>(null)
+  const [times, setTimes] = useState<string[]>([])
 
-  function handleServiceSelect(svc) {
+  function handleServiceSelect(svc: Service) {
     setService(svc)
     setDate('')
     setTime('')
@@ -41,22 +48,22 @@ export default function WidgetShell() {
     setStep('date')
   }
 
-  function handleDateSelect(d) {
+  function handleDateSelect(d: string) {
     setDate(d)
     setStep('time')
   }
 
-  function handleTimeSelect(t) {
+  function handleTimeSelect(t: string) {
     setTime(t)
     setStep('form')
   }
 
-  function handleFormSubmit(data) {
+  function handleFormSubmit(data: { name: string; email: string }) {
     setCustomer(data)
     setStep('payment')
   }
 
-  function handlePaymentSuccess(pay) {
+  function handlePaymentSuccess(pay: { paymentIntentId: string }) {
     const b = {
       id: crypto.randomUUID(),
       service,
@@ -89,3 +96,4 @@ export default function WidgetShell() {
   }
   return null
 }
+
