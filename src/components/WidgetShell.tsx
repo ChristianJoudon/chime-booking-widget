@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import ServiceList from './ServiceList.tsx'
-import Calendar from './Calendar.tsx'
-import TimeSlots from './TimeSlots.tsx'
-import BookingForm from './BookingForm.tsx'
-import Payment from './Payment.tsx'
-import Confirmation from './Confirmation.tsx'
+import ServiceList   from './ServiceList'
+import Calendar      from './Calendar'
+import TimeSlots     from './TimeSlots'
+import BookingForm   from './BookingForm'
+import Payment       from './Payment'
+import Confirmation  from './Confirmation'
 
 interface Service {
   id: string
@@ -18,7 +18,7 @@ const dummyServices: Service[] = [
   { id: 'svc2', name: 'Repair', duration: 60, deposit: 50 },
 ]
 
-function generateTimes(duration) {
+function generateTimes(duration: number) {
   const start = 9
   const end = 17
   const times = []
