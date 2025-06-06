@@ -1,14 +1,14 @@
 import PropTypes from 'prop-types'
 
-export default function Payment({ onSuccess }) {
+export default function Payment({ onSuccess, amount }) {
   function handlePay() {
     // pretend payment succeeded
-    onSuccess({ paymentIntentId: 'test' })
+    setTimeout(() => onSuccess({ paymentIntentId: 'test' }), 500)
   }
 
   return (
     <div className="payment-step">
-      <p>Payment step (placeholder)</p>
+      <p>Deposit amount: ${amount}</p>
       <button onClick={handlePay}>Pay Deposit</button>
     </div>
   )
@@ -16,4 +16,5 @@ export default function Payment({ onSuccess }) {
 
 Payment.propTypes = {
   onSuccess: PropTypes.func.isRequired,
+  amount: PropTypes.number,
 }

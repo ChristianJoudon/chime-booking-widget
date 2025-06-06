@@ -7,6 +7,7 @@ export default function ServiceList({ services, onSelect }) {
         <button key={s.id} className="service-card" onClick={() => onSelect(s)}>
           <div className="service-name">{s.name}</div>
           {s.duration && <div className="service-duration">{s.duration} mins</div>}
+          {s.deposit && <div className="service-deposit">Deposit ${s.deposit}</div>}
         </button>
       ))}
     </div>

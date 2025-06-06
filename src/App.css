@@ -1,21 +1,78 @@
 .widget-wrapper {
-  padding: 2rem;
+  --primary: #50d0b0;
+  --bg: #ffffff;
+  --text: #000000;
   font-family: sans-serif;
+  padding: 2rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.widget-wrapper.dark {
+  --bg: #1f1f1f;
+  --text: #f5f5f5;
 }
 .service-card {
   display: block;
+  width: 100%;
+  text-align: left;
   padding: 1rem;
   margin: 0.5rem 0;
   border: 1px solid #ccc;
   border-radius: 8px;
   background: #f9f9f9;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.service-card:hover {
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.service-deposit {
+  font-size: 0.875rem;
+  color: var(--primary);
 }
 .time-slot {
   margin: 0.25rem;
   padding: 0.5rem 1rem;
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.time-slot:hover {
+  background: var(--primary);
+  color: #fff;
+}
+.time-slot.active {
+  background: var(--primary);
+  color: #fff;
 }
 .booking-form > div {
   margin-bottom: 1rem;
+}
+
+.booking-form input {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%;
+}
+
+.booking-form button {
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.booking-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .payment-step {
   text-align: center;
@@ -23,4 +80,7 @@
 .confirmation {
   padding: 1rem;
   background: #e6ffe6;
+}
+.dark .confirmation {
+  background: #233d23;
 }

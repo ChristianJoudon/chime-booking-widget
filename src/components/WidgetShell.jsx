@@ -7,11 +7,22 @@ import Payment from './Payment.jsx'
 import Confirmation from './Confirmation.jsx'
 
 const dummyServices = [
-  { id: 'svc1', name: 'Consultation', duration: 30 },
-  { id: 'svc2', name: 'Repair', duration: 60 },
+  { id: 'svc1', name: 'Consultation', duration: 30, deposit: 20 },
+  { id: 'svc2', name: 'Repair', duration: 60, deposit: 50 },
 ]
 
-const dummyTimes = ['09:00', '10:00', '11:00', '14:00']
+function generateTimes(duration) {
+  const start = 9
+  const end = 17
+  const times = []
+  for (let h = start; h < end; h++) {
+    times.push(`${h.toString().padStart(2, '0')}:00`)
+    if (duration <= 30) {
+      times.push(`${h.toString().padStart(2, '0')}:30`)
+    }
+  }
+  return times
+}
 
 export default function WidgetShell() {
   const [step, setStep] = useState('services')
@@ -20,9 +31,13 @@ export default function WidgetShell() {
   const [time, setTime] = useState('')
   const [customer, setCustomer] = useState(null)
   const [booking, setBooking] = useState(null)
+  const [times, setTimes] = useState([])
 
   function handleServiceSelect(svc) {
     setService(svc)
+    setDate('')
+    setTime('')
+    setTimes(generateTimes(svc.duration))
     setStep('date')
   }
 
@@ -43,6 +58,7 @@ export default function WidgetShell() {
 
   function handlePaymentSuccess(pay) {
     const b = {
+      id: crypto.randomUUID(),
       service,
       date,
       time,
@@ -60,13 +76,13 @@ export default function WidgetShell() {
     return <Calendar value={date} onChange={handleDateSelect} />
   }
   if (step === 'time') {
-    return <TimeSlots slots={dummyTimes} onSelect={handleTimeSelect} />
+    return <TimeSlots slots={times} onSelect={handleTimeSelect} />
   }
   if (step === 'form') {
-    return <BookingForm onSubmit={handleFormSubmit} />
+    return <BookingForm onSubmit={handleFormSubmit} deposit={service.deposit} />
   }
   if (step === 'payment') {
-    return <Payment onSuccess={handlePaymentSuccess} />
+    return <Payment amount={service.deposit} onSuccess={handlePaymentSuccess} />
   }
   if (step === 'confirm') {
     return <Confirmation booking={booking} />
