@@ -21,6 +21,9 @@ import OperationsStudio from './OperationsStudio';
 import CommunicationStudio from './CommunicationStudio';
 import { CustomerStudio } from './CustomerStudio';
 import AvailabilityStudio from './AvailabilityStudio';
+import WidgetStudio from './WidgetStudio';
+import chimeBellLogo from '@/assets/brand/chime-bell.png';
+import chimeWordmarkLogo from '@/assets/brand/chime-wordmark.png';
 import {
   INITIAL_APPOINTMENTS,
   SCHEDULE_DAYS,
@@ -187,7 +190,7 @@ function AdminApp() {
   const [activeDayIndex, setActiveDayIndex] = useState(4);
   const [interaction, setInteraction] = useState<PointerInteraction | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team' | 'Availability' | 'Customers'>('Schedule');
+  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team' | 'Availability' | 'Customers' | 'Widget designer'>('Schedule');
   const [adminServices, setAdminServices] = useState<AdminServiceDefinition[]>(() =>
     INITIAL_ADMIN_SERVICES.map((service) => ({ ...service })),
   );
@@ -552,12 +555,10 @@ function AdminApp() {
       <aside className="admin-sidebar">
         <div className="admin-brand">
           <span className="admin-brand__mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
+            <img src={chimeBellLogo} alt="" />
           </span>
           <div>
-            <strong>chime</strong>
+            <img className="admin-brand__wordmark" src={chimeWordmarkLogo} alt="Chime" />
             <small>business studio</small>
           </div>
         </div>
@@ -580,7 +581,7 @@ function AdminApp() {
               key={item.label}
               aria-current={item.label === activeWorkspace ? 'page' : undefined}
               onClick={() => {
-                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Messages' || item.label === 'Services' || item.label === 'Team' || item.label === 'Availability' || item.label === 'Customers') {
+                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Messages' || item.label === 'Services' || item.label === 'Team' || item.label === 'Availability' || item.label === 'Customers' || item.label === 'Widget designer') {
                   setActiveWorkspace(item.label);
                 } else {
                   setToast(`${item.label} is mapped for the next Chime build.`);
@@ -864,6 +865,8 @@ function AdminApp() {
           <AvailabilityStudio api={adminApi} onNotify={setToast} />
         ) : activeWorkspace === 'Customers' ? (
           <CustomerStudio api={adminApi} />
+        ) : activeWorkspace === 'Widget designer' ? (
+          <WidgetStudio api={adminApi} onNotify={setToast} />
         ) : (
           <TeamStudio api={adminApi} onNotify={setToast} />
         )}

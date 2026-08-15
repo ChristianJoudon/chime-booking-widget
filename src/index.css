@@ -27,6 +27,83 @@
   --radius-md: 16px;
 }
 
+/* No-code brand variables are supplied inline by App so portable embeds remain
+   self-contained and do not inherit a host website's visual system. */
+.chime-widget {
+  font-family: var(--chime-font, ui-sans-serif, system-ui, sans-serif);
+  background:
+    radial-gradient(circle at 15% -10%, color-mix(in srgb, var(--mint-500) 34%, transparent), transparent 35%),
+    radial-gradient(circle at 85% 0%, color-mix(in srgb, var(--chime-accent) 25%, transparent), transparent 30%),
+    linear-gradient(180deg, var(--mint-50) 0%, color-mix(in srgb, var(--chime-surface) 88%, var(--mint-50)) 42%, var(--chime-surface) 100%);
+}
+
+.chime-widget .chime-logo {
+  background: color-mix(in srgb, var(--chime-surface) 94%, white);
+  border: 1px solid color-mix(in srgb, var(--mint-700) 12%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--mint-800) 10%, transparent);
+  display: flex;
+  height: 42px;
+  justify-content: flex-start;
+  padding: 5px 9px;
+  width: clamp(112px, 17vw, 150px);
+}
+
+.chime-widget .chime-logo img {
+  height: 100%;
+  object-fit: contain;
+  object-position: left center;
+  width: 100%;
+}
+
+.chime-widget .chime-logo--icon {
+  background: color-mix(in srgb, var(--chime-surface) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mint-500) 22%, transparent);
+  border-radius: 13px;
+  flex: 0 0 42px;
+  padding: 3px;
+  width: 42px;
+}
+
+.chime-widget .chime-logo--icon img { object-position: center; }
+
+.chime-powered-by {
+  align-items: center;
+  color: color-mix(in srgb, var(--ink) 56%, transparent);
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 700;
+  gap: 7px;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  padding: 0 20px 28px;
+}
+
+.chime-powered-by img {
+  height: 15px;
+  object-fit: contain;
+  width: 55px;
+}
+
+.chime-widget .service-card__shine { display: none; }
+.chime-widget .service-card:hover .service-card__shine { opacity: 0; }
+
+.chime-widget[data-chime-card-style="outline"] :where(.liquid-card, .glass-panel, .glass-panel-front, .glass-panel-deep, .service-card) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: color-mix(in srgb, var(--chime-surface) 94%, transparent);
+  border-color: color-mix(in srgb, var(--mint-700) 22%, transparent);
+  box-shadow: none;
+}
+
+.chime-widget[data-chime-card-style="solid"] :where(.liquid-card, .glass-panel, .glass-panel-front, .glass-panel-deep, .service-card) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--chime-surface);
+  border-color: color-mix(in srgb, var(--mint-700) 12%, transparent);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--mint-800) 12%, transparent);
+}
+
 /* Scoped reset — replaces the removed Tailwind preflight AND defends the
    widget against host-page element styles (h1 { text-decoration }, button
    { padding }, etc.) when embedded. Every selector uses :where() so the reset
@@ -98,11 +175,11 @@
 .chime-widget {
   min-width: 0;
   color: var(--ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
+  font-family: var(--chime-font, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif);
   background:
-    radial-gradient(circle at 15% -10%, rgba(77, 189, 152, 0.38), transparent 35%),
-    radial-gradient(circle at 85% 0%, rgba(168, 230, 207, 0.34), transparent 30%),
-    linear-gradient(180deg, #e8fbf4 0%, #f8fbf9 42%, #fffef9 100%);
+    radial-gradient(circle at 15% -10%, color-mix(in srgb, var(--mint-500) 34%, transparent), transparent 35%),
+    radial-gradient(circle at 85% 0%, color-mix(in srgb, var(--chime-accent) 25%, transparent), transparent 30%),
+    linear-gradient(180deg, var(--mint-50) 0%, color-mix(in srgb, var(--chime-surface) 88%, var(--mint-50)) 42%, var(--chime-surface) 100%);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

@@ -277,6 +277,44 @@ export type CustomerUpdateInput = {
   metadata?: Record<string, unknown>;
 };
 
+export type AdminWidgetLogoVariant = 'wordmark' | 'wordmark-smile' | 'bell' | 'custom' | 'none';
+export type AdminWidgetCardStyle = 'soft' | 'outline' | 'solid';
+export type AdminWidgetCornerStyle = 'soft' | 'rounded' | 'pill';
+export type AdminWidgetFontStyle = 'modern' | 'friendly' | 'classic';
+
+export interface AdminWidgetTheme {
+  primaryColor: string;
+  accentColor: string;
+  surfaceColor: string;
+  textColor: string;
+  logoVariant: AdminWidgetLogoVariant;
+  customLogoUrl?: string;
+  cardStyle: AdminWidgetCardStyle;
+  cornerStyle: AdminWidgetCornerStyle;
+  fontStyle: AdminWidgetFontStyle;
+  showPoweredBy: boolean;
+}
+
+export interface AdminWidgetCopy {
+  businessName: string;
+  headerTitle: string;
+  eyebrow: string;
+  description: string;
+  confirmationMessage: string;
+}
+
+export interface AdminWidgetConfig {
+  id: string | null;
+  organizationSlug: string;
+  slug: string;
+  theme: AdminWidgetTheme;
+  copy: AdminWidgetCopy;
+  locale: string;
+  timeZone: string;
+  isActive: boolean;
+  version: number;
+}
+
 export class AdminApiClientError extends Error {
   readonly status: number;
   readonly code?: string;
@@ -321,6 +359,22 @@ export class AdminApiClient {
       method: 'PUT',
       headers: { 'if-match': String(version) },
       body: JSON.stringify({ days }),
+    });
+  }
+
+  getWidgetConfig(): Promise<{ config: AdminWidgetConfig }> {
+    return this.request<{ config: AdminWidgetConfig }>('/widget-config');
+  }
+
+  saveWidgetConfig(config: AdminWidgetConfig): Promise<{ config: AdminWidgetConfig }> {
+    return this.request<{ config: AdminWidgetConfig }>('/widget-config', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': requestKey(),
+        'If-Match': `"${config.version}"`,
+      },
+      body: JSON.stringify(config),
     });
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { format } from 'date-fns';
 
@@ -9,10 +9,12 @@ import ServiceList from '@/components/services/ServiceList';
 import ProgressSteps from '@/components/ui/ProgressSteps';
 import { ContinueButton } from '@/components/ui/ContinueButton';
 import { loadAvailability, loadServices } from '@/lib/api';
-import { getWidgetConfig } from '@/lib/widgetConfig';
+import { getWidgetConfig, loadPublishedWidgetConfig } from '@/lib/widgetConfig';
 import { formatMoneyFromCents, getAppointmentDepositAmountCents, getServiceDurationLabel } from '@/lib/normalizers';
 import type { DailyAvailability, Slot } from '@/types/calendar';
 import type { Service } from '@/types/service';
+import type { WidgetConfigInput } from '@/types/widget';
+import chimeWordmark from '@/assets/brand/chime-wordmark.png';
 
 type AppStep = 'service' | 'time' | 'booking';
 
@@ -60,10 +62,13 @@ function SlotSummary({ date, slot }: { date: Date; slot: Slot }) {
 interface AppProps {
   /** 'fullpage' for the standalone app; 'embedded' when dropped into a host page. */
   variant?: 'fullpage' | 'embedded';
+  /** Optional no-code theme/copy override, used by portable mounts and the admin live preview. */
+  config?: WidgetConfigInput;
 }
 
-export default function App({ variant = 'embedded' }: AppProps = {}) {
-  const config = useMemo(() => getWidgetConfig(), []);
+export default function App({ variant = 'embedded', config: configOverride }: AppProps = {}) {
+  const baseConfig = useMemo(() => getWidgetConfig(configOverride), [configOverride]);
+  const [config, setConfig] = useState(baseConfig);
 
   const [activeStep, setActiveStep] = useState<AppStep>('service');
   const [services, setServices] = useState<Service[]>(config.services);
@@ -81,6 +86,21 @@ export default function App({ variant = 'embedded' }: AppProps = {}) {
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const previousStepRef = useRef<AppStep>(activeStep);
   const shellRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setConfig(baseConfig);
+    void loadPublishedWidgetConfig(baseConfig)
+      .then((published) => {
+        if (!cancelled) setConfig(published);
+      })
+      .catch(() => {
+        // Keep the locally supplied design if a remote theme is temporarily unavailable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [baseConfig]);
 
   function scrollToTop() {
     shellRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -234,10 +254,39 @@ export default function App({ variant = 'embedded' }: AppProps = {}) {
     window.requestAnimationFrame(scrollToTop);
   }
 
+  const radius = config.theme.cornerStyle === 'pill' ? '34px' : config.theme.cornerStyle === 'soft' ? '18px' : '26px';
+  const fontFamily = config.theme.fontStyle === 'classic'
+    ? 'Georgia, "Times New Roman", serif'
+    : config.theme.fontStyle === 'friendly'
+      ? '"Avenir Next Rounded", "Nunito Sans", "Trebuchet MS", sans-serif'
+      : '"Manrope", "Avenir Next", "Segoe UI", sans-serif';
+  const widgetStyle = {
+    '--chime-primary': config.theme.primaryColor,
+    '--chime-accent': config.theme.accentColor,
+    '--chime-surface': config.theme.surfaceColor,
+    '--chime-text': config.theme.textColor,
+    '--mint-50': `color-mix(in srgb, ${config.theme.primaryColor} 10%, white)`,
+    '--mint-100': `color-mix(in srgb, ${config.theme.primaryColor} 18%, white)`,
+    '--mint-200': `color-mix(in srgb, ${config.theme.primaryColor} 34%, white)`,
+    '--mint-300': `color-mix(in srgb, ${config.theme.primaryColor} 58%, white)`,
+    '--mint-400': `color-mix(in srgb, ${config.theme.primaryColor} 82%, white)`,
+    '--mint-500': config.theme.primaryColor,
+    '--mint-600': `color-mix(in srgb, ${config.theme.primaryColor} 84%, black)`,
+    '--mint-700': `color-mix(in srgb, ${config.theme.primaryColor} 70%, black)`,
+    '--mint-800': `color-mix(in srgb, ${config.theme.primaryColor} 58%, black)`,
+    '--warm-white': config.theme.surfaceColor,
+    '--ink': config.theme.textColor,
+    '--radius-xl': radius,
+    '--chime-font': fontFamily,
+  } as CSSProperties;
+
   return (
     <div
       ref={shellRef}
       className={`chime-widget chime-app-shell${variant === 'fullpage' ? ' chime-app-shell--fullpage' : ''}`}
+      data-chime-card-style={config.theme.cardStyle}
+      data-chime-font={config.theme.fontStyle}
+      style={widgetStyle}
     >
       <a className="skip-link" href="#chime-main">Skip to booking</a>
       <div className="chime-background" aria-hidden="true">
@@ -246,7 +295,12 @@ export default function App({ variant = 'embedded' }: AppProps = {}) {
         <span className="chime-orb chime-orb--three" />
       </div>
 
-      <Header title={config.headerTitle ?? config.businessName} />
+      <Header
+        title={config.headerTitle ?? config.businessName}
+        eyebrow={config.headerEyebrow}
+        logoVariant={config.theme.logoVariant}
+        customLogoUrl={config.theme.customLogoUrl}
+      />
 
       <main id="chime-main" tabIndex={-1} className="chime-main">
         <section className="chime-main__inner">
@@ -401,6 +455,12 @@ export default function App({ variant = 'embedded' }: AppProps = {}) {
           </AnimatePresence>
         </section>
       </main>
+      {config.theme.showPoweredBy ? (
+        <footer className="chime-powered-by">
+          <span>Booking powered by</span>
+          <img src={chimeWordmark} alt="Chime" />
+        </footer>
+      ) : null}
     </div>
   );
 }

@@ -17,6 +17,7 @@
     "test:notifications": "node scripts/notification-delivery-smoke.mjs",
     "test:customers": "node scripts/customer-crm-smoke.mjs",
     "test:availability-studio": "node scripts/availability-schedule-smoke.mjs",
+    "test:widget-studio": "node scripts/widget-config-smoke.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern dist-admin --ignore-pattern dist-embed --ignore-pattern dist-approval --ignore-pattern server/dist",
     "css:check": "tailwindcss -i ./src/index.css -o /dev/null --minify"

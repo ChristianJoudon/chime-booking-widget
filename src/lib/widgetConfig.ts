@@ -1,7 +1,19 @@
 import { sampleAvailability } from '@/data/sampleAvailability';
 import { sampleServices } from '@/data/sampleServices';
 import { normalizeAvailability, normalizeServices } from '@/lib/normalizers';
-import type { CustomerFieldConfig, WidgetConfig, WidgetConfigInput } from '@/types/widget';
+import type { CustomerFieldConfig, WidgetConfig, WidgetConfigInput, WidgetThemeConfig } from '@/types/widget';
+
+export const defaultWidgetTheme: WidgetThemeConfig = {
+  primaryColor: '#42c79a',
+  accentColor: '#ffd36e',
+  surfaceColor: '#fffef9',
+  textColor: '#102a24',
+  logoVariant: 'wordmark-smile',
+  cardStyle: 'soft',
+  cornerStyle: 'rounded',
+  fontStyle: 'modern',
+  showPoweredBy: true,
+};
 
 const defaultCustomerFields: CustomerFieldConfig[] = [
   {
@@ -70,9 +82,9 @@ function readWindowConfig(): WidgetConfigInput {
   return window.CHIME_WIDGET_CONFIG ?? {};
 }
 
-export function getWidgetConfig(): WidgetConfig {
+export function getWidgetConfig(inputOverride?: WidgetConfigInput): WidgetConfig {
   const env = getEnv();
-  const input = readWindowConfig();
+  const input = inputOverride ?? readWindowConfig();
   const demoMode = shouldUseDemoData();
   const apiBaseUrl = input.api?.baseUrl ?? env.VITE_CHIME_API_BASE_URL;
   const inferredEndpoint = (path: string) => apiBaseUrl
@@ -88,8 +100,11 @@ export function getWidgetConfig(): WidgetConfig {
       : [];
 
   return {
+    organizationSlug: input.organizationSlug ?? env.VITE_CHIME_ORGANIZATION_SLUG,
+    widgetSlug: input.widgetSlug ?? env.VITE_CHIME_WIDGET_SLUG,
     businessName: input.businessName ?? 'Chime',
     headerTitle: input.headerTitle ?? input.businessName ?? 'Chime',
+    headerEyebrow: input.headerEyebrow ?? 'Appointment concierge',
     location: input.location ?? env.VITE_CHIME_LOCATION,
     description:
       input.description ??
@@ -121,6 +136,10 @@ export function getWidgetConfig(): WidgetConfig {
         input.payment?.stripePublishableKey ?? env.VITE_CHIME_STRIPE_PUBLISHABLE_KEY,
       currency: input.payment?.currency ?? env.VITE_CHIME_CURRENCY ?? 'USD',
     },
+    theme: {
+      ...defaultWidgetTheme,
+      ...input.theme,
+    },
     customerFields:
       input.customerFields && input.customerFields.length > 0
         ? input.customerFields
@@ -129,5 +148,49 @@ export function getWidgetConfig(): WidgetConfig {
     termsText: input.termsText ?? defaultTerms,
     confirmationMessage: input.confirmationMessage,
     demoData: demoMode,
+  };
+}
+
+interface PublishedWidgetResponse {
+  widget: {
+    organizationSlug: string;
+    slug: string;
+    theme?: Partial<WidgetThemeConfig>;
+    copy?: {
+      businessName?: string;
+    headerTitle?: string;
+    eyebrow?: string;
+      description?: string;
+      termsTitle?: string;
+      termsText?: string;
+      confirmationMessage?: string;
+    };
+    locale?: string;
+    timeZone?: string;
+  };
+}
+
+export async function loadPublishedWidgetConfig(config: WidgetConfig): Promise<WidgetConfig> {
+  if (!config.organizationSlug || !config.widgetSlug || !config.api.baseUrl) return config;
+
+  const endpoint = `${config.api.baseUrl.replace(/\/$/, '')}/widget-config/${encodeURIComponent(config.organizationSlug)}/${encodeURIComponent(config.widgetSlug)}`;
+  const response = await fetch(endpoint, { headers: config.api.headers });
+  if (response.status === 404) return config;
+  if (!response.ok) throw new Error(`Unable to load the published widget design (${response.status}).`);
+
+  const { widget } = await response.json() as PublishedWidgetResponse;
+  const copy = widget.copy ?? {};
+  return {
+    ...config,
+    organizationSlug: widget.organizationSlug,
+    widgetSlug: widget.slug,
+    businessName: copy.businessName ?? config.businessName,
+    headerTitle: copy.headerTitle ?? config.headerTitle,
+    headerEyebrow: copy.eyebrow ?? config.headerEyebrow,
+    description: copy.description ?? config.description,
+    termsTitle: copy.termsTitle ?? config.termsTitle,
+    termsText: copy.termsText ?? config.termsText,
+    confirmationMessage: copy.confirmationMessage ?? config.confirmationMessage,
+    theme: { ...config.theme, ...widget.theme },
   };
 }

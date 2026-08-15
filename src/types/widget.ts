@@ -37,9 +37,30 @@ export interface PaymentConfig {
   currency?: string;
 }
 
+export type WidgetLogoVariant = 'wordmark' | 'wordmark-smile' | 'bell' | 'custom' | 'none';
+export type WidgetCardStyle = 'soft' | 'outline' | 'solid';
+export type WidgetCornerStyle = 'soft' | 'rounded' | 'pill';
+export type WidgetFontStyle = 'modern' | 'friendly' | 'classic';
+
+export interface WidgetThemeConfig {
+  primaryColor: string;
+  accentColor: string;
+  surfaceColor: string;
+  textColor: string;
+  logoVariant: WidgetLogoVariant;
+  customLogoUrl?: string;
+  cardStyle: WidgetCardStyle;
+  cornerStyle: WidgetCornerStyle;
+  fontStyle: WidgetFontStyle;
+  showPoweredBy: boolean;
+}
+
 export interface WidgetConfig {
+  organizationSlug?: string;
+  widgetSlug?: string;
   businessName: string;
   headerTitle?: string;
+  headerEyebrow?: string;
   description?: string;
   /** Business address/location, used for calendar events. */
   location?: string;
@@ -47,6 +68,7 @@ export interface WidgetConfig {
   availability: DailyAvailability[];
   api: ApiConfig;
   payment: PaymentConfig;
+  theme: WidgetThemeConfig;
   customerFields: CustomerFieldConfig[];
   termsTitle?: string;
   termsText: string;
@@ -59,13 +81,14 @@ export interface WidgetConfigInput
   extends Partial<
     Omit<
       WidgetConfig,
-      'services' | 'availability' | 'api' | 'payment' | 'customerFields' | 'demoData'
+      'services' | 'availability' | 'api' | 'payment' | 'theme' | 'customerFields' | 'demoData'
     >
   > {
   services?: Service[];
   availability?: DailyAvailabilityInput[];
   api?: Partial<ApiConfig>;
   payment?: Partial<PaymentConfig>;
+  theme?: Partial<WidgetThemeConfig>;
   customerFields?: CustomerFieldConfig[];
 }
 

@@ -1,6 +1,7 @@
 import { createDirectoryRouter } from './directoryRoutes.js';
 import { createAvailabilityRouter } from './availabilityRoutes.js';
 import { createAvailabilityScheduleRouter } from './availabilityScheduleRoutes.js';
+import { createWidgetConfigRouter } from './widgetConfigRoutes.js';
 import { createOperationsRouter } from './operationsRoutes.js';
 import { createCommunicationRouter } from './communicationRoutes.js';
 import { createCustomerRouter } from './customerRoutes.js';
@@ -43,6 +44,7 @@ export function createAdminRouter(pool: Pool): Router {
   router.use(createDirectoryRouter(pool));
   router.use(createAvailabilityRouter(pool));
   router.use(createAvailabilityScheduleRouter(pool));
+  router.use(createWidgetConfigRouter(pool));
   router.use(createOperationsRouter(pool));
   router.use(createCommunicationRouter(pool));
   router.use(createCustomerRouter(pool));

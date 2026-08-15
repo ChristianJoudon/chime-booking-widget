@@ -4,6 +4,7 @@ import express from 'express';
 import pg from 'pg';
 import Stripe from 'stripe';
 import { createCustomerApprovalRouter } from './customerApprovalRoutes.js';
+import { createPublicWidgetConfigRouter } from './widgetConfigRoutes.js';
 
 const { Pool } = pg;
 
@@ -89,6 +90,7 @@ app.get('/api/chime/health', (_req, res) => {
 });
 
 app.use('/api/chime/customer-actions', createCustomerApprovalRouter(pool));
+app.use('/api/chime/widget-config', createPublicWidgetConfigRouter(pool));
 
 app.get('/api/chime/services', async (_req, res, next) => {
   try {
