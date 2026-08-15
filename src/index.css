@@ -57,11 +57,12 @@
 }
 
 .chime-widget .chime-logo--icon {
-  background: color-mix(in srgb, var(--chime-surface) 78%, transparent);
-  border: 1px solid color-mix(in srgb, var(--mint-500) 22%, transparent);
-  border-radius: 13px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   flex: 0 0 42px;
-  padding: 3px;
+  padding: 0;
   width: 42px;
 }
 
