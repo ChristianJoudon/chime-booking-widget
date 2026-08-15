@@ -74,6 +74,65 @@ export interface AdminAvailabilityException {
   createdAt: string;
 }
 
+export type AdminCommunicationStatus = 'pending' | 'processing' | 'sent' | 'delivered' | 'failed' | 'suppressed';
+
+export interface AdminCommunicationAttempt {
+  provider: string;
+  providerMode: 'sandbox' | 'live';
+  status: 'sent' | 'failed';
+  errorMessage: string | null;
+  startedAt: string;
+}
+
+export interface AdminCommunicationDelivery {
+  id: string;
+  channel: 'email' | 'sms' | 'push' | 'webhook';
+  recipient: string;
+  templateKey: string;
+  providerMessageId: string | null;
+  status: AdminCommunicationStatus;
+  attemptCount: number;
+  lastError: string | null;
+  availableAt: string;
+  sentAt: string | null;
+  createdAt: string;
+  eventType: string | null;
+  appointmentId: string | null;
+  referenceCode: string | null;
+  customerName: string | null;
+  serviceName: string | null;
+  attempts: AdminCommunicationAttempt[];
+}
+
+export interface AdminCommunicationTemplate {
+  id: string;
+  templateKey: string;
+  channel: 'email' | 'sms' | 'push' | 'webhook';
+  displayName: string;
+  subjectTemplate: string | null;
+  bodyTemplate: string;
+  isActive: boolean;
+  version: number;
+  updatedAt: string;
+}
+
+export interface AdminCommunicationsPayload {
+  runtime: {
+    mode: 'sandbox' | 'live';
+    providers: { email: boolean; sms: boolean; webhook: boolean };
+    maxAttempts: number;
+  };
+  summary: {
+    total: number;
+    ready: number;
+    processing: number;
+    sent: number;
+    failed: number;
+    suppressed: number;
+  };
+  deliveries: AdminCommunicationDelivery[];
+}
+
 export type AdminPersistenceMode = 'demo' | 'loading' | 'connected' | 'saving' | 'error';
 
 export interface AdminPersistenceState {
@@ -280,6 +339,51 @@ export class AdminApiClient {
         headers: { 'Idempotency-Key': requestKey() },
       },
     );
+  }
+
+  async listCommunications(status = 'all'): Promise<AdminCommunicationsPayload> {
+    return this.request<AdminCommunicationsPayload>(
+      `/communications?status=${encodeURIComponent(status)}`,
+    );
+  }
+
+  async processCommunications(): Promise<{ result: { claimed: number; sent: number; failed: number; mode: 'sandbox' | 'live' } }> {
+    return this.request('/communications/process', { method: 'POST' });
+  }
+
+  async retryCommunication(deliveryId: string): Promise<void> {
+    await this.request(`/communications/${encodeURIComponent(deliveryId)}/retry`, { method: 'POST' });
+  }
+
+  async suppressCommunication(deliveryId: string): Promise<void> {
+    await this.request(`/communications/${encodeURIComponent(deliveryId)}/suppress`, { method: 'POST' });
+  }
+
+  async listCommunicationTemplates(): Promise<AdminCommunicationTemplate[]> {
+    const body = await this.request<{ templates: AdminCommunicationTemplate[] }>('/communications/templates');
+    return body.templates;
+  }
+
+  async saveCommunicationTemplate(
+    template: AdminCommunicationTemplate,
+  ): Promise<AdminCommunicationTemplate> {
+    const body = await this.request<{ template: AdminCommunicationTemplate }>(
+      `/communications/templates/${encodeURIComponent(template.templateKey)}/${encodeURIComponent(template.channel)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': `"${template.version}"`,
+        },
+        body: JSON.stringify({
+          displayName: template.displayName,
+          subjectTemplate: template.subjectTemplate,
+          bodyTemplate: template.bodyTemplate,
+          isActive: template.isActive,
+        }),
+      },
+    );
+    return body.template;
   }
 }
 

@@ -1353,11 +1353,21 @@ select:focus-visible,
   .admin-brand > div,
   .admin-workspace-switcher > span:nth-child(2),
   .admin-workspace-switcher > svg,
-  .admin-nav button > span,
   .admin-nav > p,
   .admin-sidebar__bottom button > span,
   .admin-profile > span:nth-child(2),
   .admin-online-dot { display: none; }
+  .admin-nav button > span {
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
   .admin-workspace-switcher { display: flex; justify-content: center; padding: 8px; }
   .admin-nav button,
   .admin-sidebar__bottom > button { display: flex; justify-content: center; padding: 0; }

@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "test:admin-api": "node scripts/admin-api-smoke.mjs",
     "test:customer-approval": "node scripts/customer-approval-smoke.mjs",
+    "test:notifications": "node scripts/notification-delivery-smoke.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern dist-admin --ignore-pattern dist-embed --ignore-pattern dist-approval --ignore-pattern server/dist",
     "css:check": "tailwindcss -i ./src/index.css -o /dev/null --minify"

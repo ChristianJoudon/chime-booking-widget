@@ -18,6 +18,7 @@ import {
 import ServiceStudio from './ServiceStudio';
 import TeamStudio from './TeamStudio';
 import OperationsStudio from './OperationsStudio';
+import CommunicationStudio from './CommunicationStudio';
 import {
   INITIAL_APPOINTMENTS,
   SCHEDULE_DAYS,
@@ -131,6 +132,7 @@ interface PointerInteraction {
 const NAV_ITEMS: readonly { label: string; icon: IconName; badge?: number }[] = [
   { label: 'Schedule', icon: 'calendar' },
   { label: 'Requests', icon: 'inbox' },
+  { label: 'Messages', icon: 'mail' },
   { label: 'Services', icon: 'services' },
   { label: 'Team', icon: 'team' },
   { label: 'Customers', icon: 'customers' },
@@ -182,7 +184,7 @@ function AdminApp() {
   const [activeDayIndex, setActiveDayIndex] = useState(4);
   const [interaction, setInteraction] = useState<PointerInteraction | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Services' | 'Team'>('Schedule');
+  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team'>('Schedule');
   const [adminServices, setAdminServices] = useState<AdminServiceDefinition[]>(() =>
     INITIAL_ADMIN_SERVICES.map((service) => ({ ...service })),
   );
@@ -575,7 +577,7 @@ function AdminApp() {
               key={item.label}
               aria-current={item.label === activeWorkspace ? 'page' : undefined}
               onClick={() => {
-                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Services' || item.label === 'Team') {
+                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Messages' || item.label === 'Services' || item.label === 'Team') {
                   setActiveWorkspace(item.label);
                 } else {
                   setToast(`${item.label} is mapped for the next Chime build.`);
@@ -845,6 +847,8 @@ function AdminApp() {
         </section>
           </>
             )
+          ) : activeWorkspace === 'Messages' ? (
+          <CommunicationStudio api={adminApi} onNotify={setToast} />
           ) : activeWorkspace === 'Services' ? (
           <ServiceStudio
             services={adminServices}
