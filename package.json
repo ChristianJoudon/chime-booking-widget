@@ -5,32 +5,43 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:admin": "vite --config vite.admin.config.ts",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build:admin": "vite build --config vite.admin.config.ts",
+    "build:embed": "vite build --config vite.embed.config.ts",
+    "preview": "vite preview",
+    "test:admin-api": "node scripts/admin-api-smoke.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern dist-admin --ignore-pattern dist-embed --ignore-pattern server/dist",
+    "css:check": "tailwindcss -i ./src/index.css -o /dev/null --minify"
   },
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
-    "framer-motion": "^12.16.0",
-    "prop-types": "^15.8.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "@stripe/react-stripe-js": "3.7.0",
+    "@stripe/stripe-js": "7.3.1",
+    "date-fns": "4.1.0",
+    "framer-motion": "12.16.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.25.0",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
-    "@typescript-eslint/eslint-plugin": "^8.33.1",
-    "@typescript-eslint/parser": "^8.33.1",
-    "@vitejs/plugin-react": "^4.4.1",
-    "autoprefixer": "^10.4.21",
-    "eslint": "^9.25.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.19",
-    "globals": "^16.0.0",
-    "postcss": "^8.5.4",
-    "tailwindcss": "^4.1.8",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5"
-  }
+    "@eslint/js": "9.28.0",
+    "@tailwindcss/cli": "4.1.10",
+    "@tailwindcss/postcss": "4.1.8",
+    "@types/node": "24.0.1",
+    "@types/react": "19.1.6",
+    "@types/react-dom": "19.1.6",
+    "@typescript-eslint/eslint-plugin": "8.33.1",
+    "@typescript-eslint/parser": "8.33.1",
+    "@vitejs/plugin-react": "4.5.1",
+    "autoprefixer": "10.4.21",
+    "eslint": "9.28.0",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "eslint-plugin-react-refresh": "0.4.20",
+    "globals": "16.2.0",
+    "postcss": "8.5.4",
+    "tailwindcss": "4.1.8",
+    "typescript": "5.8.3",
+    "vite": "6.3.5"
+  },
+  "packageManager": "npm@10.9.2"
 }

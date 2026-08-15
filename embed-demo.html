@@ -1,0 +1,169 @@
+<!doctype html>
+<!--
+  Demo HOST page for the embeddable Chime widget.
+  Build first: npm run build:embed, then serve this file (e.g. npx serve .).
+
+  The page deliberately styles its own body, headings, and buttons so any
+  style leakage between host and widget would be immediately visible.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acme Repair Co. — host page with embedded Chime widget</title>
+    <style>
+      /* Deliberately-clashing host styles. The widget must not inherit these,
+         and its own reset/theme must not change anything outside it. */
+      body {
+        font-family: Georgia, serif;
+        background: #f4ecdd;
+        margin: 0;
+      }
+
+      header.host-header {
+        background: #5a3e2b;
+        color: #f4ecdd;
+        margin: 0 0 32px;
+        padding: 28px 32px;
+      }
+
+      h1 {
+        color: #f4ecdd;
+        font-size: 40px;
+        font-style: italic;
+        margin: 0 0 12px;
+        text-decoration: underline;
+      }
+
+      p {
+        color: #4a3728;
+        font-size: 18px;
+        line-height: 1.9;
+        margin: 24px 0;
+      }
+
+      header.host-header p {
+        color: #e8d9be;
+        margin: 0;
+      }
+
+      main.host-main {
+        margin: 0 auto;
+        max-width: 1240px;
+        padding: 0 24px 64px;
+      }
+
+      button {
+        background: #b04a2f;
+        border: 3px dashed #5a3e2b;
+        border-radius: 0;
+        color: #fff;
+        cursor: pointer;
+        font-family: Georgia, serif;
+        font-size: 20px;
+        padding: 18px 36px;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="host-header">
+      <h1>Acme Repair Co.</h1>
+      <p>Family-owned since 1987 — this header, text, and button use the host site's own styling.</p>
+    </header>
+
+    <main class="host-main">
+      <p>
+        Below is the embedded Chime booking widget. Everything above and below it belongs to the
+        host page; if the widget leaked styles, this serif text, the underlined italic heading,
+        or the dashed button would change appearance.
+      </p>
+      <button type="button">Host button</button>
+
+      <p>Book an appointment:</p>
+
+      <div id="chime-widget-root"></div>
+
+      <p>This paragraph after the widget should still look like the rest of the host page.</p>
+    </main>
+
+    <script>
+      window.CHIME_WIDGET_CONFIG = {
+        businessName: 'Acme Repair Co.',
+        location: '123 Main St, Honolulu, HI',
+        payment: { demoMode: true },
+        services: [
+          {
+            id: 'diagnostic',
+            name: 'Diagnostic Visit',
+            description: 'A technician inspects the issue and provides a repair plan and quote.',
+            durationMinutes: 30,
+            depositAmountCents: 2000
+          },
+          {
+            id: 'repair',
+            name: 'Repair Session',
+            description: 'Hands-on repair work for a previously diagnosed problem.',
+            durationMinutes: 60,
+            depositAmountCents: 2000
+          },
+          {
+            id: 'maintenance',
+            name: 'Preventive Maintenance',
+            description: 'Seasonal tune-up and safety check to keep everything running.',
+            durationMinutes: 45,
+            depositAmountCents: 2000
+          }
+        ],
+        availability: (function () {
+          var days = [];
+          var start = new Date();
+          start.setHours(0, 0, 0, 0);
+
+          for (var dayOffset = 1; dayOffset <= 14; dayOffset += 1) {
+            var day = new Date(start);
+            day.setDate(start.getDate() + dayOffset);
+            if (day.getDay() === 0) continue; // closed Sundays
+
+            var dateLabel =
+              day.getFullYear() +
+              '-' +
+              String(day.getMonth() + 1).padStart(2, '0') +
+              '-' +
+              String(day.getDate()).padStart(2, '0');
+
+            var slots = [];
+            // 30-minute slots from 9:00 AM through 4:30 PM.
+            for (var slotIndex = 0; slotIndex < 16; slotIndex += 1) {
+              var startsAt = new Date(day);
+              startsAt.setHours(9, slotIndex * 30, 0, 0);
+              var endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000);
+
+              var hours = startsAt.getHours();
+              var minutes = startsAt.getMinutes();
+              var meridiem = hours >= 12 ? 'PM' : 'AM';
+              var hour12 = hours % 12 === 0 ? 12 : hours % 12;
+              var timeLabel = hour12 + ':' + String(minutes).padStart(2, '0') + ' ' + meridiem;
+
+              slots.push({
+                id: dateLabel + '-slot-' + slotIndex,
+                timeLabel: timeLabel,
+                // Mark a few slots unavailable so the calendar shows mixed days.
+                available: (slotIndex + dayOffset) % 7 !== 0,
+                startsAt: startsAt.toISOString(),
+                endsAt: endsAt.toISOString()
+              });
+            }
+
+            days.push({ date: dateLabel, slots: slots });
+          }
+
+          return days;
+        })()
+      };
+    </script>
+
+    <link rel="stylesheet" href="./dist-embed/chime-widget.css" />
+    <script src="./dist-embed/chime-widget.js" defer></script>
+  </body>
+</html>

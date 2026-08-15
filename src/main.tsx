@@ -1,11 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css'; // ← Import Tailwind styles here
+import App from '@/App';
+import '@/index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-        <App />
-    </React.StrictMode>,
+const mountNode =
+  document.getElementById('chime-widget-root') ?? document.getElementById('root');
+
+if (!mountNode) {
+  throw new Error('Unable to find a widget mount node. Add #chime-widget-root or #root.');
+}
+
+ReactDOM.createRoot(mountNode).render(
+  <React.StrictMode>
+    <App variant="fullpage" />
+  </React.StrictMode>,
 );
-

@@ -2,12 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <title>Chime Booking Widget</title>
+    <style>
+      /* Widget styles are scoped to .chime-widget, so the host page owns the
+         body. Match the widget's gradient tail so overscroll stays on-brand
+         (and never falls back to the UA dark-mode default). */
+      html { background: #f5fbf8; }
+      body { margin: 0; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="chime-widget-root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

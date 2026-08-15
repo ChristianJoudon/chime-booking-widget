@@ -1,0 +1,30 @@
+{
+  "name": "chime-postgres-api-example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "dev:admin": "tsx src/admin/index.ts",
+    "session:admin": "tsx src/admin/create-session.ts",
+    "test:payment-safety": "tsx src/paymentSafetySmoke.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "cors": "2.8.5",
+    "dotenv": "16.5.0",
+    "express": "5.1.0",
+    "pg": "8.16.0",
+    "stripe": "18.2.1"
+  },
+  "devDependencies": {
+    "@types/cors": "2.8.17",
+    "@types/express": "5.0.2",
+    "@types/node": "24.0.1",
+    "@types/pg": "8.15.4",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3"
+  }
+}

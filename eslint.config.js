@@ -1,22 +1,38 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tsParser from '@typescript-eslint/parser'
-import tsPlugin from '@typescript-eslint/eslint-plugin'
+import js from '@eslint/js';
+import globals from 'globals';
+import tsParser from '@typescript-eslint/parser';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  { ignores: ['dist'] },
   {
-    files: ['**/*.{js,jsx,ts,tsx}'],
+    ignores: ['dist/**', 'dist-embed/**', 'node_modules/**', 'server/node_modules/**'],
+  },
+  js.configs.recommended,
+  {
+    files: ['**/*.{js,cjs,mjs}'],
     languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
       parser: tsParser,
+      ecmaVersion: 'latest',
+      sourceType: 'module',
       parserOptions: {
-        ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },
-        sourceType: 'module',
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
       },
     },
     plugins: {
@@ -25,19 +41,12 @@ export default [
       'react-refresh': reactRefresh,
     },
     rules: {
-      ...js.configs.recommended.rules,
+      ...tsPlugin.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
-      'no-unused-vars': 'off',
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'no-undef': 'off',
     },
   },
-  {
-    files: ['tailwind.config.js'],
-    languageOptions: {
-      globals: { module: 'readonly', require: 'readonly' },
-    },
-  },
-]
+];
