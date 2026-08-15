@@ -153,6 +153,28 @@ declare global {
 
 export type CustomerLifecycleStatus = 'active' | 'vip' | 'watchlist' | 'blocked' | 'archived';
 
+export type AdminAvailabilityBlock = {
+  id: string;
+  start: string;
+  end: string;
+};
+
+export type AdminAvailabilityDay = {
+  dayOfWeek: number;
+  key: string;
+  label: string;
+  blocks: AdminAvailabilityBlock[];
+};
+
+export type AdminAvailabilitySchedule = {
+  staffId: string;
+  displayName: string;
+  color: string;
+  timeZone: string;
+  version: number;
+  days: AdminAvailabilityDay[];
+};
+
 export type CustomerTag = {
   id: string;
   name: string;
@@ -286,6 +308,22 @@ function requestKey(): string {
 }
 
 export class AdminApiClient {
+  getAvailabilitySchedules(): Promise<{ schedules: AdminAvailabilitySchedule[] }> {
+    return this.request<{ schedules: AdminAvailabilitySchedule[] }>('/availability/schedules');
+  }
+
+  saveAvailabilitySchedule(
+    staffId: string,
+    version: number,
+    days: Array<{ dayOfWeek: number; blocks: AdminAvailabilityBlock[] }>,
+  ): Promise<{ schedule: AdminAvailabilitySchedule }> {
+    return this.request<{ schedule: AdminAvailabilitySchedule }>(`/availability/schedules/${staffId}`, {
+      method: 'PUT',
+      headers: { 'if-match': String(version) },
+      body: JSON.stringify({ days }),
+    });
+  }
+
   getCustomers(filters: { search?: string; status?: string; tagId?: string } = {}): Promise<{ customers: CustomerDirectoryEntry[] }> {
     const parameters = new URLSearchParams();
     if (filters.search) parameters.set('search', filters.search);

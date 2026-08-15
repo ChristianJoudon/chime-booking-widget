@@ -5,7 +5,7 @@ const { Pool } = pg;
 const apiBaseUrl = (process.env.CHIME_BOOKING_API_BASE_URL ?? 'http://127.0.0.1:8787/api/chime').replace(/\/$/, '');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const nonce = Date.now();
-const email = `payment-safety-${nonce}@example.invalid`;
+const email = `maya.kealoha.${nonce}@example.invalid`;
 let createdBookingId: string | null = null;
 
 interface QuoteRow {
@@ -69,6 +69,24 @@ async function cleanupBooking(bookingId: string): Promise<void> {
           and not exists (select 1 from chime_bookings booking where booking.customer_id = customer.id)`,
       [booking.customer_id],
     );
+    await client.query(
+      `delete from chime_app.appointments appointment
+        using chime_app.customers customer
+        where appointment.customer_id = customer.id
+          and appointment.organization_id = customer.organization_id
+          and lower(customer.email) = lower($1)`,
+      [email],
+    );
+    await client.query(
+      `delete from chime_app.customers customer
+        where lower(customer.email) = lower($1)
+          and not exists (
+            select 1
+              from chime_app.appointments appointment
+             where appointment.customer_id = customer.id
+          )`,
+      [email],
+    );
     await client.query('commit');
   } catch (error) {
     await client.query('rollback');
@@ -107,7 +125,7 @@ try {
     date: '2000-01-01',
     timeLabel: 'Not a real time',
     depositAmountCents: 0,
-    customer: { name: 'Payment Safety Test', email },
+    customer: { name: 'Maya Kealoha', email },
     termsAcceptedAt: new Date().toISOString(),
   };
 

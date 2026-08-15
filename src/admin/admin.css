@@ -1407,6 +1407,7 @@ select:focus-visible,
   .admin-nav button { border-radius: 11px; flex: 0 0 42px; height: 42px; min-height: 42px; }
   .admin-nav button:nth-of-type(n+5) { display: none; }
   .admin-nav button:nth-of-type(6) { display: flex; }
+  .admin-nav button:nth-of-type(7) { display: flex; }
   .admin-main { padding: 0 11px 26px; }
   .admin-topbar { align-items: flex-start; display: grid; gap: 12px; padding: 17px 2px 14px; }
   .admin-topbar__actions { width: 100%; }

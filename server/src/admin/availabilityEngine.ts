@@ -14,6 +14,12 @@ interface WorkingDay {
   end: string;
 }
 
+export interface AvailabilityWorkingBlock {
+  id: string;
+  start: string;
+  end: string;
+}
+
 interface ServiceRow {
   id: string;
   name: string;
@@ -199,6 +205,43 @@ function workingHours(settings: Record<string, unknown> | null): Record<DayKey, 
   })) as Record<DayKey, WorkingDay>;
 }
 
+export function availabilityBlocks(
+  settings: Record<string, unknown>,
+): Record<DayKey, AvailabilityWorkingBlock[]> {
+  const legacyHours = workingHours(settings);
+  const rawHours = isRecord(settings.workingHours)
+    ? settings.workingHours as Record<string, unknown>
+    : {};
+
+  return Object.fromEntries(DAY_KEYS.map((dayKey) => {
+    const day = legacyHours[dayKey];
+    if (!day.enabled) return [dayKey, []];
+    const rawDay = isRecord(rawHours[dayKey]) ? rawHours[dayKey] : {};
+    const rawBlocks = Array.isArray(rawDay.blocks) ? rawDay.blocks : [];
+    const blocks = rawBlocks
+      .map((value, index): AvailabilityWorkingBlock | null => {
+        if (!isRecord(value)) return null;
+        const start = typeof value.start === 'string' ? value.start.slice(0, 5) : '';
+        const end = typeof value.end === 'string' ? value.end.slice(0, 5) : '';
+        if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end) || minutes(start) >= minutes(end)) {
+          return null;
+        }
+        return {
+          id: typeof value.id === 'string' && value.id.trim() ? value.id.trim().slice(0, 80) : `${dayKey}-${index + 1}`,
+          start,
+          end,
+        };
+      })
+      .filter((value): value is AvailabilityWorkingBlock => Boolean(value))
+      .sort((left, right) => minutes(left.start) - minutes(right.start));
+    const coherent = blocks.length > 0
+      && blocks[0].start === day.start
+      && blocks[blocks.length - 1].end === day.end
+      && blocks.every((block, index) => index === 0 || minutes(block.start) >= minutes(blocks[index - 1].end));
+    return [dayKey, coherent ? blocks : [{ id: `${dayKey}-primary`, start: day.start, end: day.end }]];
+  })) as Record<DayKey, AvailabilityWorkingBlock[]>;
+}
+
 function staffLocationIds(staff: StaffRow): string[] {
   const value = isRecord(staff.settings) ? staff.settings.locationIds : [];
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -340,51 +383,53 @@ async function generateAvailability(
         const candidateTimeZone = validTimeZone(
           (locationId ? locationById.get(locationId)?.time_zone : undefined) ?? timeZone,
         );
-        const hours = workingHours(member.settings)[weekday];
-        if (!hours.enabled) continue;
+        const blocks = availabilityBlocks(member.settings)[weekday];
+        if (!blocks.length) continue;
 
-        const workStart = minutes(hours.start);
-        const workEnd = minutes(hours.end);
-        const firstStart = workStart + Number(service.buffer_before_minutes);
-        const duration = Number(service.default_duration_minutes);
-        const increment = Number(service.duration_increment_minutes);
-        const lastEnd = workEnd - Number(service.buffer_after_minutes);
+        for (const block of blocks) {
+          const workStart = minutes(block.start);
+          const workEnd = minutes(block.end);
+          const firstStart = workStart + Number(service.buffer_before_minutes);
+          const duration = Number(service.default_duration_minutes);
+          const increment = Number(service.duration_increment_minutes);
+          const lastEnd = workEnd - Number(service.buffer_after_minutes);
 
-        for (let startMinute = firstStart; startMinute + duration <= lastEnd; startMinute += increment) {
-          const startsAt = zonedDateTime(localDate, timeFromMinutes(startMinute), candidateTimeZone);
-          const endsAt = zonedDateTime(localDate, timeFromMinutes(startMinute + duration), candidateTimeZone);
-          const busyStartsAt = zonedDateTime(
-            localDate,
-            timeFromMinutes(startMinute - Number(service.buffer_before_minutes)),
-            candidateTimeZone,
-          );
-          const busyEndsAt = zonedDateTime(
-            localDate,
-            timeFromMinutes(startMinute + duration + Number(service.buffer_after_minutes)),
-            candidateTimeZone,
-          );
-          if (startsAt.getTime() < now.getTime() + Number(service.minimum_notice_minutes) * 60_000) continue;
-          if (startsAt.getTime() > serviceMax) continue;
-          if (overlapsException(exceptionsByStaff.get(member.id) ?? [], busyStartsAt, busyEndsAt)) continue;
+          for (let startMinute = firstStart; startMinute + duration <= lastEnd; startMinute += increment) {
+            const startsAt = zonedDateTime(localDate, timeFromMinutes(startMinute), candidateTimeZone);
+            const endsAt = zonedDateTime(localDate, timeFromMinutes(startMinute + duration), candidateTimeZone);
+            const busyStartsAt = zonedDateTime(
+              localDate,
+              timeFromMinutes(startMinute - Number(service.buffer_before_minutes)),
+              candidateTimeZone,
+            );
+            const busyEndsAt = zonedDateTime(
+              localDate,
+              timeFromMinutes(startMinute + duration + Number(service.buffer_after_minutes)),
+              candidateTimeZone,
+            );
+            if (startsAt.getTime() < now.getTime() + Number(service.minimum_notice_minutes) * 60_000) continue;
+            if (startsAt.getTime() > serviceMax) continue;
+            if (overlapsException(exceptionsByStaff.get(member.id) ?? [], busyStartsAt, busyEndsAt)) continue;
 
-          const generationKey = `${organizationId}:${service.id}:${startsAt.toISOString()}`;
-          const slot = slots.get(generationKey) ?? {
-            generationKey,
-            serviceId: service.id,
-            startsAt: startsAt.toISOString(),
-            endsAt: endsAt.toISOString(),
-            label: `${timeFromMinutes(startMinute)} · ${service.name}`,
-            candidates: [],
-          };
-          if (!slot.candidates.some((candidate) => candidate.staffMemberId === member.id)) {
-            slot.candidates.push({
-              staffMemberId: member.id,
-              locationId,
-              busyStartsAt: busyStartsAt.toISOString(),
-              busyEndsAt: busyEndsAt.toISOString(),
-            });
+            const generationKey = `${organizationId}:${service.id}:${startsAt.toISOString()}`;
+            const slot = slots.get(generationKey) ?? {
+              generationKey,
+              serviceId: service.id,
+              startsAt: startsAt.toISOString(),
+              endsAt: endsAt.toISOString(),
+              label: `${timeFromMinutes(startMinute)} · ${service.name}`,
+              candidates: [],
+            };
+            if (!slot.candidates.some((candidate) => candidate.staffMemberId === member.id)) {
+              slot.candidates.push({
+                staffMemberId: member.id,
+                locationId,
+                busyStartsAt: busyStartsAt.toISOString(),
+                busyEndsAt: busyEndsAt.toISOString(),
+              });
+            }
+            slots.set(generationKey, slot);
           }
-          slots.set(generationKey, slot);
         }
       }
     }
@@ -443,17 +488,17 @@ async function synchronizeRules(
     [organizationId],
   );
   for (const member of staff) {
-    const hours = workingHours(member.settings);
+    const blocksByDay = availabilityBlocks(member.settings);
     for (let dayOfWeek = 0; dayOfWeek < DAY_KEYS.length; dayOfWeek += 1) {
-      const day = hours[DAY_KEYS[dayOfWeek]];
-      if (!day.enabled) continue;
-      await client.query(
-        `INSERT INTO chime_app.availability_rules (
-           organization_id, subject_type, subject_id, day_of_week,
-           local_start_time, local_end_time, time_zone, capacity, is_active
-         ) VALUES ($1, 'staff', $2, $3, $4::time, $5::time, $6, 1, TRUE)`,
-        [organizationId, member.id, dayOfWeek, day.start, day.end, timeZone],
-      );
+      for (const block of blocksByDay[DAY_KEYS[dayOfWeek]]) {
+        await client.query(
+          `INSERT INTO chime_app.availability_rules (
+             organization_id, subject_type, subject_id, day_of_week,
+             local_start_time, local_end_time, time_zone, capacity, is_active
+           ) VALUES ($1, 'staff', $2, $3, $4::time, $5::time, $6, 1, TRUE)`,
+          [organizationId, member.id, dayOfWeek, block.start, block.end, timeZone],
+        );
+      }
     }
   }
 }
