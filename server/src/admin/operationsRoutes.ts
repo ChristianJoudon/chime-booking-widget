@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
   Router,
   type NextFunction,
@@ -30,6 +30,29 @@ type ProposedChangeInput = {
   locationId: string | null;
   reason: string;
 };
+
+function createCustomerActionToken() {
+  const token = randomBytes(32).toString('base64url');
+  return {
+    token,
+    tokenHash: createHash('sha256').update(token).digest('hex'),
+  };
+}
+
+function customerApprovalUrl(token: string): string {
+  const baseUrl = process.env.CHIME_CUSTOMER_APPROVAL_URL
+    ?? 'http://127.0.0.1:4175/approval.html';
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  return `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
+}
+
+function customerActionExpiry(): Date {
+  const configuredHours = Number(process.env.CHIME_CUSTOMER_ACTION_TTL_HOURS ?? 168);
+  const hours = Number.isFinite(configuredHours)
+    ? Math.min(720, Math.max(1, configuredHours))
+    : 168;
+  return new Date(Date.now() + hours * 60 * 60 * 1000);
+}
 
 function asyncRoute(
   handler: (request: Request, response: Response) => Promise<void>,
@@ -757,6 +780,9 @@ async function requestChange(
     }
 
     const requestId = randomUUID();
+    const customerAction = createCustomerActionToken();
+    const approvalUrl = customerApprovalUrl(customerAction.token);
+    const actionExpiresAt = customerActionExpiry();
     const proposedChanges = {
       startsAt: input.startsAt.toISOString(),
       endsAt: endsAt.toISOString(),
@@ -784,6 +810,27 @@ async function requestChange(
         context.userId,
         JSON.stringify(proposedChanges),
         input.reason,
+      ],
+    );
+    await client.query(
+      `INSERT INTO chime_app.customer_action_tokens (
+         id,
+         organization_id,
+         appointment_id,
+         change_request_id,
+         customer_id,
+         purpose,
+         token_hash,
+         expires_at
+       ) VALUES ($1, $2, $3, $4, $5, 'change_decision', $6, $7)`,
+      [
+        randomUUID(),
+        context.organizationId,
+        appointmentId,
+        requestId,
+        appointment.customer_id,
+        customerAction.tokenHash,
+        actionExpiresAt.toISOString(),
       ],
     );
     await client.query(
@@ -824,6 +871,8 @@ async function requestChange(
         changeRequestId: requestId,
         proposedChanges,
         reason: input.reason,
+        approvalUrl,
+        expiresAt: actionExpiresAt.toISOString(),
       },
       appointment.customer_email,
       'appointment_change_requested',
@@ -852,12 +901,24 @@ async function requestChange(
         requestId,
         appointment.customer_id,
         `${appointment.service_name} has a proposed new time.`,
-        JSON.stringify({ appointmentId, changeRequestId: requestId, proposedChanges }),
+        JSON.stringify({
+          appointmentId,
+          changeRequestId: requestId,
+          proposedChanges,
+          approvalUrl,
+          expiresAt: actionExpiresAt.toISOString(),
+        }),
         `${context.idempotencyKey}:customer-in-app`,
       ],
     );
 
-    return getAppointment(client, context.organizationId, appointmentId);
+    return {
+      appointment: await getAppointment(client, context.organizationId, appointmentId),
+      customerAction: {
+        approvalUrl,
+        expiresAt: actionExpiresAt.toISOString(),
+      },
+    };
   });
 }
 
@@ -918,6 +979,14 @@ async function withdrawChange(
        SET status = 'withdrawn', resolved_at = now(), updated_at = now()
        WHERE organization_id = $1
          AND id = $2`,
+      [context.organizationId, changeRequestId],
+    );
+    await client.query(
+      `UPDATE chime_app.customer_action_tokens
+       SET revoked_at = COALESCE(revoked_at, now())
+       WHERE organization_id = $1
+         AND change_request_id = $2
+         AND used_at IS NULL`,
       [context.organizationId, changeRequestId],
     );
     await client.query(
@@ -998,15 +1067,15 @@ export function createOperationsRouter(pool: Pool) {
     '/appointments/:appointmentId/change-requests',
     requireRoles('owner', 'admin', 'manager'),
     asyncRoute(async (request, response) => {
-      const appointment = await requestChange(
+      const result = await requestChange(
         pool,
         parseUuid(request.params.appointmentId, 'appointmentId'),
         parseExpectedVersion(request.get('if-match')),
         parseChangeInput(request.body),
         mutationContext(request),
       );
-      response.setHeader('ETag', `"${appointment.version}"`);
-      response.status(201).json({ appointment });
+      response.setHeader('ETag', `"${result.appointment.version}"`);
+      response.status(201).json(result);
     }),
   );
 

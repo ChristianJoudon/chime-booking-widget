@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import pg from 'pg';
 import Stripe from 'stripe';
+import { createCustomerApprovalRouter } from './customerApprovalRoutes.js';
 
 const { Pool } = pg;
 
@@ -86,6 +87,8 @@ function requireString(value: unknown, name: string): string {
 app.get('/api/chime/health', (_req, res) => {
   res.json({ ok: true });
 });
+
+app.use('/api/chime/customer-actions', createCustomerApprovalRouter(pool));
 
 app.get('/api/chime/services', async (_req, res, next) => {
   try {

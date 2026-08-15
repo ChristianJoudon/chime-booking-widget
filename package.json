@@ -6,13 +6,16 @@
   "scripts": {
     "dev": "vite",
     "dev:admin": "vite --config vite.admin.config.ts",
+    "dev:approval": "vite --config vite.approval.config.ts",
     "build": "vite build",
     "build:admin": "vite build --config vite.admin.config.ts",
     "build:embed": "vite build --config vite.embed.config.ts",
+    "build:approval": "vite build --config vite.approval.config.ts",
     "preview": "vite preview",
     "test:admin-api": "node scripts/admin-api-smoke.mjs",
+    "test:customer-approval": "node scripts/customer-approval-smoke.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern dist-admin --ignore-pattern dist-embed --ignore-pattern server/dist",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern dist-admin --ignore-pattern dist-embed --ignore-pattern dist-approval --ignore-pattern server/dist",
     "css:check": "tailwindcss -i ./src/index.css -o /dev/null --minify"
   },
   "dependencies": {
