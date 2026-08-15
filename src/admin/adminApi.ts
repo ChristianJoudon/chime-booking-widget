@@ -151,6 +151,110 @@ declare global {
   }
 }
 
+export type CustomerLifecycleStatus = 'active' | 'vip' | 'watchlist' | 'blocked' | 'archived';
+
+export type CustomerTag = {
+  id: string;
+  name: string;
+  color: string;
+  customerCount: number;
+};
+
+export type CustomerDirectoryEntry = {
+  id: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  timeZone: string;
+  marketingConsent: boolean;
+  lifecycleStatus: CustomerLifecycleStatus;
+  preferredChannel: 'email' | 'sms' | 'none';
+  emailNotificationsEnabled: boolean;
+  smsNotificationsEnabled: boolean;
+  locale: string;
+  metadata: Record<string, unknown>;
+  version: number;
+  tags: CustomerTag[];
+  appointmentCount: number;
+  upcomingAppointmentCount: number;
+  completedAppointmentCount: number;
+  nextAppointmentAt: string | null;
+  lastAppointmentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerAppointment = {
+  id: string;
+  referenceCode: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  source: string;
+  customerNotes: string | null;
+  internalNotes: string | null;
+  version: number;
+  serviceName: string;
+  locationName: string | null;
+  staff: Array<{ id: string; displayName: string; color: string }>;
+};
+
+export type CustomerNote = {
+  id: string;
+  body: string;
+  isPinned: boolean;
+  createdByRole: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerCommunication = {
+  id: string;
+  channel: 'email' | 'sms' | 'webhook';
+  recipient: string;
+  templateKey: string;
+  status: string;
+  attemptCount: number;
+  lastError: string | null;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+};
+
+export type CustomerChangeRequest = {
+  id: string;
+  appointmentId: string;
+  referenceCode: string;
+  status: string;
+  reason: string | null;
+  proposedChanges: Record<string, unknown>;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
+export type CustomerProfileResponse = {
+  customer: CustomerDirectoryEntry;
+  appointments: CustomerAppointment[];
+  notes: CustomerNote[];
+  communications: CustomerCommunication[];
+  changeRequests: CustomerChangeRequest[];
+};
+
+export type CustomerUpdateInput = {
+  displayName: string;
+  email?: string | null;
+  phone?: string | null;
+  lifecycleStatus?: CustomerLifecycleStatus;
+  preferredChannel?: 'email' | 'sms' | 'none';
+  emailNotificationsEnabled?: boolean;
+  smsNotificationsEnabled?: boolean;
+  marketingConsent?: boolean;
+  timeZone?: string;
+  locale?: string;
+  metadata?: Record<string, unknown>;
+};
+
 export class AdminApiClientError extends Error {
   readonly status: number;
   readonly code?: string;
@@ -182,6 +286,63 @@ function requestKey(): string {
 }
 
 export class AdminApiClient {
+  getCustomers(filters: { search?: string; status?: string; tagId?: string } = {}): Promise<{ customers: CustomerDirectoryEntry[] }> {
+    const parameters = new URLSearchParams();
+    if (filters.search) parameters.set('search', filters.search);
+    if (filters.status) parameters.set('status', filters.status);
+    if (filters.tagId) parameters.set('tagId', filters.tagId);
+    const query = parameters.toString();
+    return this.request<{ customers: CustomerDirectoryEntry[] }>(`/customers${query ? `?${query}` : ''}`);
+  }
+
+  getCustomer(customerId: string): Promise<CustomerProfileResponse> {
+    return this.request<CustomerProfileResponse>(`/customers/${customerId}`);
+  }
+
+  createCustomer(input: { displayName: string; email?: string; phone?: string }): Promise<{ customer: CustomerDirectoryEntry }> {
+    return this.request<{ customer: CustomerDirectoryEntry }>('/customers', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateCustomer(customerId: string, version: number, input: CustomerUpdateInput): Promise<{ customer: CustomerDirectoryEntry }> {
+    return this.request<{ customer: CustomerDirectoryEntry }>(`/customers/${customerId}`, {
+      method: 'PUT',
+      headers: { 'if-match': String(version) },
+      body: JSON.stringify(input),
+    });
+  }
+
+  getCustomerTags(): Promise<{ tags: CustomerTag[] }> {
+    return this.request<{ tags: CustomerTag[] }>('/customers/tags');
+  }
+
+  createCustomerTag(input: { name: string; color: string }): Promise<{ tag: CustomerTag }> {
+    return this.request<{ tag: CustomerTag }>('/customers/tags', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  setCustomerTags(customerId: string, tagIds: string[]): Promise<{ tags: CustomerTag[] }> {
+    return this.request<{ tags: CustomerTag[] }>(`/customers/${customerId}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify({ tagIds }),
+    });
+  }
+
+  addCustomerNote(customerId: string, input: { body: string; isPinned?: boolean }): Promise<{ note: CustomerNote }> {
+    return this.request<{ note: CustomerNote }>(`/customers/${customerId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  deleteCustomerNote(customerId: string, noteId: string): Promise<void> {
+    return this.request<void>(`/customers/${customerId}/notes/${noteId}`, { method: 'DELETE' });
+  }
+
   readonly configured: boolean;
   private readonly baseUrl: string;
   private readonly token: string;

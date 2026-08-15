@@ -2,6 +2,7 @@ import { createDirectoryRouter } from './directoryRoutes.js';
 import { createAvailabilityRouter } from './availabilityRoutes.js';
 import { createOperationsRouter } from './operationsRoutes.js';
 import { createCommunicationRouter } from './communicationRoutes.js';
+import { createCustomerRouter } from './customerRoutes.js';
 import { randomUUID } from 'node:crypto';
 
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
@@ -42,6 +43,7 @@ export function createAdminRouter(pool: Pool): Router {
   router.use(createAvailabilityRouter(pool));
   router.use(createOperationsRouter(pool));
   router.use(createCommunicationRouter(pool));
+  router.use(createCustomerRouter(pool));
   const services = new ServiceRepository(pool);
 
   router.use((_request, response, next) => {

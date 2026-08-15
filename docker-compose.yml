@@ -26,6 +26,7 @@ services:
       - ./database/migrations/005-operational-booking-workflow.sql:/docker-entrypoint-initdb.d/09-operational-booking-workflow.sql:ro
       - ./database/migrations/006-customer-change-approval.sql:/docker-entrypoint-initdb.d/10-customer-change-approval.sql:ro
       - ./database/migrations/007-notification-delivery.sql:/docker-entrypoint-initdb.d/11-notification-delivery.sql:ro
+      - ./database/migrations/008-customer-crm.sql:/docker-entrypoint-initdb.d/12-customer-crm.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chime -d chime"]
       interval: 5s

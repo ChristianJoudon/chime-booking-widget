@@ -19,6 +19,7 @@ import ServiceStudio from './ServiceStudio';
 import TeamStudio from './TeamStudio';
 import OperationsStudio from './OperationsStudio';
 import CommunicationStudio from './CommunicationStudio';
+import { CustomerStudio } from './CustomerStudio';
 import {
   INITIAL_APPOINTMENTS,
   SCHEDULE_DAYS,
@@ -184,7 +185,7 @@ function AdminApp() {
   const [activeDayIndex, setActiveDayIndex] = useState(4);
   const [interaction, setInteraction] = useState<PointerInteraction | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team'>('Schedule');
+  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team' | 'Customers'>('Schedule');
   const [adminServices, setAdminServices] = useState<AdminServiceDefinition[]>(() =>
     INITIAL_ADMIN_SERVICES.map((service) => ({ ...service })),
   );
@@ -577,7 +578,7 @@ function AdminApp() {
               key={item.label}
               aria-current={item.label === activeWorkspace ? 'page' : undefined}
               onClick={() => {
-                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Messages' || item.label === 'Services' || item.label === 'Team') {
+                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Messages' || item.label === 'Services' || item.label === 'Team' || item.label === 'Customers') {
                   setActiveWorkspace(item.label);
                 } else {
                   setToast(`${item.label} is mapped for the next Chime build.`);
@@ -857,6 +858,8 @@ function AdminApp() {
             onSaveService={saveAdminService}
             persistence={adminPersistence}
           />
+        ) : activeWorkspace === 'Customers' ? (
+          <CustomerStudio api={adminApi} />
         ) : (
           <TeamStudio api={adminApi} onNotify={setToast} />
         )}
