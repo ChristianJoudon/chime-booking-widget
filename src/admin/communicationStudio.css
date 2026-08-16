@@ -79,6 +79,58 @@
 .communication-metrics p { color: #8c9995; font-size: 10px; margin: 0; }
 
 .communication-layout { align-items: start; display: grid; gap: 17px; grid-template-columns: minmax(0, 1.18fr) minmax(380px, .82fr); }
+.communication-layout { grid-template-columns: minmax(330px, .72fr) minmax(520px, 1.28fr); }
+
+.communication-rich-editor { border: 1px solid #d9e5df; border-radius: 13px; overflow: hidden; }
+.communication-editor-mode { align-items: center; background: #f5f8f6; border-bottom: 1px solid #dfe8e4; display: flex; gap: 10px; justify-content: space-between; padding: 8px; }
+.communication-editor-mode > div { display: flex; gap: 5px; }
+.communication-editor-mode button, .communication-imports button { background: transparent; border: 1px solid transparent; border-radius: 8px; color: #667b73; cursor: pointer; font-size: 9px; font-weight: 800; min-height: 29px; padding: 0 9px; }
+.communication-editor-mode button.is-active { background: #fff; border-color: #d5e1dc; box-shadow: 0 3px 9px rgba(34,70,58,.07); color: #245f4e; }
+.communication-imports input { display: none; }
+.communication-imports button { background: #fff; border-color: #d7e2dd; }
+.communication-imported-file { align-items: center; background: #edf7f2; border-bottom: 1px solid #d7e9df; color: #477265; display: flex; font-size: 9px; gap: 7px; padding: 8px 10px; }
+.communication-imported-file span { font-weight: 800; text-transform: uppercase; }
+.communication-imported-file strong { color: #245d4d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.communication-imported-file button { background: transparent; border: 0; color: #72877f; cursor: pointer; font-size: 9px; margin-left: auto; }
+.communication-format-toolbar { align-items: center; background: #fff; border-bottom: 1px solid #e0e8e4; display: flex; flex-wrap: wrap; gap: 3px; padding: 7px; }
+.communication-format-toolbar > span { background: #dfe6e2; height: 22px; margin: 0 3px; width: 1px; }
+.communication-format-toolbar select { appearance: none; background: #f7f9f8; border: 1px solid #dce5e1; border-radius: 7px; color: #405e54; font-size: 9px; font-weight: 700; height: 28px; padding: 0 23px 0 8px; }
+.communication-format-toolbar button { align-items: center; background: transparent; border: 0; border-radius: 6px; color: #405e54; cursor: pointer; display: flex; font-size: 11px; height: 28px; justify-content: center; min-width: 28px; padding: 0 6px; }
+.communication-format-toolbar button:hover { background: #edf4f1; color: #1f5d4b; }
+.communication-color { align-items: center; cursor: pointer; display: flex; height: 28px; justify-content: center; position: relative; width: 28px; }
+.communication-color input { height: 1px; opacity: 0; position: absolute; width: 1px; }
+.communication-color i { border-bottom: 4px solid #2e7760; height: 15px; position: relative; width: 15px; }
+.communication-color i::before { content: 'A'; font-size: 11px; font-style: normal; font-weight: 800; left: 3px; position: absolute; top: -3px; }
+.communication-contenteditable { background: #fff; color: #273f37; font: 14px/1.65 'Helvetica Neue', Arial, sans-serif; min-height: 240px; outline: none; overflow: auto; padding: 18px; }
+.communication-contenteditable:focus { box-shadow: inset 0 0 0 2px rgba(60,151,116,.16); }
+.communication-contenteditable img { height: auto; max-width: 100%; }
+.communication-html-source { display: grid; gap: 0 !important; }
+.communication-html-source > span { background: #fff; color: #6f827a; font-size: 9px; font-weight: 800; padding: 9px 11px 0; text-transform: uppercase; }
+.communication-html-source textarea { background: #173b32 !important; border: 0 !important; border-radius: 0 !important; color: #dcefe7 !important; font: 11px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace !important; min-height: 280px !important; padding: 14px !important; resize: vertical; }
+.communication-tokens button { background: #eff5f2; border: 1px solid #dce8e2; border-radius: 99px; color: #477266; cursor: pointer; font: 700 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 5px 8px; }
+.communication-email-preview { border: 1px solid #d8e4de; border-radius: 14px; margin-top: 14px; overflow: hidden; }
+.communication-email-preview__heading { align-items: center; background: #173f35; color: #fff; display: flex; justify-content: space-between; padding: 12px 14px; }
+.communication-email-preview__heading small, .communication-email-preview__heading strong { display: block; }
+.communication-email-preview__heading small { color: #9fd1bd; font-size: 8px; font-weight: 850; letter-spacing: .12em; margin-bottom: 3px; text-transform: uppercase; }
+.communication-email-preview__heading strong { font-size: 13px; }
+.communication-email-preview__heading > span { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.12); border-radius: 99px; color: #b6dece; font-size: 8px; font-weight: 800; padding: 5px 8px; text-transform: uppercase; }
+.communication-email-envelope { background: #fff; border-bottom: 1px solid #dfe7e3; padding: 8px 13px; }
+.communication-email-envelope > div { display: grid; gap: 8px; grid-template-columns: 46px minmax(0,1fr); padding: 4px 0; }
+.communication-email-envelope span { color: #8a9893; font-size: 9px; }
+.communication-email-envelope strong { color: #415e55; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.communication-email-preview iframe { background: #f4f6f5; border: 0; display: block; height: 430px; width: 100%; }
+.communication-email-preview > p { background: #f7faf8; border-top: 1px solid #e0e8e4; color: #788b84; font-size: 9px; line-height: 1.5; margin: 0; padding: 9px 12px; }
+
+@media (max-width: 1160px) {
+  .communication-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .communication-editor-mode { align-items: stretch; flex-direction: column; }
+  .communication-imports { flex-wrap: wrap; }
+  .communication-format-toolbar > span { display: none; }
+  .communication-email-preview iframe { height: 360px; }
+}
 .communication-queue,
 .communication-templates { background: rgba(255,255,255,.86); border: 1px solid var(--comm-border); border-radius: 21px; min-width: 0; overflow: hidden; }
 .communication-section-heading { align-items: center; border-bottom: 1px solid #e3ebe8; display: flex; justify-content: space-between; padding: 19px 20px 16px; }

@@ -47,6 +47,37 @@ function optionalSubject(value: unknown): string | null {
   return requiredText(value, 'subjectTemplate', 500);
 }
 
+function sanitizeEmailHtml(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') {
+    throw new AdminApiError(400, 'INVALID_EMAIL_HTML', 'Email HTML must be text.');
+  }
+  if (value.length > 2_500_000) {
+    throw new AdminApiError(400, 'EMAIL_HTML_TOO_LARGE', 'Imported email content must be smaller than 2.5 MB.');
+  }
+  const sanitized = value
+    .replace(/<\s*(script|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/<\s*(script|iframe|object|embed|form|input|button|meta|base|link)\b[^>]*\/?\s*>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, ' $1="#"')
+    .trim();
+  return sanitized || null;
+}
+
+function contentFormat(value: unknown, hasHtml: boolean): 'plain' | 'rich' | 'html' | 'image' {
+  if (!hasHtml) return 'plain';
+  if (value === 'rich' || value === 'html' || value === 'image') return value;
+  return 'rich';
+}
+
+function optionalAssetName(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') {
+    throw new AdminApiError(400, 'INVALID_ASSET_NAME', 'Imported asset name must be text.');
+  }
+  return value.trim().slice(0, 255) || null;
+}
+
 function channel(value: string): 'email' | 'sms' | 'push' | 'webhook' {
   if (!CHANNELS.has(value)) {
     throw new AdminApiError(400, 'INVALID_CHANNEL', 'Channel must be email, sms, push, or webhook.');
@@ -88,6 +119,9 @@ function mapTemplate(row: Record<string, unknown>) {
     displayName: row.display_name,
     subjectTemplate: row.subject_template,
     bodyTemplate: row.body_template,
+    bodyHtml: row.body_html ?? null,
+    contentFormat: row.content_format ?? 'plain',
+    sourceAssetName: row.source_asset_name ?? null,
     isActive: row.is_active,
     version: Number(row.version),
     updatedAt: iso(row.updated_at),
@@ -232,7 +266,8 @@ export function createCommunicationRouter(pool: Pool): Router {
     const session = getAdminSession(request);
     const result = await pool.query(
       `SELECT id, template_key, channel, display_name,
-         subject_template, body_template, is_active, version, updated_at
+         subject_template, body_template, body_html, content_format,
+         source_asset_name, is_active, version, updated_at
        FROM chime_app.notification_templates
        WHERE organization_id = $1
        ORDER BY display_name, channel`,
@@ -252,13 +287,21 @@ export function createCommunicationRouter(pool: Pool): Router {
       const displayName = requiredText(request.body?.displayName, 'displayName', 160);
       const subjectTemplate = optionalSubject(request.body?.subjectTemplate);
       const bodyTemplate = requiredText(request.body?.bodyTemplate, 'bodyTemplate', 10000);
+      const bodyHtml = templateChannel === 'email'
+        ? sanitizeEmailHtml(request.body?.bodyHtml)
+        : null;
+      const format = contentFormat(request.body?.contentFormat, Boolean(bodyHtml));
+      const sourceAssetName = bodyHtml ? optionalAssetName(request.body?.sourceAssetName) : null;
       const isActive = request.body?.isActive !== false;
       const result = await pool.query(
         `UPDATE chime_app.notification_templates
          SET display_name = $5,
              subject_template = $6,
              body_template = $7,
-             is_active = $8,
+             body_html = $8,
+             content_format = $9,
+             source_asset_name = $10,
+             is_active = $11,
              version = version + 1,
              updated_at = now()
          WHERE organization_id = $1
@@ -266,7 +309,8 @@ export function createCommunicationRouter(pool: Pool): Router {
            AND channel = $3
            AND version = $4
          RETURNING id, template_key, channel, display_name,
-           subject_template, body_template, is_active, version, updated_at`,
+           subject_template, body_template, body_html, content_format,
+           source_asset_name, is_active, version, updated_at`,
         [
           session.organizationId,
           templateKey,
@@ -275,6 +319,9 @@ export function createCommunicationRouter(pool: Pool): Router {
           displayName,
           subjectTemplate,
           bodyTemplate,
+          bodyHtml,
+          format,
+          sourceAssetName,
           isActive,
         ],
       );

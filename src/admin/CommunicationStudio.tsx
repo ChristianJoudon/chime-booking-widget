@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 
 import {
   AdminApiClientError,
@@ -59,6 +59,57 @@ function templatePreview(value: string | null): string {
     replacements[key] ?? `[${key}]`);
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function plainTextToHtml(value: string): string {
+  return value
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replaceAll('\n', '<br>')}</p>`)
+    .join('');
+}
+
+function htmlToPlainText(value: string): string {
+  const document = new DOMParser().parseFromString(value, 'text/html');
+  return (document.body.textContent ?? '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function sanitizeImportedHtml(value: string): string {
+  const document = new DOMParser().parseFromString(value, 'text/html');
+  document.querySelectorAll('script, iframe, object, embed, form, input, button, meta, base, link')
+    .forEach((element) => element.remove());
+  document.querySelectorAll('*').forEach((element) => {
+    [...element.attributes].forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+      const attributeValue = attribute.value.trim().toLowerCase();
+      if (name.startsWith('on') || ((name === 'href' || name === 'src') && attributeValue.startsWith('javascript:'))) {
+        element.removeAttribute(attribute.name);
+      }
+    });
+  });
+  const styles = [...document.querySelectorAll('head style')].map((style) => style.outerHTML).join('');
+  return `${styles}${document.body.innerHTML}`.trim();
+}
+
+function previewDocument(content: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>
+    html,body{margin:0;padding:0;background:#f4f6f5;color:#273f37;font-family:Helvetica Neue,Arial,sans-serif}
+    .email-shell{max-width:680px;margin:0 auto;padding:28px 16px}.email-paper{background:#fff;border:1px solid #dde6e1;border-radius:14px;box-shadow:0 12px 35px rgba(35,69,58,.08);overflow:hidden}
+    .email-content{padding:32px;line-height:1.65;font-size:15px}.email-content img{display:block;height:auto;max-width:100%}.email-content a{color:#26765b}.email-content p:first-child{margin-top:0}.email-content p:last-child{margin-bottom:0}
+    @media(max-width:540px){.email-shell{padding:10px}.email-content{padding:22px 18px}}
+  </style></head><body><div class="email-shell"><div class="email-paper"><div class="email-content">${content}</div></div></div></body></html>`;
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof AdminApiClientError) return error.message;
   if (error instanceof Error) return error.message;
@@ -74,6 +125,10 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editorView, setEditorView] = useState<'compose' | 'html'>('compose');
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const htmlFileRef = useRef<HTMLInputElement | null>(null);
+  const imageFileRef = useRef<HTMLInputElement | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,9 +156,112 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!editorRef.current || !draft || draft.channel !== 'email' || editorView !== 'compose') return;
+    const nextHtml = draft.bodyHtml?.trim() || plainTextToHtml(draft.bodyTemplate);
+    if (editorRef.current.innerHTML !== nextHtml) editorRef.current.innerHTML = nextHtml;
+  }, [selectedTemplateId, editorView]);
+
   const selectTemplate = (template: AdminCommunicationTemplate) => {
     setSelectedTemplateId(template.id);
     setDraft({ ...template });
+    setEditorView(template.contentFormat === 'html' ? 'html' : 'compose');
+  };
+
+  const updateFromComposer = () => {
+    if (!editorRef.current) return;
+    const bodyHtml = editorRef.current.innerHTML;
+    setDraft((current) => current ? {
+      ...current,
+      bodyHtml,
+      bodyTemplate: htmlToPlainText(bodyHtml) || current.bodyTemplate,
+      contentFormat: 'rich',
+      sourceAssetName: null,
+    } : current);
+  };
+
+  const formatComposer = (command: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+    updateFromComposer();
+  };
+
+  const insertLink = () => {
+    const url = window.prompt('Paste the full link, beginning with https://');
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      setError('Links must begin with http:// or https://.');
+      return;
+    }
+    formatComposer('createLink', url);
+  };
+
+  const insertToken = (token: string) => {
+    if (editorView === 'compose') {
+      formatComposer('insertText', token);
+      return;
+    }
+    setDraft((current) => current ? {
+      ...current,
+      bodyHtml: `${current.bodyHtml ?? ''}${token}`,
+      bodyTemplate: `${current.bodyTemplate}${token}`,
+    } : current);
+  };
+
+  const importHtml = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !draft) return;
+    if (file.size > 1_000_000) {
+      setError('HTML newsletter files must be smaller than 1 MB.');
+      return;
+    }
+    const bodyHtml = sanitizeImportedHtml(await file.text());
+    if (!bodyHtml) {
+      setError('That HTML file does not contain usable email content.');
+      return;
+    }
+    setDraft({
+      ...draft,
+      bodyHtml,
+      bodyTemplate: htmlToPlainText(bodyHtml) || 'Imported HTML newsletter',
+      contentFormat: 'html',
+      sourceAssetName: file.name,
+    });
+    setEditorView('html');
+    setError(null);
+    onNotify('HTML newsletter imported for preview.');
+  };
+
+  const importPng = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !draft) return;
+    if (file.type !== 'image/png') {
+      setError('Choose a PNG newsletter image.');
+      return;
+    }
+    if (file.size > 1_800_000) {
+      setError('PNG newsletters must be smaller than 1.8 MB.');
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Image could not be read.'));
+      reader.onerror = () => reject(new Error('Image could not be read.'));
+      reader.readAsDataURL(file);
+    });
+    const bodyHtml = `<div style="text-align:center"><img src="${dataUrl}" alt="${escapeHtml(file.name.replace(/\.png$/i, ''))}" style="display:block;width:100%;max-width:680px;height:auto;margin:0 auto"></div>`;
+    setDraft({
+      ...draft,
+      bodyHtml,
+      bodyTemplate: `Newsletter image: ${file.name}`,
+      contentFormat: 'image',
+      sourceAssetName: file.name,
+    });
+    setEditorView('html');
+    setError(null);
+    onNotify('PNG newsletter imported for preview.');
   };
 
   const processReady = async () => {
@@ -155,7 +313,14 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
     setWorking('template');
     setError(null);
     try {
-      const saved = await api.saveCommunicationTemplate(draft);
+      const prepared = draft.channel === 'email' && draft.bodyHtml
+        ? {
+            ...draft,
+            bodyHtml: sanitizeImportedHtml(draft.bodyHtml),
+            bodyTemplate: htmlToPlainText(draft.bodyHtml) || draft.bodyTemplate,
+          }
+        : draft;
+      const saved = await api.saveCommunicationTemplate(prepared);
       setTemplates((current) => current.map((item) => item.id === saved.id ? saved : item));
       setDraft(saved);
       onNotify('Message template saved. New deliveries will use it immediately.');
@@ -304,22 +469,111 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
                   <input value={draft.subjectTemplate ?? ''} onChange={(event) => setDraft({ ...draft, subjectTemplate: event.target.value })} />
                 </label>
               ) : null}
-              <label>
-                <span>Message body</span>
-                <textarea value={draft.bodyTemplate} onChange={(event) => setDraft({ ...draft, bodyTemplate: event.target.value })} />
-              </label>
+              {draft.channel === 'email' ? (
+                <div className="communication-rich-editor">
+                  <div className="communication-editor-mode">
+                    <div>
+                      <button className={editorView === 'compose' ? 'is-active' : ''} type="button" onClick={() => setEditorView('compose')}>Compose</button>
+                      <button className={editorView === 'html' ? 'is-active' : ''} type="button" onClick={() => setEditorView('html')}>HTML</button>
+                    </div>
+                    <div className="communication-imports">
+                      <input ref={htmlFileRef} type="file" accept=".html,.htm,text/html" onChange={(event) => void importHtml(event)} />
+                      <input ref={imageFileRef} type="file" accept=".png,image/png" onChange={(event) => void importPng(event)} />
+                      <button type="button" onClick={() => htmlFileRef.current?.click()}>Import HTML</button>
+                      <button type="button" onClick={() => imageFileRef.current?.click()}>Add newsletter PNG</button>
+                    </div>
+                  </div>
+                  {draft.sourceAssetName ? <div className="communication-imported-file"><span>Imported</span><strong>{draft.sourceAssetName}</strong><button type="button" onClick={() => setDraft({ ...draft, sourceAssetName: null })}>Clear label</button></div> : null}
+                  {editorView === 'compose' ? (
+                    <>
+                      <div className="communication-format-toolbar" aria-label="Email formatting">
+                        <select aria-label="Font" defaultValue="Helvetica Neue" onChange={(event) => formatComposer('fontName', event.target.value)}>
+                          <option value="Helvetica Neue">Sans serif</option>
+                          <option value="Georgia">Serif</option>
+                          <option value="Courier New">Monospace</option>
+                          <option value="Trebuchet MS">Friendly</option>
+                        </select>
+                        <select aria-label="Text size" defaultValue="3" onChange={(event) => formatComposer('fontSize', event.target.value)}>
+                          <option value="2">Small</option>
+                          <option value="3">Normal</option>
+                          <option value="5">Large</option>
+                          <option value="6">Heading</option>
+                        </select>
+                        <span />
+                        <button type="button" title="Bold" aria-label="Bold" onClick={() => formatComposer('bold')}><b>B</b></button>
+                        <button type="button" title="Italic" aria-label="Italic" onClick={() => formatComposer('italic')}><i>I</i></button>
+                        <button type="button" title="Underline" aria-label="Underline" onClick={() => formatComposer('underline')}><u>U</u></button>
+                        <label className="communication-color" title="Text color"><input aria-label="Text color" type="color" defaultValue="#23443a" onChange={(event) => formatComposer('foreColor', event.target.value)} /><i /></label>
+                        <span />
+                        <button type="button" title="Bulleted list" aria-label="Bulleted list" onClick={() => formatComposer('insertUnorderedList')}>•</button>
+                        <button type="button" title="Numbered list" aria-label="Numbered list" onClick={() => formatComposer('insertOrderedList')}>1.</button>
+                        <button type="button" title="Align left" aria-label="Align left" onClick={() => formatComposer('justifyLeft')}>≡</button>
+                        <button type="button" title="Center" aria-label="Center" onClick={() => formatComposer('justifyCenter')}>≣</button>
+                        <button type="button" title="Add link" aria-label="Add link" onClick={insertLink}>↗</button>
+                        <button type="button" title="Remove formatting" aria-label="Remove formatting" onClick={() => formatComposer('removeFormat')}>Tx</button>
+                      </div>
+                      <div
+                        ref={editorRef}
+                        className="communication-contenteditable"
+                        contentEditable
+                        role="textbox"
+                        aria-label="Rich email body"
+                        aria-multiline="true"
+                        onInput={updateFromComposer}
+                        suppressContentEditableWarning
+                      />
+                    </>
+                  ) : (
+                    <label className="communication-html-source">
+                      <span>Email HTML</span>
+                      <textarea
+                        spellCheck={false}
+                        value={draft.bodyHtml ?? plainTextToHtml(draft.bodyTemplate)}
+                        onChange={(event) => {
+                          const bodyHtml = event.target.value;
+                          setDraft({ ...draft, bodyHtml, bodyTemplate: htmlToPlainText(bodyHtml) || draft.bodyTemplate, contentFormat: 'html' });
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              ) : (
+                <label>
+                  <span>Message body</span>
+                  <textarea value={draft.bodyTemplate} onChange={(event) => setDraft({ ...draft, bodyTemplate: event.target.value })} />
+                </label>
+              )}
               <div className="communication-tokens">
                 <small>Personalization tokens</small>
-                <span>{'{{customer.name}}'}</span>
-                <span>{'{{appointment.when}}'}</span>
-                <span>{'{{service.name}}'}</span>
-                <span>{'{{approval.url}}'}</span>
+                <button type="button" onClick={() => insertToken('{{customer.name}}')}>{'{{customer.name}}'}</button>
+                <button type="button" onClick={() => insertToken('{{appointment.when}}')}>{'{{appointment.when}}'}</button>
+                <button type="button" onClick={() => insertToken('{{service.name}}')}>{'{{service.name}}'}</button>
+                <button type="button" onClick={() => insertToken('{{approval.url}}')}>{'{{approval.url}}'}</button>
               </div>
-              <div className="communication-preview">
-                <small>Customer preview</small>
-                {draft.subjectTemplate ? <strong>{templatePreview(draft.subjectTemplate)}</strong> : null}
-                <p>{templatePreview(draft.bodyTemplate)}</p>
-              </div>
+              {draft.channel === 'email' ? (
+                <div className="communication-email-preview">
+                  <div className="communication-email-preview__heading">
+                    <div><small>Before it sends</small><strong>Customer email preview</strong></div>
+                    <span>Sandboxed</span>
+                  </div>
+                  <div className="communication-email-envelope">
+                    <div><span>From</span><strong>Your business via Chime</strong></div>
+                    <div><span>To</span><strong>Maya &lt;maya@example.com&gt;</strong></div>
+                    <div><span>Subject</span><strong>{templatePreview(draft.subjectTemplate) || 'No subject yet'}</strong></div>
+                  </div>
+                  <iframe
+                    title="Email preview"
+                    sandbox=""
+                    srcDoc={previewDocument(templatePreview(draft.bodyHtml) || plainTextToHtml(templatePreview(draft.bodyTemplate)))}
+                  />
+                  <p>Previewing and importing do not send anything. Only queued deliveries can be processed.</p>
+                </div>
+              ) : (
+                <div className="communication-preview">
+                  <small>Customer preview</small>
+                  <p>{templatePreview(draft.bodyTemplate)}</p>
+                </div>
+              )}
               <div className="communication-editor__footer">
                 <label className="communication-toggle">
                   <input type="checkbox" checked={draft.isActive} onChange={(event) => setDraft({ ...draft, isActive: event.target.checked })} />

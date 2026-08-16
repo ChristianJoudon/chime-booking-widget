@@ -5,6 +5,10 @@ import { createWidgetConfigRouter } from './widgetConfigRoutes.js';
 import { createOperationsRouter } from './operationsRoutes.js';
 import { createCommunicationRouter } from './communicationRoutes.js';
 import { createCustomerRouter } from './customerRoutes.js';
+import { createPaymentRouter } from './paymentRoutes.js';
+import { createInsightRouter } from './insightRoutes.js';
+import { createBusinessSettingsRouter } from './businessSettingsRoutes.js';
+import { createLaunchRouter } from './launchRoutes.js';
 import { randomUUID } from 'node:crypto';
 
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
@@ -48,6 +52,10 @@ export function createAdminRouter(pool: Pool): Router {
   router.use(createOperationsRouter(pool));
   router.use(createCommunicationRouter(pool));
   router.use(createCustomerRouter(pool));
+  router.use(createPaymentRouter(pool));
+  router.use(createInsightRouter(pool));
+  router.use(createBusinessSettingsRouter(pool));
+  router.use(createLaunchRouter(pool));
   const services = new ServiceRepository(pool);
 
   router.use((_request, response, next) => {

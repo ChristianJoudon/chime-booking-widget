@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#173f34" />
+    <title>Book an appointment | Chime</title>
+    <link rel="stylesheet" href="./embed/chime-widget.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body { background: radial-gradient(circle at 12% 0%, #e8f5ee 0, transparent 36%), #f8faf8; color: #173f34; margin: 0; min-height: 100vh; }
+      .hosted-brand { align-items: center; display: flex; font: 800 18px/1.2 'Avenir Next', sans-serif; gap: 9px; left: 22px; letter-spacing: -.03em; position: fixed; top: 18px; z-index: 10; }
+      .hosted-brand span { background: #f2c962; border: 3px solid #2d8468; border-radius: 12px 12px 8px 8px; display: inline-block; height: 27px; position: relative; width: 28px; }
+      .hosted-brand span::after { background: #2d8468; border-radius: 99px; bottom: -7px; content: ''; height: 6px; left: 8px; position: absolute; width: 6px; }
+      .hosted-shell { margin: 0 auto; max-width: 1080px; min-height: 100vh; padding: 70px 18px 28px; }
+      [data-chime-widget] { min-height: calc(100vh - 98px); }
+      @media (max-width: 620px) { .hosted-brand { left: 14px; top: 12px; } .hosted-shell { padding: 58px 0 0; } }
+    </style>
+  </head>
+  <body>
+    <div class="hosted-brand"><span aria-hidden="true"></span><b>Chime</b></div>
+    <main class="hosted-shell"><div data-chime-widget data-chime-display="inline"></div></main>
+    <script>
+      const parameters = new URLSearchParams(window.location.search);
+      const apiBaseUrl = parameters.get('api') || 'http://127.0.0.1:8787/api/chime';
+      const businessName = parameters.get('name') || 'Book an appointment';
+      window.CHIME_WIDGET_CONFIG = { businessName, api: { baseUrl: apiBaseUrl } };
+      document.title = `${businessName} | Chime`;
+    </script>
+    <script src="./embed/chime-widget.js"></script>
+  </body>
+</html>

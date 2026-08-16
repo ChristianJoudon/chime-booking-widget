@@ -34,6 +34,7 @@ interface ClaimedDelivery {
 interface RenderedMessage {
   subject: string | null;
   body: string;
+  html: string | null;
   eventType: string | null;
 }
 
@@ -135,6 +136,21 @@ function render(source: string | null, context: Record<string, unknown>): string
     textValue(pathValue(context, path), ''));
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function renderHtml(source: string | null, context: Record<string, unknown>): string | null {
+  if (source === null) return null;
+  return source.replace(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g, (_match, path: string) =>
+    escapeHtml(textValue(pathValue(context, path), '')));
+}
+
 function appointmentWhen(startsAt: unknown, timeZone: unknown): string {
   if (!startsAt) return 'the scheduled time';
   const date = new Date(String(startsAt));
@@ -210,6 +226,7 @@ async function loadRenderedMessage(pool: Pool, delivery: ClaimedDelivery): Promi
        outbox.payload,
        template.subject_template,
        template.body_template,
+       template.body_html,
        appointment.reference_code,
        appointment.starts_at,
        appointment.time_zone,
@@ -295,6 +312,7 @@ async function loadRenderedMessage(pool: Pool, delivery: ClaimedDelivery): Promi
     eventType: row.event_type ? String(row.event_type) : null,
     subject: render(row.subject_template ?? fallback.subject, context),
     body: render(row.body_template ?? fallback.body, context) ?? fallback.body,
+    html: renderHtml(row.body_html ?? null, context),
   };
 }
 
@@ -319,6 +337,7 @@ async function sendLive(
         to: [delivery.recipient],
         subject: message.subject ?? 'An update from Chime',
         text: message.body,
+        ...(message.html ? { html: message.html } : {}),
       }),
     });
     const body = await response.json().catch(() => ({})) as Record<string, unknown>;
@@ -367,6 +386,7 @@ async function sendLive(
       eventType: message.eventType,
       subject: message.subject,
       body: message.body,
+      html: message.html,
     });
     const signature = config.webhookSecret
       ? createHmac('sha256', config.webhookSecret).update(body).digest('hex')
@@ -469,6 +489,7 @@ async function finishSuccess(
           eventType: message.eventType,
           subjectLength: message.subject?.length ?? 0,
           bodyLength: message.body.length,
+          htmlLength: message.html?.length ?? 0,
         }),
         JSON.stringify(provider.responseSummary),
       ],

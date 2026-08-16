@@ -27,6 +27,53 @@
   --radius-md: 16px;
 }
 
+/* Portable host controls intentionally sit outside .chime-widget. Every rule is
+   namespaced so a customer website cannot accidentally restyle the launcher. */
+.chime-embed-launcher {
+  align-items: center;
+  appearance: none;
+  background: #347f65;
+  border: 1px solid rgba(22, 66, 52, .14);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(24, 63, 51, .18);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font: 750 15px/1.2 'Manrope', 'Avenir Next', sans-serif;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 20px;
+}
+
+.chime-embed-launcher--floating_button {
+  bottom: 22px;
+  position: fixed;
+  right: 22px;
+  z-index: 2147483000;
+}
+
+.chime-embed-dialog {
+  background: transparent;
+  border: 0;
+  height: min(880px, calc(100dvh - 32px));
+  max-height: none;
+  max-width: none;
+  overflow: visible;
+  padding: 0;
+  width: min(720px, calc(100vw - 32px));
+}
+
+.chime-embed-dialog::backdrop { background: rgba(15, 42, 34, .52); backdrop-filter: blur(4px); }
+.chime-embed-dialog__surface { background: #f8faf8; border-radius: 24px; box-shadow: 0 28px 80px rgba(14, 42, 33, .28); height: 100%; overflow: auto; position: relative; }
+.chime-embed-dialog__widget { min-height: 100%; }
+.chime-embed-dialog__close { align-items: center; appearance: none; background: rgba(255,255,255,.94); border: 1px solid #dce7e1; border-radius: 99px; color: #35564a; cursor: pointer; display: flex; font: 500 25px/1 sans-serif; height: 38px; justify-content: center; padding: 0 0 3px; position: absolute; right: 12px; top: 12px; width: 38px; z-index: 20; }
+
+@media (max-width: 620px) {
+  .chime-embed-launcher--floating_button { bottom: 14px; left: 14px; right: 14px; width: calc(100% - 28px); }
+  .chime-embed-dialog { height: 100dvh; width: 100vw; }
+  .chime-embed-dialog__surface { border-radius: 0; }
+}
+
 /* No-code brand variables are supplied inline by App so portable embeds remain
    self-contained and do not inherit a host website's visual system. */
 .chime-widget {

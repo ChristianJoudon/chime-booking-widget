@@ -22,6 +22,10 @@ import CommunicationStudio from './CommunicationStudio';
 import { CustomerStudio } from './CustomerStudio';
 import AvailabilityStudio from './AvailabilityStudio';
 import WidgetStudio from './WidgetStudio';
+import PaymentsStudio from './PaymentsStudio';
+import InsightsStudio from './InsightsStudio';
+import SettingsStudio from './SettingsStudio';
+import LaunchStudio from './LaunchStudio';
 import chimeBellLogo from '@/assets/brand/chime-bell.png';
 import chimeWordmarkLogo from '@/assets/brand/chime-wordmark.png';
 import {
@@ -44,6 +48,7 @@ type IconName =
   | 'customers'
   | 'insights'
   | 'palette'
+  | 'payments'
   | 'settings'
   | 'search'
   | 'bell'
@@ -76,6 +81,7 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
   customers: <><circle cx="12" cy="8" r="4" /><path d="M4.5 21c.6-5.2 3.1-7.8 7.5-7.8s6.9 2.6 7.5 7.8" /></>,
   insights: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
   palette: <><path d="M12 3a9 9 0 1 0 0 18h1.3a1.8 1.8 0 0 0 0-3.6h-.8a2 2 0 0 1 0-4H16a5 5 0 0 0 5-5C21 5.4 17 3 12 3Z" /><circle cx="7.5" cy="10" r="1" /><circle cx="10" cy="6.5" r="1" /><circle cx="15" cy="7" r="1" /></>,
+  payments: <><rect x="2.5" y="5" width="19" height="14" rx="3" /><path d="M2.5 10h19M7 15h3" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
@@ -142,8 +148,10 @@ const NAV_ITEMS: readonly { label: string; icon: IconName; badge?: number }[] = 
   { label: 'Team', icon: 'team' },
   { label: 'Availability', icon: 'calendar' },
   { label: 'Customers', icon: 'customers' },
+  { label: 'Payments', icon: 'payments' },
   { label: 'Insights', icon: 'insights' },
   { label: 'Widget designer', icon: 'palette' },
+  { label: 'Launch', icon: 'send' },
 ];
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -190,7 +198,7 @@ function AdminApp() {
   const [activeDayIndex, setActiveDayIndex] = useState(4);
   const [interaction, setInteraction] = useState<PointerInteraction | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team' | 'Availability' | 'Customers' | 'Widget designer'>('Schedule');
+  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team' | 'Availability' | 'Customers' | 'Payments' | 'Insights' | 'Widget designer' | 'Launch' | 'Settings'>('Schedule');
   const [adminServices, setAdminServices] = useState<AdminServiceDefinition[]>(() =>
     INITIAL_ADMIN_SERVICES.map((service) => ({ ...service })),
   );
@@ -581,7 +589,7 @@ function AdminApp() {
               key={item.label}
               aria-current={item.label === activeWorkspace ? 'page' : undefined}
               onClick={() => {
-                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Messages' || item.label === 'Services' || item.label === 'Team' || item.label === 'Availability' || item.label === 'Customers' || item.label === 'Widget designer') {
+                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Messages' || item.label === 'Services' || item.label === 'Team' || item.label === 'Availability' || item.label === 'Customers' || item.label === 'Payments' || item.label === 'Insights' || item.label === 'Widget designer' || item.label === 'Launch') {
                   setActiveWorkspace(item.label);
                 } else {
                   setToast(`${item.label} is mapped for the next Chime build.`);
@@ -596,7 +604,7 @@ function AdminApp() {
         </nav>
 
         <div className="admin-sidebar__bottom">
-          <button type="button" onClick={() => setToast('Settings will use the same no-code controls as the widget designer.')}>
+          <button className={activeWorkspace === 'Settings' ? 'is-active' : ''} type="button" onClick={() => setActiveWorkspace('Settings')}>
             <Icon name="settings" size={19} />
             <span>Settings</span>
           </button>
@@ -865,6 +873,14 @@ function AdminApp() {
           <AvailabilityStudio api={adminApi} onNotify={setToast} />
         ) : activeWorkspace === 'Customers' ? (
           <CustomerStudio api={adminApi} />
+        ) : activeWorkspace === 'Payments' ? (
+          <PaymentsStudio api={adminApi} onNotify={setToast} />
+        ) : activeWorkspace === 'Insights' ? (
+          <InsightsStudio api={adminApi} />
+        ) : activeWorkspace === 'Settings' ? (
+          <SettingsStudio api={adminApi} onNotify={setToast} />
+        ) : activeWorkspace === 'Launch' ? (
+          <LaunchStudio api={adminApi} onNotify={setToast} />
         ) : activeWorkspace === 'Widget designer' ? (
           <WidgetStudio api={adminApi} onNotify={setToast} />
         ) : (

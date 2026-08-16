@@ -111,6 +111,9 @@ export interface AdminCommunicationTemplate {
   displayName: string;
   subjectTemplate: string | null;
   bodyTemplate: string;
+  bodyHtml: string | null;
+  contentFormat: 'plain' | 'rich' | 'html' | 'image';
+  sourceAssetName: string | null;
   isActive: boolean;
   version: number;
   updatedAt: string;
@@ -131,6 +134,233 @@ export interface AdminCommunicationsPayload {
     suppressed: number;
   };
   deliveries: AdminCommunicationDelivery[];
+}
+
+export type AdminPaymentStatus =
+  | 'requires_payment'
+  | 'processing'
+  | 'authorized'
+  | 'succeeded'
+  | 'failed'
+  | 'partially_refunded'
+  | 'refunded'
+  | 'cancelled';
+
+export type AdminPaymentActionName = 'capture' | 'void' | 'refund' | 'sync';
+
+export interface AdminPaymentAction {
+  id: string;
+  action: AdminPaymentActionName;
+  amountMinor: number;
+  status: 'processing' | 'succeeded' | 'failed';
+  reason: string | null;
+  errorMessage: string | null;
+  providerOperationId: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface AdminPaymentRecord {
+  id: string;
+  appointmentId: string;
+  referenceCode: string;
+  customerName: string;
+  customerEmail: string | null;
+  serviceName: string;
+  startsAt: string;
+  appointmentStatus: string;
+  provider: 'stripe' | 'demo';
+  providerPaymentId: string;
+  amountMinor: number;
+  capturedAmountMinor: number;
+  refundedAmountMinor: number;
+  currency: string;
+  status: AdminPaymentStatus;
+  failureMessage: string | null;
+  paymentMethodSummary: Record<string, unknown>;
+  verifiedAt: string | null;
+  lastProviderSyncAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  actions: AdminPaymentAction[];
+}
+
+export interface AdminPaymentsPayload {
+  runtime: {
+    provider: 'stripe' | 'demo' | 'none';
+    mode: 'live' | 'test' | 'demo' | 'unconfigured';
+    configured: boolean;
+    actionsEnabled: boolean;
+    message: string;
+  };
+  summary: {
+    currency: string;
+    total: number;
+    collectedCount: number;
+    collectedMinor: number;
+    authorizedCount: number;
+    authorizedMinor: number;
+    pendingCount: number;
+    pendingMinor: number;
+    refundedCount: number;
+    refundedMinor: number;
+    failedCount: number;
+  };
+  payments: AdminPaymentRecord[];
+}
+
+export interface AdminInsightDailyPoint {
+  date: string;
+  appointments: number;
+  completed: number;
+  cancelled: number;
+  netCollectedMinor: number;
+}
+
+export interface AdminInsightService {
+  id: string;
+  name: string;
+  appointments: number;
+  completed: number;
+  cancelled: number;
+  uniqueCustomers: number;
+  netCollectedMinor: number;
+}
+
+export interface AdminInsightHeatPoint {
+  day: number;
+  hour: number;
+  appointments: number;
+}
+
+export interface AdminInsightsPayload {
+  range: { days: number; startsAt: string; endsAt: string; timeZone: string };
+  summary: {
+    appointments: number;
+    appointmentTrend: number | null;
+    uniqueCustomers: number;
+    customerTrend: number | null;
+    newCustomers: number;
+    returningCustomers: number;
+    netCollectedMinor: number;
+    collectedTrend: number | null;
+    completedRate: number;
+    cancelledRate: number;
+    noShowRate: number;
+    averageDurationMinutes: number;
+    pendingApproval: number;
+    currency: string;
+  };
+  daily: AdminInsightDailyPoint[];
+  services: AdminInsightService[];
+  heatmap: AdminInsightHeatPoint[];
+  sources: Array<{ source: string; appointments: number }>;
+}
+
+export type AdminBusinessType =
+  | 'consulting'
+  | 'beauty'
+  | 'wellness'
+  | 'coaching'
+  | 'education'
+  | 'home_services'
+  | 'repair'
+  | 'other';
+
+export type AdminServiceMode = 'business_location' | 'mobile' | 'virtual' | 'mixed';
+export type AdminChangePolicy = 'instant' | 'customer_approval' | 'business_review';
+
+export interface AdminBusinessSettings {
+  organizationId: string;
+  businessName: string;
+  publicName: string;
+  businessType: AdminBusinessType;
+  serviceMode: AdminServiceMode;
+  contactEmail: string;
+  contactPhone: string;
+  websiteUrl: string;
+  timeZone: string;
+  currency: string;
+  bookingPageSlug: string;
+  appointmentIncrementMinutes: number;
+  minimumNoticeMinutes: number;
+  maximumAdvanceDays: number;
+  confirmationMode: 'automatic' | 'manual';
+  changePolicy: AdminChangePolicy;
+  customerCancellationAllowed: boolean;
+  customerReschedulingAllowed: boolean;
+  cancellationNoticeMinutes: number;
+  rescheduleNoticeMinutes: number;
+  customerWelcomeMessage: string;
+  confirmationMessage: string;
+  cancellationPolicySummary: string;
+  version: number;
+  updatedAt: string;
+}
+
+export interface AdminSetupItem {
+  id: 'profile' | 'services' | 'team' | 'availability' | 'widget' | 'messages' | 'payments';
+  label: string;
+  detail: string;
+  complete: boolean;
+  required: boolean;
+  count?: number;
+}
+
+export interface AdminBusinessSettingsPayload {
+  settings: AdminBusinessSettings;
+  setup: { score: number; completed: number; total: number; launchReady: boolean; items: AdminSetupItem[] };
+}
+
+export type AdminLaunchDisplayMode = 'inline' | 'modal' | 'floating_button';
+
+export interface AdminLaunchSettings {
+  organizationId: string;
+  publicBusinessId: string;
+  embedEnabled: boolean;
+  hostedPageEnabled: boolean;
+  displayMode: AdminLaunchDisplayMode;
+  buttonLabel: string;
+  allowAnyDomain: boolean;
+  allowedDomains: string[];
+  loaderUrl: string;
+  stylesheetUrl: string;
+  hostedBaseUrl: string;
+  apiBaseUrl: string;
+  publishedAt: string | null;
+  version: number;
+  updatedAt: string;
+}
+
+export interface AdminLaunchReadinessCheck {
+  id: 'services' | 'team' | 'availability' | 'widget';
+  label: string;
+  detail: string;
+  complete: boolean;
+}
+
+export interface AdminLaunchInstallation {
+  id: string;
+  domain: string;
+  status: 'pending' | 'verified' | 'attention';
+  firstSeenAt: string;
+  lastSeenAt: string;
+  widgetVersion: string | null;
+}
+
+export interface AdminLaunchPayload {
+  settings: AdminLaunchSettings;
+  readiness: {
+    ready: boolean;
+    score: number;
+    completed: number;
+    total: number;
+    checks: AdminLaunchReadinessCheck[];
+  };
+  snippets: { inline: string; modal: string; floatingButton: string };
+  hosted: { enabled: boolean; url: string };
+  installations: AdminLaunchInstallation[];
 }
 
 export type AdminPersistenceMode = 'demo' | 'loading' | 'connected' | 'saving' | 'error';
@@ -637,6 +867,62 @@ export class AdminApiClient {
       },
     );
     return body.template;
+  }
+
+  async listPayments(status = 'all'): Promise<AdminPaymentsPayload> {
+    return this.request<AdminPaymentsPayload>(`/payments?status=${encodeURIComponent(status)}`);
+  }
+
+  async performPaymentAction(
+    payment: AdminPaymentRecord,
+    action: AdminPaymentActionName,
+    input: { amountMinor?: number; reason?: string } = {},
+  ): Promise<{ payment: AdminPaymentRecord; action: AdminPaymentAction; replayed?: boolean }> {
+    return this.request(`/payments/${encodeURIComponent(payment.id)}/actions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': requestKey(),
+        'If-Match': `"${payment.version}"`,
+      },
+      body: JSON.stringify({ action, ...input }),
+    });
+  }
+
+  async getInsights(days = 30): Promise<AdminInsightsPayload> {
+    return this.request<AdminInsightsPayload>(`/insights?days=${encodeURIComponent(days)}`);
+  }
+
+  async getBusinessSettings(): Promise<AdminBusinessSettingsPayload> {
+    return this.request<AdminBusinessSettingsPayload>('/business-settings');
+  }
+
+  async saveBusinessSettings(settings: AdminBusinessSettings): Promise<AdminBusinessSettingsPayload> {
+    return this.request<AdminBusinessSettingsPayload>('/business-settings', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': requestKey(),
+        'If-Match': `"${settings.version}"`,
+      },
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async getLaunchSettings(): Promise<AdminLaunchPayload> {
+    return this.request<AdminLaunchPayload>('/launch');
+  }
+
+  async saveLaunchSettings(settings: AdminLaunchSettings): Promise<AdminLaunchPayload> {
+    return this.request<AdminLaunchPayload>('/launch', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': requestKey(),
+        'If-Match': `"${settings.version}"`,
+      },
+      body: JSON.stringify(settings),
+    });
   }
 }
 

@@ -18,9 +18,13 @@ Status: planning
 - The no-code Services Studio now edits contract-backed duration ranges, resize increments, buffers, booking windows, pricing, optional deposits, confirmation and change-approval rules, staff assignments, capacity, and customer visibility.
 - Schedule and Services are separate working admin views, and service edits remain available while navigating during the current browser session.
 - The Services Studio includes a customer-card preview without changing the protected customer booking sequence or exposing internal business rules.
-- A standalone tenant-aware administrator API now supports signed sessions, live membership and role checks, organization-scoped service CRUD, optimistic version conflicts, idempotent writes, audit history, and transactional outbox events.
+- A standalone business-isolated administrator API now supports signed sessions, live membership and role checks, organization-scoped service CRUD, optimistic version conflicts, idempotent writes, audit history, and transactional outbox events.
 - Services Studio now detects durable API configuration, loads Postgres services, saves new drafts or existing versions, and reports loading, saving, connected, demo, and error states without losing the safe session-only fallback.
-- Local seed and environment examples provide a Chime-only demonstration tenant; no backend code imports or reaches CheckInn.
+- Local seed and environment examples provide a Chime-only demonstration business; no backend code imports or reaches CheckInn.
+- Payment Operations now gives each business a verified customer-deposit ledger, guarded collect/void/refund actions, provider status, action history, and audit events.
+- Business Insights now summarizes appointments, customer growth, verified deposits, service performance, booking sources, and busy-time patterns without exposing another business's records.
+- Business Settings now gives owners a versioned no-code workspace for profile details, booking defaults, customer policies, booking-page identity, and evidence-based setup readiness.
+- Launch & Embed now gives owners a guarded launch checklist, hosted booking link, inline/modal/floating installation modes, trusted-domain controls, copy-ready snippets, installation-health records, and editable delivery endpoints without coupling Chime to a host website.
 
 Chime is a portable appointment-booking platform for small businesses. It is
 not a vacation-rental product. CheckInn is only a visual and interaction
@@ -478,7 +482,7 @@ database, Hyperdrive can provide the Worker-to-Postgres connection layer.
 - Rate-limit public availability, hold, booking, and portal endpoints.
 - Validate all widget payloads on the server.
 - Verify deposits server-side before creating paid appointments.
-- Never trust price, duration, service rules, or tenant identity from the widget.
+- Never trust price, duration, service rules, or business identity from the widget.
 - Record security-sensitive actions in the audit log.
 - Provide data export, retention, and deletion controls.
 
@@ -525,7 +529,7 @@ single-developer planning range, not a delivery promise.
 | Phase | Focus | Rough range | Exit criteria |
 | --- | --- | --- | --- |
 | 0 | Product contracts and repository boundaries | 1 week | Approved terminology, states, roles, and API boundaries |
-| 1 | Multi-business domain and database | 2-3 weeks | Tenant-safe services, staff, availability, appointments, holds, and audit events |
+| 1 | Multi-business domain and database | 2-3 weeks | Business-isolated services, staff, availability, appointments, holds, and audit events |
 | 2 | Business setup and service editor | 2-3 weeks | A new business can configure Chime without code |
 | 3 | Portable widget v1 | 2 weeks | One embed works on unrelated test websites without CSS or React conflicts |
 | 4 | Administrator calendar v1 | 3-4 weeks | Admin can create, move, resize, assign, and inspect appointments |
@@ -573,7 +577,7 @@ The first small-business beta should prove the complete loop:
 | Widget becomes coupled to customer websites | Host configuration and backend centrally; isolate the embed |
 | Dragging causes silent schedule corruption | Version checks, conflict checks, approval states, and audit events |
 | Notifications are duplicated or lost | Transactional outbox, idempotency keys, retries, and delivery history |
-| Multi-business data leaks | Tenant scoping in every API and automated isolation tests |
+| Multi-business data leaks | Business scoping in every API and automated isolation tests |
 | Customization creates inaccessible designs | Constrained tokens, presets, and automatic contrast checks |
 | CheckInn introduces rental concepts | Copy only generic interactions, then remove all rental contracts and terminology |
 | Chime changes accidentally affect CheckInn | Read-only extraction, no links, independent files, and a clean CheckInn working tree |
@@ -591,7 +595,7 @@ The first build slice should be deliberately small and foundational:
 6. Build a basic authenticated admin shell.
 7. Build the service editor and business-hours painter.
 8. Render existing appointments in a simple calendar before adding drag and resize.
-9. Prove tenant isolation and concurrent booking protection.
+9. Prove business isolation and concurrent booking protection.
 10. Only then add tactile grid interactions and approval workflows.
 
 ## 25. Decisions to confirm before implementation
