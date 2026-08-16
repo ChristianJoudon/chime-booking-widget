@@ -44,6 +44,9 @@ assert(Array.isArray(serviceResult.body.services), 'The services response must c
 const nonce = Date.now();
 const serviceInput = {
   name: `Smoke service ${nonce}`,
+  // Declare this as an automated run so the rows stay out of the business
+  // service directory. See database/migrations/014-record-origin.sql.
+  origin: 'test',
   slug: `smoke-service-${nonce}`,
   shortDescription: 'Temporary service created by the connected admin smoke test.',
   category: 'Smoke tests',

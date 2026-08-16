@@ -34,6 +34,7 @@ interface ServiceRow extends QueryResultRow {
   settings: Record<string, unknown>;
   is_active: boolean;
   is_public: boolean;
+  origin: AdminServiceDto['origin'];
   version: number;
   location_ids: string[];
   staff_ids: string[];
@@ -111,6 +112,7 @@ function recordFromRow(row: ServiceRow): AdminServiceDto {
     customQuestions: Array.isArray(row.custom_questions) ? row.custom_questions : [],
     isActive: row.is_active,
     isPublic: row.is_public,
+    origin: row.origin,
     version: numberValue(row.version),
   };
 }
@@ -200,10 +202,18 @@ async function inTransaction<T>(pool: Pool, work: (client: PoolClient) => Promis
 export class ServiceRepository {
   constructor(private readonly pool: Pool) {}
 
-  async list(organizationId: string): Promise<AdminServiceDto[]> {
+  /**
+   * Automated smoke runs write real service rows. They are excluded unless a
+   * caller explicitly asks, so "Smoke service 1786779379821 updated" stops
+   * appearing in the business service directory.
+   */
+  async list(organizationId: string, includeTest = false): Promise<AdminServiceDto[]> {
     const result = await this.pool.query<ServiceRow>(
-      `${SERVICE_SELECT} WHERE s.organization_id = $1 ORDER BY s.is_active DESC, s.name ASC`,
-      [organizationId],
+      `${SERVICE_SELECT}
+        WHERE s.organization_id = $1
+          AND ($2::boolean OR s.origin <> 'test')
+        ORDER BY s.is_active DESC, s.name ASC`,
+      [organizationId, includeTest],
     );
     return result.rows.map(recordFromRow);
   }
@@ -227,13 +237,13 @@ export class ServiceRepository {
            minimum_notice_minutes, maximum_advance_days, price_minor, currency,
            deposit_mode, deposit_amount_minor, deposit_percentage,
            confirmation_mode, change_approval_mode, capacity,
-           custom_questions, settings, is_active, is_public
+           custom_questions, settings, is_active, is_public, origin
          ) VALUES (
            $1, $2, $3, $4,
            $5, $6, $7, $8, $9, $10,
            $11, $12, $13, $14,
            $15, $16, $17, $18, $19, $20,
-           $21::jsonb, $22::jsonb, $23, $24
+           $21::jsonb, $22::jsonb, $23, $24, $25
          ) RETURNING id`,
         [
           context.organizationId,
@@ -260,6 +270,7 @@ export class ServiceRepository {
           JSON.stringify(settingsFor(input)),
           input.isActive,
           input.isPublic,
+          input.origin,
         ],
       );
       const serviceId = inserted.rows[0].id;

@@ -47,7 +47,15 @@ export type ChangeApprovalModeDto =
   | 'affected_staff'
   | 'business_and_affected_staff';
 
+/**
+ * Whether a record belongs to the business, to seeded demo data, or to an
+ * automated test run. Test records are hidden from ordinary listings.
+ */
+export const RECORD_ORIGINS = ['business', 'demo', 'test'] as const;
+export type RecordOrigin = (typeof RECORD_ORIGINS)[number];
+
 export interface AdminServiceDto {
+  origin: RecordOrigin;
   id: string;
   organizationId: string;
   locationIds: string[];

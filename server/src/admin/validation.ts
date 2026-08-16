@@ -4,6 +4,7 @@ import {
   type ConfirmationModeDto,
   type DepositModeDto,
   type ServiceWriteInput,
+  RECORD_ORIGINS,
 } from './types.js';
 
 type JsonObject = Record<string, unknown>;
@@ -154,6 +155,11 @@ export function parseServiceWriteInput(body: unknown): ServiceWriteInput {
     customQuestions,
     isActive: booleanAt(source, 'isActive'),
     isPublic: booleanAt(source, 'isPublic'),
+    // Callers that are automated runs declare themselves so their rows can be
+    // kept out of the business directory. Absent means a real business record.
+    origin: source.origin === undefined
+      ? 'business'
+      : enumAt(source, 'origin', RECORD_ORIGINS),
   };
 }
 

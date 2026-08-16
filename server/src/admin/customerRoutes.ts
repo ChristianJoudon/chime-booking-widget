@@ -181,9 +181,13 @@ export function createCustomerRouter(pool: Pool): Router {
     const search = queryText(request.query.search);
     const status = queryText(request.query.status, 24);
     const tagId = queryText(request.query.tagId, 80);
+    // Smoke runs create real customer rows. Keep them out of the customer book
+    // unless a caller explicitly asks for them.
+    const includeTest = request.query.includeTest === 'true';
     const result = await pool.query(
       `${customerSelect}
        WHERE customer.organization_id = $1
+         AND ($5::boolean OR customer.origin <> 'test')
          AND ($2 = '' OR customer.display_name ILIKE '%' || $2 || '%'
            OR COALESCE(customer.email, '') ILIKE '%' || $2 || '%'
            OR COALESCE(customer.phone, '') ILIKE '%' || $2 || '%')
@@ -199,7 +203,7 @@ export function createCustomerRouter(pool: Pool): Router {
          appointment_stats.next_appointment_at NULLS LAST,
          lower(customer.display_name)
        LIMIT 250`,
-      [session.organizationId, search, status, tagId],
+      [session.organizationId, search, status, tagId, includeTest],
     );
     response.json({ customers: result.rows.map(mapCustomer) });
   }));

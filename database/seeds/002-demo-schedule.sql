@@ -20,7 +20,7 @@ INSERT INTO chime_app.appointments (
   id, organization_id, reference_code, service_id, customer_id, location_id,
   starts_at, ends_at, time_zone, status, source,
   confirmation_mode, change_approval_mode,
-  customer_notes, internal_notes, custom_answers
+  customer_notes, internal_notes, custom_answers, origin
 )
 SELECT
   schedule.id,
@@ -38,7 +38,8 @@ SELECT
   service.change_approval_mode,
   schedule.customer_notes,
   schedule.internal_notes,
-  jsonb_build_object('seed', 'schedule-showcase')
+  jsonb_build_object('seed', 'schedule-showcase'),
+  'demo'
 FROM schedule
 JOIN chime_app.services service
   ON service.organization_id = '00000000-0000-4000-8000-000000000001'::uuid

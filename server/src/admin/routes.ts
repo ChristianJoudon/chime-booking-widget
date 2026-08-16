@@ -77,7 +77,9 @@ export function createAdminRouter(pool: Pool): Router {
 
   router.get('/services', asyncRoute(async (request, response) => {
     const session = getAdminSession(request);
-    response.json({ services: await services.list(session.organizationId) });
+    // ?includeTest=true is for smoke runs verifying their own writes.
+    const includeTest = request.query.includeTest === 'true';
+    response.json({ services: await services.list(session.organizationId, includeTest) });
   }));
 
   router.get('/services/:serviceId', asyncRoute(async (request, response) => {
