@@ -1,0 +1,77 @@
+/* Persistent Demo / Test / Live indicator in the admin sidebar. */
+
+.workspace-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0.75rem 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-paper);
+  cursor: default;
+}
+
+.workspace-badge i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--admin-ink-soft);
+}
+
+.workspace-badge span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.workspace-badge strong {
+  font-size: 0.76rem;
+  font-weight: 640;
+  letter-spacing: 0.01em;
+  color: var(--admin-ink);
+}
+
+.workspace-badge small {
+  font-size: 0.68rem;
+  color: var(--admin-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Demo and test are reassuring: nothing here reaches a real person. */
+.workspace-badge--demo i { background: var(--admin-blue); }
+.workspace-badge--demo { border-color: var(--admin-blue); background: var(--admin-blue-soft); }
+
+.workspace-badge--test i { background: var(--admin-yellow); }
+.workspace-badge--test { border-color: var(--admin-yellow); background: var(--admin-yellow-soft); }
+
+/* Live is the one that should catch the eye before someone clicks send. */
+.workspace-badge--live i { background: var(--admin-coral); }
+.workspace-badge--live {
+  border-color: var(--admin-coral);
+  background: var(--admin-coral-soft);
+}
+.workspace-badge--live strong { color: var(--admin-coral); }
+
+/* Not knowing is worse than either. */
+.workspace-badge--unknown {
+  border-style: dashed;
+  background: var(--admin-canvas);
+}
+
+.workspace-badge--loading i {
+  animation: workspace-badge-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes workspace-badge-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-badge--loading i { animation: none; opacity: 0.6; }
+}

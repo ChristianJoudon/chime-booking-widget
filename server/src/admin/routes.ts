@@ -9,6 +9,7 @@ import { createPaymentRouter } from './paymentRoutes.js';
 import { createInsightRouter } from './insightRoutes.js';
 import { createBusinessSettingsRouter } from './businessSettingsRoutes.js';
 import { createLaunchRouter } from './launchRoutes.js';
+import { describeWorkspace } from './workspaceEnvironment.js';
 import { randomUUID } from 'node:crypto';
 
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
@@ -72,6 +73,9 @@ export function createAdminRouter(pool: Pool): Router {
         organizationId: session.organizationId,
         role: session.role,
       },
+      // Every admin screen shows this, so it rides along with the session
+      // rather than needing a second request.
+      workspace: describeWorkspace(),
     });
   });
 

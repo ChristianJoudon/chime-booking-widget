@@ -5,6 +5,7 @@ import pg from 'pg';
 import Stripe from 'stripe';
 import { createCustomerApprovalRouter } from './customerApprovalRoutes.js';
 import { createPublicWidgetConfigRouter } from './widgetConfigRoutes.js';
+import { assertWorkspaceIsCoherent } from './admin/workspaceEnvironment.js';
 
 const { Pool } = pg;
 
@@ -26,6 +27,9 @@ const publicOrganizationId = process.env.CHIME_PUBLIC_ORGANIZATION_ID?.trim()
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
+// The booking API is where demo_pi_* identifiers are actually accepted in
+// place of a verified Stripe payment, so the coherence check matters most here.
+assertWorkspaceIsCoherent();
 const allowDemoPayments = process.env.CHIME_ALLOW_DEMO_PAYMENTS === 'true';
 
 app.set('trust proxy', true);

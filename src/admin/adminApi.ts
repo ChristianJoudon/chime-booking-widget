@@ -366,6 +366,26 @@ export interface AdminLaunchPayload {
 
 // 'demo' was removed deliberately: the studio no longer pretends an
 // unreachable API is a working session-only workspace.
+export type WorkspaceEnvironment = 'demo' | 'test' | 'live';
+
+export interface AdminWorkspaceRuntime {
+  environment: WorkspaceEnvironment;
+  declared: boolean;
+  notifications: { mode: 'sandbox' | 'live'; canReachRealPeople: boolean };
+  payments: {
+    provider: 'stripe' | 'demo' | 'none';
+    mode: 'live' | 'test' | 'demo' | 'unconfigured';
+    canChargeRealCards: boolean;
+    demoIdentifiersAccepted: boolean;
+  };
+  summary: string;
+}
+
+export interface AdminSessionResponse {
+  user: { id: string; email: string; organizationId: string; role: string };
+  workspace: AdminWorkspaceRuntime;
+}
+
 export type AdminPersistenceMode = 'loading' | 'connected' | 'saving' | 'error';
 
 export interface AdminPersistenceState {
@@ -910,6 +930,10 @@ export class AdminApiClient {
       },
       body: JSON.stringify(settings),
     });
+  }
+
+  getSession(): Promise<AdminSessionResponse> {
+    return this.request<AdminSessionResponse>('/me');
   }
 
   async getLaunchSettings(): Promise<AdminLaunchPayload> {

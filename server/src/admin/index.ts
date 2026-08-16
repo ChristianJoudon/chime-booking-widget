@@ -8,6 +8,9 @@ import { Pool } from 'pg';
 import { requireAdminSession } from './auth.js';
 import { createAdminRouter } from './routes.js';
 import { AdminApiError } from './types.js';
+import { assertWorkspaceIsCoherent } from './workspaceEnvironment.js';
+
+assertWorkspaceIsCoherent();
 
 const port = Number(process.env.CHIME_ADMIN_PORT ?? 8888);
 const connectionString = process.env.CHIME_DATABASE_URL ?? process.env.DATABASE_URL;

@@ -23,6 +23,7 @@ import PaymentsStudio from './PaymentsStudio';
 import InsightsStudio from './InsightsStudio';
 import SettingsStudio from './SettingsStudio';
 import LaunchStudio from './LaunchStudio';
+import WorkspaceBadge from './WorkspaceBadge';
 import chimeBellLogo from '@/assets/brand/chime-bell.png';
 import chimeWordmarkLogo from '@/assets/brand/chime-wordmark.png';
 import type { AdminServiceDefinition } from './serviceTypes';
@@ -219,6 +220,8 @@ function AdminApp() {
           </span>
           <Icon name="chevron-right" size={16} />
         </button>
+
+        <WorkspaceBadge api={adminApi} />
 
         <nav className="admin-nav" aria-label="Admin workspace">
           <p>Workspace</p>
