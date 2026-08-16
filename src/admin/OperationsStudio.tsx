@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import './operationsStudio.css';
+import { ADMIN_CONNECTION, describeMissingConnection } from './adminConnection';
 
 type OperationsStudioProps = {
   initialWorkspace?: 'schedule' | 'requests';
@@ -117,10 +118,8 @@ type OperationsPayload = {
 
 class OperationsApiError extends Error {}
 
-const API_URL = String(
-  import.meta.env.VITE_CHIME_ADMIN_API_URL ?? 'http://127.0.0.1:8888/api/chime/admin',
-).replace(/\/$/, '');
-const ADMIN_TOKEN = String(import.meta.env.VITE_CHIME_ADMIN_TOKEN ?? '');
+const API_URL = ADMIN_CONNECTION?.baseUrl ?? '';
+const ADMIN_TOKEN = ADMIN_CONNECTION?.token ?? '';
 const HOUR_HEIGHT = 76;
 const DAY_START_MINUTES = 8 * 60;
 const DAY_END_MINUTES = 18 * 60;
@@ -129,9 +128,9 @@ async function operationsRequest<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  if (!ADMIN_TOKEN) {
+  if (!API_URL || !ADMIN_TOKEN) {
     throw new OperationsApiError(
-      'The administrator session is not configured. Add VITE_CHIME_ADMIN_TOKEN to the standalone environment.',
+      describeMissingConnection() ?? 'The administrator session is not configured.',
     );
   }
   const response = await fetch(`${API_URL}${path}`, {

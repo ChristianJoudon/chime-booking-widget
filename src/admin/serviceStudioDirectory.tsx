@@ -1,8 +1,21 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect, useMemo, useState } from 'react';
-import { SCHEDULE_STAFF as DEMO_STAFF } from './sampleSchedule';
+import { ADMIN_CONNECTION, describeMissingConnection } from './adminConnection';
 
-type StudioStaff = (typeof DEMO_STAFF)[number];
+/**
+ * Shaped for the studio's team picker. Previously this type was derived from the
+ * sample schedule, which meant the directory could not exist without demo data
+ * and quietly rendered demo staff whenever the connection failed.
+ */
+export interface StudioStaff {
+  id: string;
+  name: string;
+  shortName: string;
+  initials: string;
+  color: string;
+}
+
+const STAFF_COLORS = ['#3d9b7c', '#5689b9', '#d47e61', '#8a76b8', '#c2915a'];
 
 interface DirectoryStaffResponse {
   staff: Array<{
@@ -29,15 +42,13 @@ interface DirectoryLocationResponse {
 interface StudioDirectory {
   staff: StudioStaff[];
   locations: DirectoryLocation[];
-  state: 'demo' | 'loading' | 'connected' | 'error';
-}
-
-interface RuntimeAdminConfig {
-  apiBaseUrl?: string;
-  apiUrl?: string;
-  accessToken?: string;
-  sessionToken?: string;
-  token?: string;
+  /**
+   * 'unconfigured' means no Chime connection exists at all; 'error' means one
+   * exists but the request failed. Neither ever carries invented staff.
+   */
+  state: 'loading' | 'connected' | 'unconfigured' | 'error';
+  /** Plain-language reason, present for 'unconfigured' and 'error'. */
+  message: string | null;
 }
 
 interface AssignableService {
@@ -63,76 +74,50 @@ function initialsFor(name: string): string {
     .join('');
 }
 
-function runtimeConfig(): { apiBaseUrl: string; token: string } | null {
-  const runtime = (window as typeof window & { CHIME_ADMIN_CONFIG?: RuntimeAdminConfig })
-    .CHIME_ADMIN_CONFIG;
-  const apiBaseUrl = (
-    runtime?.apiBaseUrl
-    ?? runtime?.apiUrl
-    ?? import.meta.env?.VITE_CHIME_ADMIN_API_BASE_URL
-    ?? import.meta.env?.VITE_CHIME_ADMIN_API_URL
-    ?? ''
-  ).replace(/\/$/, '');
-  const token = runtime?.accessToken
-    ?? runtime?.sessionToken
-    ?? runtime?.token
-    // VITE_CHIME_ADMIN_TOKEN is the documented name and the one adminApi.ts
-    // reads. Without it here the directory silently fell back to demo staff
-    // and zero locations even on a fully configured workspace.
-    ?? import.meta.env?.VITE_CHIME_ADMIN_TOKEN
-    ?? import.meta.env?.VITE_CHIME_ADMIN_ACCESS_TOKEN
-    ?? import.meta.env?.VITE_CHIME_ADMIN_SESSION_TOKEN
-    ?? '';
-
-  if (!apiBaseUrl || !token) {
-    return null;
-  }
-
-  return { apiBaseUrl, token };
-}
-
 function endpoint(baseUrl: string, path: string): string {
-  if (/\/api\/chime\/admin$/i.test(baseUrl)) {
-    return `${baseUrl}${path}`;
-  }
-
-  return `${baseUrl}/api/chime/admin${path}`;
+  return `${baseUrl}${path}`;
 }
 
 async function requestDirectory(): Promise<StudioDirectory> {
-  const config = runtimeConfig();
-
-  if (!config) {
-    return { staff: [...DEMO_STAFF], locations: [], state: 'demo' };
+  if (!ADMIN_CONNECTION) {
+    return {
+      staff: [],
+      locations: [],
+      state: 'unconfigured',
+      message: describeMissingConnection(),
+    };
   }
 
-  const headers = { Authorization: `Bearer ${config.token}` };
+  const headers = { Authorization: `Bearer ${ADMIN_CONNECTION.token}` };
   const [staffResponse, locationResponse] = await Promise.all([
-    fetch(endpoint(config.apiBaseUrl, '/staff'), { headers }),
-    fetch(endpoint(config.apiBaseUrl, '/locations'), { headers }),
+    fetch(endpoint(ADMIN_CONNECTION.baseUrl, '/staff'), { headers }),
+    fetch(endpoint(ADMIN_CONNECTION.baseUrl, '/locations'), { headers }),
   ]);
 
   if (!staffResponse.ok || !locationResponse.ok) {
-    throw new Error('The business directory could not be loaded.');
+    const failed = !staffResponse.ok ? staffResponse : locationResponse;
+    const body = await failed.json().catch(() => null) as { error?: { message?: string } } | null;
+    throw new Error(
+      body?.error?.message
+        ?? `The business directory could not be loaded (${failed.status}).`,
+    );
   }
 
   const staffBody = await staffResponse.json() as DirectoryStaffResponse;
   const locationBody = await locationResponse.json() as DirectoryLocationResponse;
-  const staff = staffBody.staff.map((entry, index) => {
-    const template = DEMO_STAFF[index % Math.max(DEMO_STAFF.length, 1)];
-
-    return Object.assign({}, template, {
-      id: entry.id,
-      name: entry.displayName,
-      initials: initialsFor(entry.displayName),
-      color: entry.color ?? template?.color ?? '#52796f',
-    }) as StudioStaff;
-  });
+  const staff: StudioStaff[] = staffBody.staff.map((entry, index) => ({
+    id: entry.id,
+    name: entry.displayName,
+    shortName: entry.displayName.split(/\s+/)[0] ?? entry.displayName,
+    initials: initialsFor(entry.displayName),
+    color: entry.color ?? STAFF_COLORS[index % STAFF_COLORS.length],
+  }));
 
   return {
     staff,
     locations: locationBody.locations,
     state: 'connected',
+    message: null,
   };
 }
 
@@ -147,25 +132,37 @@ function loadDirectory(): Promise<StudioDirectory> {
         cachedDirectory = directory;
         return directory;
       })
-      .catch(() => {
-        const fallback: StudioDirectory = {
-          staff: [...DEMO_STAFF],
+      .catch((error: unknown) => {
+        // An authenticated screen that cannot reach Chime says so. It does not
+        // invent a team.
+        const failure: StudioDirectory = {
+          staff: [],
           locations: [],
           state: 'error',
+          message: error instanceof Error
+            ? error.message
+            : 'The business directory could not be loaded.',
         };
-        cachedDirectory = fallback;
-        return fallback;
+        cachedDirectory = failure;
+        return failure;
       });
   }
 
   return directoryRequest;
 }
 
+/** Drops the cache so a Retry action re-requests instead of replaying a failure. */
+export function refreshServiceStudioDirectory(): void {
+  cachedDirectory = null;
+  directoryRequest = null;
+}
+
 export function useServiceStudioDirectory(): StudioDirectory {
   const [directory, setDirectory] = useState<StudioDirectory>(() => cachedDirectory ?? {
-    staff: [...DEMO_STAFF],
+    staff: [],
     locations: [],
-    state: runtimeConfig() ? 'loading' : 'demo',
+    state: ADMIN_CONNECTION ? 'loading' : 'unconfigured',
+    message: ADMIN_CONNECTION ? null : describeMissingConnection(),
   });
 
   useEffect(() => {
@@ -198,16 +195,21 @@ export function ServiceLocationPicker({ service, onChange }: ServiceLocationPick
     }
   }, [directory.locations, directory.state, onChange, selectedIds.length]);
 
-  if (directory.state === 'demo') {
-    return null;
-  }
-
   if (directory.state === 'loading') {
     return <p role="status">Loading business locations...</p>;
   }
 
-  if (directory.state === 'error') {
-    return <p role="alert">Locations are temporarily unavailable. Existing assignments are preserved.</p>;
+  if (directory.state === 'unconfigured' || directory.state === 'error') {
+    return (
+      <p role="alert" className="service-location-assignment__problem">
+        {directory.message ?? 'Locations could not be loaded.'}
+        {' '}Existing assignments are preserved.
+      </p>
+    );
+  }
+
+  if (directory.locations.length === 0) {
+    return <p role="status">No locations have been added yet. Add one in Team to assign it here.</p>;
   }
 
   return (

@@ -20,6 +20,7 @@ function stripDemoRelationshipIds<T>(input: T): T {
 }
 
 import type { AdminServiceDefinition } from './sampleAdminServices';
+import { describeMissingConnection, normalizeBaseUrl, resolveAdminConnection } from './adminConnection';
 
 export interface AdminStaffMember {
   id: string;
@@ -375,11 +376,7 @@ interface AdminApiConfiguration {
   token?: string;
 }
 
-declare global {
-  interface Window {
-    CHIME_ADMIN_CONFIG?: AdminApiConfiguration;
-  }
-}
+// window.CHIME_ADMIN_CONFIG is declared once, in adminConnection.ts.
 
 export type CustomerLifecycleStatus = 'active' | 'vip' | 'watchlist' | 'blocked' | 'archived';
 
@@ -670,14 +667,18 @@ export class AdminApiClient {
   private readonly token: string;
 
   constructor(configuration: AdminApiConfiguration) {
-    this.baseUrl = (configuration.baseUrl ?? '').replace(/\/$/, '');
+    this.baseUrl = configuration.baseUrl ? normalizeBaseUrl(configuration.baseUrl) : '';
     this.token = configuration.token ?? '';
     this.configured = Boolean(this.baseUrl && this.token);
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (!this.configured) {
-      throw new AdminApiClientError(0, 'The durable admin API is not configured.', 'API_NOT_CONFIGURED');
+      throw new AdminApiClientError(
+        0,
+        describeMissingConnection() ?? 'The durable admin API is not configured.',
+        'API_NOT_CONFIGURED',
+      );
     }
 
     const response = await fetch(`${this.baseUrl}${path}`, {
@@ -927,10 +928,9 @@ export class AdminApiClient {
 }
 
 export function createAdminApiClient(): AdminApiClient {
+  const connection = resolveAdminConnection();
   return new AdminApiClient({
-    baseUrl: window.CHIME_ADMIN_CONFIG?.baseUrl
-      ?? import.meta.env.VITE_CHIME_ADMIN_API_URL,
-    token: window.CHIME_ADMIN_CONFIG?.token
-      ?? import.meta.env.VITE_CHIME_ADMIN_TOKEN,
+    baseUrl: connection?.baseUrl,
+    token: connection?.token,
   });
 }
