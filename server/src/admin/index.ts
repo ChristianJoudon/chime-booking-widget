@@ -2,11 +2,12 @@ import 'dotenv/config';
 
 import { randomUUID } from 'node:crypto';
 
-import express, { type ErrorRequestHandler } from 'express';
+import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
 import { Pool } from 'pg';
 
 import { requireAdminSession } from './auth.js';
 import { createAdminRouter } from './routes.js';
+import { createSessionRouter } from './sessionRoutes.js';
 import { AdminApiError } from './types.js';
 import { assertWorkspaceIsCoherent } from './workspaceEnvironment.js';
 
@@ -54,6 +55,49 @@ app.use((request, response, next) => {
   next();
 });
 
+/**
+ * Per-address throttle on sign-in, sitting in front of the per-account lockout.
+ * The lockout stops an attack on one account; this stops one address spraying
+ * many accounts. In-process and therefore per-instance, which is the right
+ * scope for a single-node deployment; a multi-node one needs a shared store.
+ */
+const signInAttempts = new Map<string, { count: number; resetAt: number }>();
+const SIGN_IN_WINDOW_MS = 60_000;
+const SIGN_IN_MAX_PER_WINDOW = 10;
+
+const signInThrottle: RequestHandler = (request, response, next) => {
+  if (request.method !== 'POST' || !request.path.startsWith('/session')) {
+    next();
+    return;
+  }
+  const key = request.ip ?? 'unknown';
+  const now = Date.now();
+  const entry = signInAttempts.get(key);
+
+  if (!entry || entry.resetAt <= now) {
+    signInAttempts.set(key, { count: 1, resetAt: now + SIGN_IN_WINDOW_MS });
+  } else if (entry.count >= SIGN_IN_MAX_PER_WINDOW) {
+    response.setHeader('Retry-After', String(Math.ceil((entry.resetAt - now) / 1000)));
+    response.status(429).json({
+      error: {
+        code: 'TOO_MANY_ATTEMPTS',
+        message: 'Too many sign-in attempts from this address. Wait a minute and try again.',
+      },
+    });
+    return;
+  } else {
+    entry.count += 1;
+  }
+
+  // Bound the map so a long-running process cannot accumulate addresses.
+  if (signInAttempts.size > 5_000) {
+    for (const [address, value] of signInAttempts) {
+      if (value.resetAt <= now) signInAttempts.delete(address);
+    }
+  }
+  next();
+};
+
 app.get('/api/chime/admin/health', async (_request, response, next) => {
   try {
     await pool.query('SELECT 1');
@@ -62,6 +106,10 @@ app.get('/api/chime/admin/health', async (_request, response, next) => {
     next(error);
   }
 });
+
+// Sign-in is how a session is obtained, so it cannot sit behind the middleware
+// that requires one. It carries its own throttle instead.
+app.use('/api/chime/admin', signInThrottle, createSessionRouter(pool));
 
 app.use('/api/chime/admin', requireAdminSession(pool), createAdminRouter(pool));
 
