@@ -41,7 +41,7 @@ function createCustomerActionToken() {
 
 function customerApprovalUrl(token: string): string {
   const baseUrl = process.env.CHIME_CUSTOMER_APPROVAL_URL
-    ?? 'http://127.0.0.1:4175/approval.html';
+    ?? 'http://127.0.0.1:4375/approval.html';
   const separator = baseUrl.includes('?') ? '&' : '?';
   return `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
 }

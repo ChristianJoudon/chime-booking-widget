@@ -9,7 +9,7 @@ import { createPublicWidgetConfigRouter } from './widgetConfigRoutes.js';
 const { Pool } = pg;
 
 const app = express();
-const port = Number(process.env.PORT ?? 8787);
+const port = Number(process.env.PORT ?? 8887);
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: Number(process.env.PGPOOL_MAX ?? 10),

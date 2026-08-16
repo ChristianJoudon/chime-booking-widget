@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-const apiBaseUrl = (process.env.CHIME_ADMIN_API_BASE_URL ?? 'http://127.0.0.1:8788/api/chime/admin')
+const apiBaseUrl = (process.env.CHIME_ADMIN_API_BASE_URL ?? 'http://127.0.0.1:8888/api/chime/admin')
   .replace(/\/$/, '');
 const ownerToken = process.env.CHIME_ADMIN_OWNER_TOKEN;
 const viewerToken = process.env.CHIME_ADMIN_VIEWER_TOKEN;

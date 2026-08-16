@@ -10,9 +10,13 @@ export default defineConfig({
     },
   },
   server: {
+    // Pinned so this checkout never contends with another Chime copy on
+    // Vite's default 5173.
+    port: 5373,
+    strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8787',
+        target: 'http://localhost:8887',
         changeOrigin: true,
       },
     },

@@ -2,11 +2,11 @@
 
 Use `postgres-schema.sql` with PostgreSQL, Supabase, Neon, Railway Postgres, or another managed Postgres host. It creates real tables for services, availability slots, customers, bookings, calendar events, terms acceptances, and refundable deposits.
 
-Suggested setup for local development is the Docker compose file at the project root. It starts Postgres with the connection string `postgres://chime:chime@localhost:5434/chime` and auto-applies `postgres-schema.sql` and `seed-demo.sql` on the FIRST boot (run `docker compose down -v` to wipe the data volume and reseed):
+Suggested setup for local development is the Docker compose file at the project root. It starts Postgres with the connection string `postgres://chime:chime@localhost:5534/chime` and auto-applies `postgres-schema.sql` and `seed-demo.sql` on the FIRST boot (run `docker compose down -v` to wipe the data volume and reseed):
 
 ```bash
 docker compose up -d
-export DATABASE_URL=postgres://chime:chime@localhost:5434/chime
+export DATABASE_URL=postgres://chime:chime@localhost:5534/chime
 ```
 
 For a hosted Postgres, apply the files manually:

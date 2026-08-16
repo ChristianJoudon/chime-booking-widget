@@ -19,7 +19,7 @@ services:
       POSTGRES_PASSWORD: chime
       POSTGRES_DB: chime
     ports:
-      - "5434:5432" # host 5434: another local Postgres commonly owns 5432
+      - "5534:5432" # host 5534: another local Postgres commonly owns 5432
     volumes:
       - chime-standalone-db-data:/var/lib/postgresql/data
       - ./database/postgres-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro

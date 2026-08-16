@@ -19,7 +19,8 @@
     "test:availability-studio": "node scripts/availability-schedule-smoke.mjs",
     "test:widget-studio": "node scripts/widget-config-smoke.mjs",
     "test:booking-projection": "node scripts/booking-projection-smoke.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.admin.json --noEmit",
+    "typecheck:widget": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern dist-admin --ignore-pattern dist-embed --ignore-pattern dist-approval --ignore-pattern server/dist",
     "css:check": "tailwindcss -i ./src/index.css -o /dev/null --minify"
   },

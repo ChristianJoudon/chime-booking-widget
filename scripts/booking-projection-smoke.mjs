@@ -20,7 +20,7 @@
  * Usage:
  *   npm run test:booking-projection
  *
- * Requires the customer booking API on :8787 with CHIME_ALLOW_DEMO_PAYMENTS=true
+ * Requires the customer booking API on :8887 with CHIME_ALLOW_DEMO_PAYMENTS=true
  * (see server/.env) and a database seeded from docker-compose.
  */
 
@@ -29,10 +29,10 @@ import { createRequire } from 'node:module';
 const requireFromServer = createRequire(new URL('../server/package.json', import.meta.url));
 const { Pool } = requireFromServer('pg');
 
-const API = (process.env.CHIME_BOOKING_API_BASE_URL ?? 'http://127.0.0.1:8787/api/chime').replace(/\/+$/, '');
+const API = (process.env.CHIME_BOOKING_API_BASE_URL ?? 'http://127.0.0.1:8887/api/chime').replace(/\/+$/, '');
 const DATABASE_URL = process.env.CHIME_DATABASE_URL
   ?? process.env.DATABASE_URL
-  ?? 'postgres://chime:chime@127.0.0.1:5434/chime';
+  ?? 'postgres://chime:chime@127.0.0.1:5534/chime';
 const EMAIL = 'booking-projection-smoke@example.invalid';
 
 let failures = 0;

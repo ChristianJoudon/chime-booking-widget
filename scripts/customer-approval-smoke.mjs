@@ -5,12 +5,12 @@ import { createRequire } from 'node:module';
 const requireFromServer = createRequire(new URL('../server/package.json', import.meta.url));
 const { Pool } = requireFromServer('pg');
 
-const publicApiBase = (process.env.CHIME_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8787/api/chime')
+const publicApiBase = (process.env.CHIME_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8887/api/chime')
   .replace(/\/$/, '');
-const adminApiBase = (process.env.CHIME_ADMIN_API_BASE_URL ?? 'http://127.0.0.1:8788/api/chime/admin')
+const adminApiBase = (process.env.CHIME_ADMIN_API_BASE_URL ?? 'http://127.0.0.1:8888/api/chime/admin')
   .replace(/\/$/, '');
 const ownerToken = process.env.CHIME_ADMIN_OWNER_TOKEN;
-const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://chime:chime@127.0.0.1:5434/chime';
+const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://chime:chime@127.0.0.1:5534/chime';
 const serviceId = process.env.CHIME_APPROVAL_TEST_SERVICE_ID
   ?? '00000000-0000-4000-8000-000000003003';
 

@@ -4,13 +4,13 @@ import { createRequire } from 'node:module';
 
 const requireFromServer = createRequire(new URL('../server/package.json', import.meta.url));
 const { Pool } = requireFromServer('pg');
-const baseUrl = process.env.CHIME_ADMIN_API_BASE_URL ?? process.env.CHIME_ADMIN_API_URL ?? process.env.CHIME_ADMIN_BASE_URL ?? 'http://127.0.0.1:8788';
+const baseUrl = process.env.CHIME_ADMIN_API_BASE_URL ?? process.env.CHIME_ADMIN_API_URL ?? process.env.CHIME_ADMIN_BASE_URL ?? 'http://127.0.0.1:8888';
 const apiUrl = baseUrl.replace(/\/+$/, '').endsWith('/api/chime/admin')
   ? baseUrl.replace(/\/+$/, '')
   : `${baseUrl.replace(/\/+$/, '')}/api/chime/admin`;
 const ownerToken = process.env.CHIME_ADMIN_OWNER_TOKEN ?? process.env.CHIME_OWNER_TOKEN ?? process.env.OWNER_TOKEN;
 const viewerToken = process.env.CHIME_ADMIN_VIEWER_TOKEN ?? process.env.CHIME_VIEWER_TOKEN ?? process.env.VIEWER_TOKEN;
-const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://chime:chime@127.0.0.1:5434/chime';
+const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://chime:chime@127.0.0.1:5534/chime';
 
 assert(ownerToken, 'An owner token is required.');
 assert(viewerToken, 'A viewer token is required.');

@@ -5,8 +5,8 @@ const requireFromServer = createRequire(new URL('../server/package.json', import
 const pg = requireFromServer('pg');
 const { Pool } = pg;
 
-const adminBaseUrl = (process.env.CHIME_ADMIN_API_BASE_URL ?? 'http://127.0.0.1:8788/api/chime/admin').replace(/\/$/, '');
-const publicBaseUrl = (process.env.CHIME_BOOKING_API_BASE_URL ?? 'http://127.0.0.1:8787/api/chime').replace(/\/$/, '');
+const adminBaseUrl = (process.env.CHIME_ADMIN_API_BASE_URL ?? 'http://127.0.0.1:8888/api/chime/admin').replace(/\/$/, '');
+const publicBaseUrl = (process.env.CHIME_BOOKING_API_BASE_URL ?? 'http://127.0.0.1:8887/api/chime').replace(/\/$/, '');
 const ownerToken = process.env.CHIME_ADMIN_OWNER_TOKEN ?? process.env.CHIME_ADMIN_TOKEN;
 const viewerToken = process.env.CHIME_ADMIN_VIEWER_TOKEN;
 const databaseUrl = process.env.DATABASE_URL;

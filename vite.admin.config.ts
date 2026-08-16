@@ -18,11 +18,12 @@ export default defineConfig({
     },
   },
   server: {
-    port: 4174,
+    port: 4374,
+    strictPort: true,
     open: '/admin.html',
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8788',
+        target: 'http://127.0.0.1:8888',
         changeOrigin: true,
       },
     },

@@ -1,0 +1,10 @@
+{
+  "//": "Chime Standalone admin. Kept separate from tsconfig.json so standalone work never changes the booking widget's compiler settings.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2021",
+    "lib": ["DOM", "DOM.Iterable", "ES2021"]
+  },
+  "include": ["src/admin", "src/vite-env.d.ts"],
+  "exclude": []
+}

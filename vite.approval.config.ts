@@ -4,6 +4,12 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    // Pinned so this checkout never contends with another Chime copy.
+    port: 4375,
+    strictPort: true,
+    open: '/approval.html',
+  },
   build: {
     outDir: 'dist-approval',
     emptyOutDir: true,

@@ -118,7 +118,7 @@ type OperationsPayload = {
 class OperationsApiError extends Error {}
 
 const API_URL = String(
-  import.meta.env.VITE_CHIME_ADMIN_API_URL ?? 'http://127.0.0.1:8788/api/chime/admin',
+  import.meta.env.VITE_CHIME_ADMIN_API_URL ?? 'http://127.0.0.1:8888/api/chime/admin',
 ).replace(/\/$/, '');
 const ADMIN_TOKEN = String(import.meta.env.VITE_CHIME_ADMIN_TOKEN ?? '');
 const HOUR_HEIGHT = 76;

@@ -7,6 +7,10 @@ source alone.
 > **Status: Phase 0 completed 2026-08-16.** The items marked **[FIXED]** below have been
 > resolved and verified. See [Phase 0 completion](#phase-0-completion-2026-08-16) at the end
 > for exactly what changed and how each fix was checked.
+>
+> **Ports in the sections below describe the system as reviewed, before it was moved onto a
+> dedicated block.** For current ports and the widget/standalone file boundary, use
+> [`ISOLATION.md`](../ISOLATION.md), which is the authority.
 
 ## Bottom line
 
@@ -311,8 +315,14 @@ Both APIs were moved off their previous hosts and onto repo source:
 
 `npm run session:admin` was confirmed to produce a token the running API accepts.
 
-Note: the Vite dev server binds IPv6 only, so the admin URL is **`http://localhost:4174`** —
-`127.0.0.1:4174` will not connect. Both origins are already in `CHIME_ADMIN_ALLOWED_ORIGINS`.
+Note: the Vite dev server binds IPv6 only, so the admin URL is **`http://localhost:4374`** —
+`127.0.0.1:4374` will not connect. Both origins are in `CHIME_ADMIN_ALLOWED_ORIGINS`.
+
+This checkout was subsequently moved onto a dedicated port block — Postgres 5534, customer API
+8887, admin API 8888, booking dev 5373, admin studio 4374, approval 4375 — so it cannot contend
+with the other Chime copies on this machine. `ISOLATION.md` now carries the full identity, port,
+and file-ownership contract, including which paths belong to the booking widget and must not be
+changed by standalone work.
 
 Moving the admin UI to the dev server also removes the immediate exposure from finding #2 above:
 the token is no longer sitting in a static bundle on a served directory. The underlying issue —

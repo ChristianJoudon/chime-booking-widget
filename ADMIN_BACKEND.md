@@ -36,7 +36,7 @@ npm ci
 npx tsx src/admin/index.ts
 ```
 
-The default API address is `http://127.0.0.1:8788/api/chime/admin`.
+The default API address is `http://127.0.0.1:8888/api/chime/admin`.
 
 ## Generate a local administrator session
 

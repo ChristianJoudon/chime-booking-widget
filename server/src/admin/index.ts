@@ -9,7 +9,7 @@ import { requireAdminSession } from './auth.js';
 import { createAdminRouter } from './routes.js';
 import { AdminApiError } from './types.js';
 
-const port = Number(process.env.CHIME_ADMIN_PORT ?? 8788);
+const port = Number(process.env.CHIME_ADMIN_PORT ?? 8888);
 const connectionString = process.env.CHIME_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error('CHIME_DATABASE_URL or DATABASE_URL is required.');
@@ -17,7 +17,7 @@ if (!connectionString) {
 
 const allowedOrigins = new Set(
   (process.env.CHIME_ADMIN_ALLOWED_ORIGINS
-    ?? 'http://127.0.0.1:4173,http://localhost:4173,http://127.0.0.1:4174,http://localhost:4174')
+    ?? 'http://127.0.0.1:4373,http://localhost:4373,http://127.0.0.1:4374,http://localhost:4374')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),

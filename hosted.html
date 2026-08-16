@@ -22,7 +22,7 @@
     <main class="hosted-shell"><div data-chime-widget data-chime-display="inline"></div></main>
     <script>
       const parameters = new URLSearchParams(window.location.search);
-      const apiBaseUrl = parameters.get('api') || 'http://127.0.0.1:8787/api/chime';
+      const apiBaseUrl = parameters.get('api') || 'http://127.0.0.1:8887/api/chime';
       const businessName = parameters.get('name') || 'Book an appointment';
       window.CHIME_WIDGET_CONFIG = { businessName, api: { baseUrl: apiBaseUrl } };
       document.title = `${businessName} | Chime`;

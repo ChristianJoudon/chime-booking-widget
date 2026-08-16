@@ -43,7 +43,7 @@ type ApiErrorShape = {
 };
 
 const API_URL = String(
-  import.meta.env.VITE_CHIME_API_URL ?? 'http://127.0.0.1:8787/api/chime',
+  import.meta.env.VITE_CHIME_API_URL ?? 'http://127.0.0.1:8887/api/chime',
 ).replace(/\/$/, '');
 
 function icon(path: ReactNode) {

@@ -35,14 +35,14 @@ The fastest path is Docker. The compose file starts Postgres and auto-applies th
 
 ```bash
 docker compose up -d
-cd server && cp .env.example .env   # set DATABASE_URL=postgres://chime:chime@localhost:5434/chime
-npm install && npm run dev          # API on http://localhost:8787
+cd server && cp .env.example .env   # set DATABASE_URL=postgres://chime:chime@localhost:5534/chime
+npm install && npm run dev          # API on http://localhost:8887
 # in another terminal, project root:
 cp .env.example .env.local            # then set VITE_CHIME_USE_DEMO_DATA=false (API URLs are already in the example)
 npm run dev                          # widget now uses the real DB via the Vite proxy
 ```
 
-The Vite dev server proxies `/api` to `http://localhost:8787`, so no `VITE_CHIME_API_BASE_URL` is needed locally. To wipe the database and reseed, run `docker compose down -v` and start again.
+The Vite dev server proxies `/api` to `http://localhost:8887`, so no `VITE_CHIME_API_BASE_URL` is needed locally. To wipe the database and reseed, run `docker compose down -v` and start again.
 
 ### Hosted Postgres (Neon, Supabase, Railway)
 

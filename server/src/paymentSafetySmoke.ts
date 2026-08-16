@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import pg from 'pg';
 
 const { Pool } = pg;
-const apiBaseUrl = (process.env.CHIME_BOOKING_API_BASE_URL ?? 'http://127.0.0.1:8787/api/chime').replace(/\/$/, '');
+const apiBaseUrl = (process.env.CHIME_BOOKING_API_BASE_URL ?? 'http://127.0.0.1:8887/api/chime').replace(/\/$/, '');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const nonce = Date.now();
 const email = `maya.kealoha.${nonce}@example.invalid`;

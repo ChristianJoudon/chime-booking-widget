@@ -325,7 +325,7 @@ npm run dev
 Set these widget environment variables for local development:
 
 ```bash
-VITE_CHIME_API_BASE_URL=http://localhost:8787
+VITE_CHIME_API_BASE_URL=http://localhost:8887
 VITE_CHIME_SERVICES_URL=/api/chime/services
 VITE_CHIME_AVAILABILITY_URL=/api/chime/availability
 VITE_CHIME_BOOKING_URL=/api/chime/bookings
