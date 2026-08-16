@@ -364,7 +364,9 @@ export interface AdminLaunchPayload {
   installations: AdminLaunchInstallation[];
 }
 
-export type AdminPersistenceMode = 'demo' | 'loading' | 'connected' | 'saving' | 'error';
+// 'demo' was removed deliberately: the studio no longer pretends an
+// unreachable API is a working session-only workspace.
+export type AdminPersistenceMode = 'loading' | 'connected' | 'saving' | 'error';
 
 export interface AdminPersistenceState {
   mode: AdminPersistenceMode;
