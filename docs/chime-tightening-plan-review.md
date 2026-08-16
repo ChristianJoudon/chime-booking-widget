@@ -317,22 +317,28 @@ Note: the Vite dev server binds IPv6 only, so the admin URL is **`http://localho
 Moving the admin UI to the dev server also removes the immediate exposure from finding #2 above:
 the token is no longer sitting in a static bundle on a served directory. The underlying issue —
 that `npm run build:admin` inlines whatever token is in `.env.local` — is unchanged, and
-`.env.local` now carries a warning about it. Replacing the build-time token with a real login is
+`config/admin/.env.local` now carries a warning about it. Replacing the build-time token with a real login is
 still the top Phase 1 item.
 
 ### 4. Typecheck
 
 The 21 empty `@types/<pkg> 2` directories (macOS copy artifacts) were removed. That exposed 5
-real errors underneath, which were also fixed:
+real errors underneath. Four were fixed:
 
 - three `replaceAll` calls failing under `lib: ES2020` — `tsconfig.json` raised to `ES2021`,
-  matching code already written against it
+  matching code already written against it. This is typecheck-only: `noEmit` is set, and Vite
+  transpiles with its own esbuild target, so no build output changes
 - one implicit `any` that resolved with the lib change
-- an `Element` vs `HTMLElement` variance error in the embed entry point — `mount()` now accepts
-  `string | Element`, widening the public `ChimeWidget.mount` contract rather than narrowing it
 
-`npm run typecheck` now exits 0 in both root and `server/`. `npm run lint` exits 0 (2
-pre-existing `exhaustive-deps` warnings). `npm run build:embed` succeeds.
+**One is deliberately left unfixed.** `src/embed.tsx:59` reports an `Element` vs `HTMLElement`
+variance error, because `autoMount` now calls `mountConfiguredElement`, whose `MountWidget` type
+accepts `Element` while `mount` accepts `HTMLElement`. That call is in-progress booking-widget
+work, and the widget is maintained separately from Chime Standalone — see
+[Isolation](#isolation-standalone-must-not-touch-the-booking-widget) below. Resolving it is a
+widget decision.
+
+`server/` typecheck exits 0. Root typecheck reports that single widget error and nothing else.
+`npm run lint` exits 0 (2 pre-existing `exhaustive-deps` warnings).
 
 ### 5. Widget → admin projection, proven and now covered
 
@@ -359,6 +365,51 @@ documented anywhere. With a correctly configured workspace it therefore fell thr
 staff and **zero locations**, which is precisely the "Team reported zero covered locations while
 scheduled appointments used locations" symptom in plan Finding #1. All three env-var schemes now
 resolve from the two documented variables.
+
+## Isolation: standalone must not touch the booking widget
+
+`ISOLATION.md` states that this folder is an independent snapshot and that
+`npm run build:embed` should be run "only when producing a portable embed release." The Chime
+booking widget is maintained separately. Standalone work must not modify it, and must not leak
+into its build.
+
+Phase 0 initially violated this in two ways. Both are corrected.
+
+**1. Widget source was edited to satisfy a typecheck error.** `src/embed.tsx` and
+`src/types/widget.ts` had `mount()` widened from `HTMLElement` to `Element`. Reverted in
+`a5a2d6a`. The two files are now byte-identical to their pre-Phase-0 state apart from the
+`mountConfiguredElement` call that was already in the working tree. The type edits were erased at
+compile time, so no emitted output was affected — verified by building the reverted source and
+comparing hashes against `dist-embed/`: **both `chime-widget.js` and `chime-widget.css` are
+byte-identical.**
+
+**2. A root `.env.local` would have inlined an admin token into the widget bundle.** This is the
+more serious one. Vite loads root `.env*` files for *every* config in the project, including
+`vite.embed.config.ts`. A `VITE_CHIME_ADMIN_TOKEN` in the repository root therefore ends up
+compiled into `dist-embed/chime-widget.js` — the customer-facing bundle that gets copied onto
+public websites. A live owner session token would have shipped with it.
+
+Fixed by scoping administrator configuration away from the root:
+
+- `vite.admin.config.ts` sets `envDir: config/admin`
+- the file moved to `config/admin/.env.local`, gitignored via `config/admin/.env*`
+- verified by building the embed to a scratch directory and grepping: zero occurrences of
+  `VITE_CHIME_ADMIN_TOKEN`, `VITE_CHIME_ADMIN_API_URL`, the token body, or the signing secret
+
+The `dist-embed/` in the working tree was built before `.env.local` existed and contains **no
+credential** (verified: 0 occurrences). Its contents match a clean build of current source
+exactly.
+
+One caveat worth recording: `dist-embed/` had 8 entries before Phase 0 and has 3 now, because
+`vite.embed.config.ts` sets `emptyOutDir: true` and a build was run against it. The 3 files are
+exactly what a clean build produces. If any of the other 5 were placed there by hand rather than
+generated, they are gone and will need to be restored from the widget project.
+
+**Rule going forward:** treat `src/embed.tsx`, `src/embedPresentation.ts`, `src/types/widget.ts`,
+`src/components/booking/`, `src/App.tsx`, `src/data/`, `vite.embed.config.ts`, and `dist-embed/`
+as belonging to the booking widget. Standalone changes stop at `src/admin/`, `server/`,
+`database/`, `scripts/`, and the admin entry points. `tsconfig.json` is currently shared by both;
+splitting it is the remaining structural commingling.
 
 ### Not done, and deliberately so
 

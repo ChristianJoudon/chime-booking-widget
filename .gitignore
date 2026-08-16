@@ -8,6 +8,9 @@ server/.env
 .env
 FIXES_APPLIED.patch
 .env.*.local
+# Admin credentials, scoped away from the root so widget builds cannot inline
+# them. See envDir in vite.admin.config.ts.
+config/admin/.env*
 # Scratch output from local asset generation.
 tmp/
 .DS_Store
