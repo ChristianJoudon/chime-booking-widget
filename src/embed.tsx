@@ -12,11 +12,11 @@ import '@/index.css';
  *   before the widget renders.
  */
 export function mount(
-  target: string | Element,
+  target: string | HTMLElement,
   config?: WidgetConfigInput,
 ): { unmount: () => void } {
   const element =
-    typeof target === 'string' ? document.querySelector(target) : target;
+    typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target;
 
   if (!element) {
     throw new Error(

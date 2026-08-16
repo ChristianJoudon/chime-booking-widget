@@ -111,7 +111,7 @@ export interface BookingResponse {
 }
 
 export interface ChimeWidgetGlobal {
-  mount: (target: string | Element, config?: WidgetConfigInput) => { unmount: () => void };
+  mount: (target: string | HTMLElement, config?: WidgetConfigInput) => { unmount: () => void };
   autoMount: () => number;
 }
 
