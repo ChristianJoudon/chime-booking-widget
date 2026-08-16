@@ -7,6 +7,7 @@ import {
   type AdminBusinessSettingsPayload,
 } from './adminApi';
 import './settingsStudio.css';
+import { describeMissingConnection } from './adminConnection';
 
 type SettingsStudioProps = { api: AdminApiClient; onNotify: (message: string) => void };
 type SettingsTab = 'business' | 'booking' | 'customers' | 'readiness';
@@ -70,7 +71,10 @@ export default function SettingsStudio({ api, onNotify }: SettingsStudioProps) {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!api.configured) { setLoading(false); return; }
+      if (!api.configured) {
+        if (!cancelled) { setError(describeMissingConnection()); setLoading(false); }
+        return;
+      }
       try {
         const result = await api.getBusinessSettings();
         if (!cancelled) { setPayload(result); setDraft(result.settings); }

@@ -1,0 +1,90 @@
+/* Shared loaded / empty / failed states. Uses the admin palette so these read
+   as part of the product rather than as debug output. */
+
+.studio-state {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1rem 1.15rem;
+  border-radius: 14px;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-paper);
+  color: var(--admin-ink);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.studio-state strong {
+  font-size: 0.95rem;
+  font-weight: 620;
+}
+
+.studio-state span {
+  color: var(--admin-ink-soft);
+}
+
+.studio-state--loading {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--admin-ink-soft);
+}
+
+.studio-state__spinner {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--admin-line);
+  border-top-color: var(--admin-forest);
+  animation: studio-state-spin 0.7s linear infinite;
+}
+
+@keyframes studio-state-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-state__spinner { animation-duration: 2.4s; }
+}
+
+.studio-state--empty {
+  border-style: dashed;
+  background: var(--admin-canvas);
+}
+
+.studio-state--problem {
+  border-color: var(--admin-coral);
+  background: var(--admin-coral-soft);
+}
+
+.studio-state--problem strong {
+  color: var(--admin-coral);
+}
+
+.studio-state--problem span {
+  color: var(--admin-ink);
+}
+
+.studio-state--problem button {
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-coral);
+  background: var(--admin-paper);
+  color: var(--admin-coral);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.studio-state--problem button:hover {
+  background: var(--admin-coral);
+  color: var(--admin-paper);
+}
+
+.studio-state--problem button:focus-visible {
+  outline: 2px solid var(--admin-forest);
+  outline-offset: 2px;
+}

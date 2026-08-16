@@ -12,6 +12,7 @@ import type {
 } from './adminApi';
 import '../index.css';
 import './widgetStudio.css';
+import { describeMissingConnection } from './adminConnection';
 
 interface WidgetStudioProps {
   api: AdminApiClient;
@@ -154,8 +155,10 @@ export default function WidgetStudio({ api, onNotify }: WidgetStudioProps) {
     setError(null);
     try {
       if (!api.configured) {
-        setSaved(draft);
-        onNotify?.('Widget design saved for this preview session.');
+        // This claimed a save and kept the draft in memory. Nothing reached
+        // Chime, and Launch readiness still counts zero saved designs.
+        setError(describeMissingConnection());
+        onNotify?.('The widget design was not saved: Chime is not connected.');
         return;
       }
       const { config } = await api.saveWidgetConfig(draft);

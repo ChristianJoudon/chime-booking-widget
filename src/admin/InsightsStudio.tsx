@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 
 import {
   type AdminApiClient,
   type AdminInsightsPayload,
 } from './adminApi';
+import { StudioStateNotice, useStudioResource } from './studioState';
 import './insightsStudio.css';
 
 type InsightsStudioProps = { api: AdminApiClient };
@@ -71,31 +72,16 @@ function Trend({ value }: { value: number | null }) {
 
 export default function InsightsStudio({ api }: InsightsStudioProps) {
   const [range, setRange] = useState<InsightRange>(30);
-  const [payload, setPayload] = useState<AdminInsightsPayload>(EMPTY);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      if (!api.configured) {
-        if (!cancelled) { setPayload(EMPTY); setLoading(false); }
-        return;
-      }
-      try {
-        const result = await api.getInsights(range);
-        if (!cancelled) setPayload(result);
-      } catch (loadError) {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Business insights could not be loaded.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => { cancelled = true; };
-  }, [api, range]);
+  const resource = useStudioResource<AdminInsightsPayload>(
+    () => api.getInsights(range),
+    [api, range],
+    // Insights with no appointments in range is a real answer worth naming,
+    // not an empty dashboard the administrator has to interpret.
+    { isEmpty: (result) => result.summary.appointments === 0 },
+  );
+  const payload = resource.data ?? EMPTY;
+  const loading = resource.status === 'loading';
 
   const maxDaily = Math.max(1, ...payload.daily.map((point) => point.appointments));
   const maxService = Math.max(1, ...payload.services.map((service) => service.appointments));
@@ -127,8 +113,18 @@ export default function InsightsStudio({ api }: InsightsStudioProps) {
         </div>
       </header>
 
-      {error ? <div className="insights-error" role="alert">{error}</div> : null}
+      <StudioStateNotice
+        status={resource.status}
+        error={resource.error}
+        onRetry={resource.reload}
+        loadingLabel="Loading business insights..."
+        emptyTitle="No appointments in this period"
+        emptyBody={`Nothing was booked in the last ${range} days, so there is nothing to measure yet. Try a longer range.`}
+      />
 
+
+      {resource.status === 'ready' || resource.status === 'empty' ? (
+      <>
       <div className={`insights-kpis${loading ? ' is-loading' : ''}`}>
         <article><span>Appointments</span><strong>{payload.summary.appointments}</strong><Trend value={payload.summary.appointmentTrend} /></article>
         <article><span>Net customer deposits</span><strong>{money(payload.summary.netCollectedMinor, payload.summary.currency)}</strong><Trend value={payload.summary.collectedTrend} /></article>
@@ -222,6 +218,8 @@ export default function InsightsStudio({ api }: InsightsStudioProps) {
           </div>
         </article>
       </div>
+      </>
+      ) : null}
     </section>
   );
 }

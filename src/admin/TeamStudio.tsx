@@ -9,6 +9,7 @@ import {
   type AdminStaffMember,
 } from './adminApi';
 import './teamStudio.css';
+import { describeMissingConnection } from './adminConnection';
 
 const DAYS = [
   ['monday', 'Mon'],
@@ -101,7 +102,10 @@ function TeamStudio({ api, onNotify }: TeamStudioProps) {
   useEffect(() => {
     let cancelled = false;
     if (!api.configured) {
-      setState('ready');
+      // 'ready' with an empty roster is indistinguishable from a business
+      // that has no team yet. Report the real reason instead.
+      setState('error');
+      onNotify(describeMissingConnection() ?? 'Chime is not connected.');
       return;
     }
     void Promise.all([api.listStaff(true), api.listLocations(), api.previewAvailability(30)])

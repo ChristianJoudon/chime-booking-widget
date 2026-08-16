@@ -7,6 +7,8 @@ import {
   type AdminPaymentRecord,
   type AdminPaymentsPayload,
 } from './adminApi';
+import { describeMissingConnection } from './adminConnection';
+import { StudioStateNotice, type StudioStatus } from './studioState';
 import './paymentsStudio.css';
 
 type PaymentsStudioProps = {
@@ -105,25 +107,33 @@ export default function PaymentsStudio({ api, onNotify }: PaymentsStudioProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<StudioStatus>('loading');
   const [busyAction, setBusyAction] = useState<AdminPaymentActionName | null>(null);
   const [refundAmount, setRefundAmount] = useState('');
   const [reason, setReason] = useState('');
 
   const load = useCallback(async () => {
     if (!api.configured) {
+      // An empty ledger and an unreachable one look identical to an
+      // administrator. Say which this is.
       setPayload(EMPTY);
+      setStatus('unconfigured');
+      setError(describeMissingConnection());
       setLoading(false);
       return;
     }
     setLoading(true);
+    setStatus('loading');
     setError(null);
     try {
       const next = await api.listPayments(filter);
       setPayload(next);
+      setStatus(next.payments.length ? 'ready' : 'empty');
       setSelectedId((current) => current && next.payments.some((payment) => payment.id === current)
         ? current
         : next.payments[0]?.id ?? null);
     } catch (loadError) {
+      setStatus('failed');
       setError(loadError instanceof Error ? loadError.message : 'Payments could not be loaded.');
     } finally {
       setLoading(false);
@@ -235,7 +245,14 @@ export default function PaymentsStudio({ api, onNotify }: PaymentsStudioProps) {
         </button>
       </div>
 
-      {error ? <div className="payments-error" role="alert">{error}</div> : null}
+      <StudioStateNotice
+        status={status}
+        error={error}
+        onRetry={() => void load()}
+        loadingLabel="Loading the payment ledger..."
+        emptyTitle="No payments yet"
+        emptyBody="Deposits appear here once a customer books a service that requires one."
+      />
 
       <div className="payments-workspace">
         <div className="payments-ledger">
