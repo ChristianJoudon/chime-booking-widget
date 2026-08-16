@@ -5,8 +5,11 @@ dist-admin
 dist-embed
 dist-approval
 server/.env
+.env
 FIXES_APPLIED.patch
 .env.*.local
+# Scratch output from local asset generation.
+tmp/
 .DS_Store
 .idea
 *.iml

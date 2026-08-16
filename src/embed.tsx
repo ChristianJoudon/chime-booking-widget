@@ -12,11 +12,11 @@ import '@/index.css';
  *   before the widget renders.
  */
 export function mount(
-  target: string | HTMLElement,
+  target: string | Element,
   config?: WidgetConfigInput,
 ): { unmount: () => void } {
   const element =
-    typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target;
+    typeof target === 'string' ? document.querySelector(target) : target;
 
   if (!element) {
     throw new Error(
@@ -56,7 +56,7 @@ export function autoMount(): number {
   );
 
   targets.forEach((element) => {
-    mount(element);
+    mountConfiguredElement(element, mount);
   });
 
   return targets.length;
@@ -71,3 +71,4 @@ if (document.readyState === 'loading') {
 } else {
   autoMount();
 }
+import { mountConfiguredElement } from './embedPresentation';

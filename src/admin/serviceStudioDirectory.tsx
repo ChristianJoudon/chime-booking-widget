@@ -69,15 +69,19 @@ function runtimeConfig(): { apiBaseUrl: string; token: string } | null {
   const apiBaseUrl = (
     runtime?.apiBaseUrl
     ?? runtime?.apiUrl
-    ?? import.meta.env.VITE_CHIME_ADMIN_API_BASE_URL
-    ?? import.meta.env.VITE_CHIME_ADMIN_API_URL
+    ?? import.meta.env?.VITE_CHIME_ADMIN_API_BASE_URL
+    ?? import.meta.env?.VITE_CHIME_ADMIN_API_URL
     ?? ''
   ).replace(/\/$/, '');
   const token = runtime?.accessToken
     ?? runtime?.sessionToken
     ?? runtime?.token
-    ?? import.meta.env.VITE_CHIME_ADMIN_ACCESS_TOKEN
-    ?? import.meta.env.VITE_CHIME_ADMIN_SESSION_TOKEN
+    // VITE_CHIME_ADMIN_TOKEN is the documented name and the one adminApi.ts
+    // reads. Without it here the directory silently fell back to demo staff
+    // and zero locations even on a fully configured workspace.
+    ?? import.meta.env?.VITE_CHIME_ADMIN_TOKEN
+    ?? import.meta.env?.VITE_CHIME_ADMIN_ACCESS_TOKEN
+    ?? import.meta.env?.VITE_CHIME_ADMIN_SESSION_TOKEN
     ?? '';
 
   if (!apiBaseUrl || !token) {
@@ -109,7 +113,7 @@ async function requestDirectory(): Promise<StudioDirectory> {
   ]);
 
   if (!staffResponse.ok || !locationResponse.ok) {
-    throw new Error('The tenant directory could not be loaded.');
+    throw new Error('The business directory could not be loaded.');
   }
 
   const staffBody = await staffResponse.json() as DirectoryStaffResponse;
