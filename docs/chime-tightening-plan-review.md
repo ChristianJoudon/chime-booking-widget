@@ -11,6 +11,9 @@ source alone.
 > **Ports in the sections below describe the system as reviewed, before it was moved onto a
 > dedicated block.** For current ports and the widget/standalone file boundary, use
 > [`ISOLATION.md`](../ISOLATION.md), which is the authority.
+>
+> **Phase 1 ("Trust the Data") completed 2026-08-16.** See
+> [Phase 1 completion](#phase-1-completion-2026-08-16) at the end.
 
 ## Bottom line
 
@@ -430,3 +433,77 @@ splitting it is the remaining structural commingling.
   required before publishing is a product call, and the checklist now states it clearly.
 - **No migration runner yet.** Ordering is still filename-based in `docker-compose.yml`. This
   remains a Phase 1 item.
+
+---
+
+## Phase 1 completion (2026-08-16)
+
+All five Phase 1 items are done, with the two amendments this review recommended.
+
+### One resolver, not three
+
+`src/admin/adminConnection.ts` is the only module that reads connection configuration.
+`serviceStudioDirectory` had never read `VITE_CHIME_ADMIN_TOKEN` — the documented name — so a
+correctly configured workspace still fell back to demo staff and **zero locations**, which is
+exactly Finding #1's "Team reported zero covered locations" symptom. The team picker now renders
+the three real staff with correct assignment state, and Studio A and Studio B.
+
+`describeMissingConnection()` replaces "The durable admin API is not configured." with an
+instruction naming the file and command that fixes it.
+
+### The invented data is gone
+
+`AdminApp` carried a second, fully hardcoded schedule — 239 lines of fake calendar plus the drag,
+resize, approve and inspector machinery behind it — rendered whenever the API was unreachable.
+**Which half of the product you saw depended on an environment variable.** That is the actual
+mechanism behind "the workspaces do not agree."
+
+Three quieter dishonesties went with it:
+
+- loading services fabricated a draft when the API legitimately returned none
+- saving with no connection reported "Saved for this session" and returned as though it worked
+- Widget Designer reported a saved design while Launch readiness still counted zero, so two
+  screens contradicted each other
+
+`AdminApp` went from 1113 to 323 lines, and the sample-data modules were deleted outright so a
+future change cannot quietly re-import them. Net across Phase 1: **1,389 lines removed.**
+
+### Three honest states
+
+`studioState.tsx` provides `useStudioResource` and `StudioStateNotice`. `unconfigured` is split
+from `failed` because the remedies differ — one is a setup step, the other is a retry — so Retry
+is only offered where retrying can work. Insights, Payments, Team, Settings and Widget Designer
+were converted; Insights now withholds the dashboard rather than drawing zeros.
+
+Verified by forcing `fetch` to reject: the failure notice appears with the underlying message,
+the zeroed dashboard is hidden, and Try again restores it.
+
+### Test records quarantined
+
+Migration 014 classifies services, customers and appointments as `business`, `demo`, or `test`.
+`GET /services` and `GET /customers` exclude `test` unless `?includeTest=true`. The six
+`Smoke service …` rows no longer appear in the directory, and `admin-api-smoke.mjs` now declares
+`origin: 'test'` so future runs classify themselves rather than relying on name matching. A smoke
+run had also overwritten all six demo customers' metadata with "Payment Safety Test"; that
+residue is stripped.
+
+### Workspace indicator, with a real guard
+
+The sidebar shows Demo / Test / Live on every screen, derived from whether notifications can
+reach a real person and whether payments can charge a real card, and states both in plain terms
+rather than relying on the label alone. A workspace whose environment cannot be confirmed says
+so instead of guessing.
+
+The plan's "Production cannot enable demo-payment identifiers" is now enforced: a server
+declaring `CHIME_WORKSPACE_ENV=live` refuses to start with `CHIME_ALLOW_DEMO_PAYMENTS=true`, on
+both the admin and booking APIs, so the mistake surfaces before a booking is taken.
+
+### Still open
+
+- **No login.** The build-time token remains the largest gap to production.
+- **No migration runner.** Ordering is still filename-based in `docker-compose.yml`, now through
+  014.
+- **`widget_configs` is still empty**, so Launch reads 75%.
+- Phase 2 onward — navigation consolidation, Services Studio essentials/advanced split, the
+  preview pattern for consequential actions, and the Messages Outbox/Templates split — is
+  untouched.
