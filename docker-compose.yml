@@ -1,8 +1,15 @@
-# Chime local Postgres for development.
+# Chime Standalone local Postgres for development.
 #
 # The schema and demo seed auto-apply on the FIRST boot only (Postgres runs
 # /docker-entrypoint-initdb.d scripts when the data volume is empty).
 # To wipe the database and reseed from scratch, run: docker compose down -v
+#
+# The project name is pinned rather than derived from the folder name, so this
+# copy keeps its own container, volume, and network even if the directory is
+# renamed or duplicated. It must never share Docker resources with another
+# Chime checkout on this machine.
+name: chime-standalone
+
 services:
   db:
     image: postgres:16-alpine

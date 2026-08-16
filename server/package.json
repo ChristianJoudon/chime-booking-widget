@@ -1,5 +1,5 @@
 {
-  "name": "chime-postgres-api-example",
+  "name": "chime-standalone-server",
   "private": true,
   "version": "0.1.0",
   "type": "module",
