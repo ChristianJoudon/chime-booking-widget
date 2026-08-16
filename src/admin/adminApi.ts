@@ -19,7 +19,7 @@ function stripDemoRelationshipIds<T>(input: T): T {
   return normalized as T;
 }
 
-import type { AdminServiceDefinition } from './sampleAdminServices';
+import type { AdminServiceDefinition } from './serviceTypes';
 import { describeMissingConnection, normalizeBaseUrl, resolveAdminConnection } from './adminConnection';
 
 export interface AdminStaffMember {

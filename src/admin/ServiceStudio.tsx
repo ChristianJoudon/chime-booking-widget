@@ -6,7 +6,7 @@ import { ServiceLocationPicker, useServiceStudioDirectory } from './serviceStudi
 import type {
   AdminServiceDefinition,
   ServiceGlyph,
-} from './sampleAdminServices';
+} from './serviceTypes';
 import './serviceStudio.css';
 
 interface ServiceStudioProps {

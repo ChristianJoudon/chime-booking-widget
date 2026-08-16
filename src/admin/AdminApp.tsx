@@ -25,7 +25,7 @@ import SettingsStudio from './SettingsStudio';
 import LaunchStudio from './LaunchStudio';
 import chimeBellLogo from '@/assets/brand/chime-bell.png';
 import chimeWordmarkLogo from '@/assets/brand/chime-wordmark.png';
-import type { AdminServiceDefinition } from './sampleAdminServices';
+import type { AdminServiceDefinition } from './serviceTypes';
 
 type IconName =
   | 'calendar'
