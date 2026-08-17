@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import type { Pool } from 'pg';
 import { getAdminSession, requireRoles } from './auth.js';
+import { AdminApiError } from './types.js';
+import { parseUuid, requireIdempotencyKey } from './validation.js';
 
 type AsyncHandler = (request: Request, response: Response) => Promise<void>;
 type LifecycleStatus = 'active' | 'vip' | 'watchlist' | 'blocked' | 'archived';
@@ -250,6 +252,101 @@ export function createCustomerRouter(pool: Pool): Router {
     }),
   );
 
+  /**
+   * Customers who share a normalized email or phone with someone else.
+   *
+   * Suggestion only: it lists candidates so a person can look at both records
+   * and decide. Nothing is merged automatically, because two people genuinely
+   * can share a household phone number.
+   */
+  router.get('/customers/duplicates', asyncRoute(async (request, response) => {
+    const session = getAdminSession(request);
+    const result = await pool.query<{
+      match_kind: string;
+      match_value: string;
+      members: unknown;
+    }>(
+      `WITH candidates AS (
+         SELECT 'email' AS match_kind, normalized_email AS match_value, id, display_name,
+                email, phone, created_at,
+                (SELECT count(*) FROM chime_app.appointments a WHERE a.customer_id = c.id) AS appointment_count
+           FROM chime_app.customers c
+          WHERE organization_id = $1 AND origin <> 'test' AND normalized_email IS NOT NULL
+          UNION ALL
+         SELECT 'phone', normalized_phone, id, display_name, email, phone, created_at,
+                (SELECT count(*) FROM chime_app.appointments a WHERE a.customer_id = c.id)
+           FROM chime_app.customers c
+          WHERE organization_id = $1 AND origin <> 'test' AND normalized_phone IS NOT NULL
+       )
+       SELECT match_kind, match_value,
+              jsonb_agg(jsonb_build_object(
+                'id', id, 'displayName', display_name, 'email', email, 'phone', phone,
+                'appointmentCount', appointment_count, 'createdAt', created_at
+              ) ORDER BY created_at) AS members
+         FROM candidates
+        GROUP BY match_kind, match_value
+       HAVING count(*) > 1
+        ORDER BY match_kind, match_value
+        LIMIT 100`,
+      [session.organizationId],
+    );
+    response.json({
+      groups: result.rows.map((row) => ({
+        matchKind: row.match_kind as 'email' | 'phone',
+        matchValue: row.match_value,
+        members: row.members,
+      })),
+    });
+  }));
+
+  /**
+   * Merges one customer into another. The surviving id is the one in the path;
+   * the duplicate named in the body stops existing.
+   */
+  router.post(
+    '/customers/:customerId/merge',
+    requireRoles('owner', 'admin'),
+    asyncRoute(async (request, response) => {
+      const session = getAdminSession(request);
+      const keepId = parseUuid(request.params.customerId, 'customerId');
+      const mergeId = parseUuid(request.body?.duplicateId, 'duplicateId');
+      const idempotencyKey = requireIdempotencyKey(request.get('idempotency-key'));
+      if (keepId === mergeId) {
+        throw new AdminApiError(400, 'INVALID_MERGE', 'A customer cannot be merged into itself.');
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const merged = await client.query<{ result: Record<string, unknown> }>(
+          `SELECT chime_app.merge_customers($1, $2, $3) AS result`,
+          [session.organizationId, keepId, mergeId],
+        );
+        const summary = merged.rows[0].result;
+
+        // Merging destroys a record, so it leaves a trail naming who did it.
+        await client.query(
+          `INSERT INTO chime_app.audit_events (
+             organization_id, actor_kind, actor_id, action,
+             entity_type, entity_id, after_state
+           ) VALUES ($1, 'user', $2, 'customer.merged', 'customer', $3, $4)`,
+          [session.organizationId, session.subject, keepId,
+           JSON.stringify({ ...summary, idempotencyKey })],
+        );
+        await client.query('COMMIT');
+        response.json({ merged: summary });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        if (error instanceof Error && /must exist|into itself/.test(error.message)) {
+          throw new AdminApiError(400, 'INVALID_MERGE', error.message);
+        }
+        throw error;
+      } finally {
+        client.release();
+      }
+    }),
+  );
+
   router.get('/customers/:customerId', asyncRoute(async (request, response) => {
     const session = getAdminSession(request);
     const customerId = String(request.params.customerId);
@@ -264,7 +361,7 @@ export function createCustomerRouter(pool: Pool): Router {
     }
     const customer = mapCustomer(customerResult.rows[0]);
     const contacts = [customerResult.rows[0].email, customerResult.rows[0].phone].filter(Boolean);
-    const [appointments, notes, communications, changes] = await Promise.all([
+    const [appointments, notes, communications, changes, payments] = await Promise.all([
       pool.query(
         `SELECT
            appointment.id, appointment.reference_code, appointment.starts_at, appointment.ends_at,
@@ -320,6 +417,27 @@ export function createCustomerRouter(pool: Pool): Router {
          LIMIT 100`,
         [session.organizationId, customerId],
       ),
+          // The plan asks that customer history link to appointments *and*
+      // payments. Deposits are attached to appointments, so they are reached
+      // through the customer's appointments rather than stored per customer.
+      pool.query(
+        `SELECT payment.id, payment.appointment_id, payment.provider,
+                payment.amount_minor, payment.refunded_amount_minor,
+                payment.currency, payment.status, payment.created_at,
+                appointment.reference_code, service.name AS service_name
+           FROM chime_app.payments payment
+           JOIN chime_app.appointments appointment
+             ON appointment.organization_id = payment.organization_id
+            AND appointment.id = payment.appointment_id
+           JOIN chime_app.services service
+             ON service.organization_id = appointment.organization_id
+            AND service.id = appointment.service_id
+          WHERE payment.organization_id = $1
+            AND appointment.customer_id = $2
+          ORDER BY payment.created_at DESC
+          LIMIT 50`,
+        [session.organizationId, customerId],
+      ),
     ]);
     response.json({
       customer,
@@ -356,6 +474,18 @@ export function createCustomerRouter(pool: Pool): Router {
         sentAt: row.sent_at,
         deliveredAt: row.delivered_at,
         completedAt: row.completed_at,
+        createdAt: row.created_at,
+      })),
+      payments: payments.rows.map((row) => ({
+        id: row.id,
+        appointmentId: row.appointment_id,
+        referenceCode: row.reference_code,
+        serviceName: row.service_name,
+        provider: row.provider,
+        amountMinor: Number(row.amount_minor),
+        refundedAmountMinor: Number(row.refunded_amount_minor),
+        currency: row.currency,
+        status: row.status,
         createdAt: row.created_at,
       })),
       changeRequests: changes.rows.map((row) => ({
@@ -541,6 +671,18 @@ export function createCustomerRouter(pool: Pool): Router {
          RETURNING id, body, is_pinned, created_by_role, created_at, updated_at`,
         [id, session.organizationId, customerId, requiredText(request.body?.body, 'body'), request.body?.isPinned === true, session.role],
       );
+
+      // Notes can carry accessibility and visit details, so who wrote one and
+      // when is part of the record. The body is not copied into the audit
+      // entry: duplicating sensitive text into a second table would widen
+      // rather than narrow its exposure.
+      await pool.query(
+        `INSERT INTO chime_app.audit_events (
+           organization_id, actor_kind, actor_id, action, entity_type, entity_id, after_state
+         ) VALUES ($1, 'user', $2, 'customer.note_added', 'customer_note', $3, $4)`,
+        [session.organizationId, session.subject, id,
+         JSON.stringify({ customerId, isPinned: request.body?.isPinned === true, role: session.role })],
+      );
       if (!result.rowCount) {
         response.status(404).json({ error: 'Customer not found.' });
         return;
@@ -574,6 +716,13 @@ export function createCustomerRouter(pool: Pool): Router {
         response.status(404).json({ error: 'Note not found.' });
         return;
       }
+      await pool.query(
+        `INSERT INTO chime_app.audit_events (
+           organization_id, actor_kind, actor_id, action, entity_type, entity_id, after_state
+         ) VALUES ($1, 'user', $2, 'customer.note_deleted', 'customer_note', $3, $4)`,
+        [session.organizationId, session.subject, String(request.params.noteId),
+         JSON.stringify({ customerId: String(request.params.customerId), role: session.role })],
+      );
       response.status(204).end();
     }),
   );
