@@ -39,13 +39,33 @@ confirmed by doing it.
 
 That interleaving is why the mount list is still explicit rather than a glob.
 
-### Known consequence
+### Provisioning a new organization
 
-Because those five migrations seed from existing organizations, an organization
-created *later* receives none of those defaults. `launch_settings` is covered at
-runtime by `ensureLaunchSettings`, but notification templates are not: a second
-business onboarded today would have zero templates. Provisioning a new
-organization should seed these, rather than a migration doing it once.
+Migration 016 fixes the consequence of the above. Those five migrations seeded
+from *existing* organizations, so an organization created later received none of
+those defaults — and notification templates had no runtime fallback, meaning a
+second business would have had zero email templates.
+
+`chime_app.provision_organization(uuid)` now seeds templates, customer tags,
+business settings and launch settings for one organization, and a trigger on
+`chime_app.organizations` calls it. Creating an organization is enough, however
+it is created:
+
+```sql
+INSERT INTO chime_app.organizations (id, name, slug, default_time_zone, default_currency, status)
+VALUES (gen_random_uuid(), 'New Business', 'new-business', 'America/Denver', 'USD', 'active');
+```
+
+The function is idempotent, so it is safe to call again after a partial failure:
+
+```sql
+SELECT chime_app.provision_organization('<organization-id>');
+```
+
+The earlier migrations are deliberately not edited to delegate to it. They have
+already been applied, and the runner refuses to proceed when an applied
+migration's checksum changes, so editing them would break every existing
+database. They remain correct for what they seeded.
 
 ## Local database
 

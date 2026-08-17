@@ -600,7 +600,7 @@ between migrations 001 and 002 for this reason. Running all migrations then all
 seeds produces a database with **no notification templates** — confirmed by
 doing it. The explicit mount list is therefore not redundant with the runner.
 
-### Latent multi-tenancy bug this exposed
+### Latent multi-tenancy bug this exposed — **[FIXED, migration 016]**
 
 Because those five migrations seed from *existing* organizations, an
 organization created later receives none of those defaults. `launch_settings`
@@ -664,3 +664,42 @@ database. The demo service was restored to its original values afterwards.
 Plan sections 6-11: previews for consequential actions, the Messages
 Outbox/Templates split, schedule safety, customer relationships, payment and
 delivery reliability, and the literal-language pass.
+
+---
+
+## Organization provisioning (2026-08-16)
+
+The multi-tenancy gap the migration runner exposed is closed.
+
+`chime_app.provision_organization(uuid)` seeds notification templates, customer
+tags, business settings and launch settings for one organization, and a trigger
+on `chime_app.organizations` calls it — so defaults arrive however an
+organization is created, rather than depending on a migration having run
+afterwards. Existing organizations are backfilled. The function is idempotent.
+
+The five earlier migrations are deliberately **not** edited to delegate to it.
+They have already been applied, and `scripts/migrate.mjs` refuses to run when an
+applied migration's checksum changes, precisely so two databases cannot silently
+disagree. Editing them would break every existing database.
+
+Verified by reproducing the bug and fixing it in the same database: a second
+organization created without 016 received **0 templates, 0 tags, 0 settings**;
+after 016 it had the full set; a third created afterwards was provisioned
+automatically; and a fresh `docker-compose` initialization gives a brand-new
+business all 11 templates.
+
+### Plan section 7's escaped line breaks, fixed along the way
+
+Migration 007 wrote its template bodies as plain SQL strings, so `\n` was stored
+as the two characters backslash and n and those templates rendered as one
+run-on paragraph — the "legacy escaped line breaks" item in plan section 7.
+Migration 013 had used `E''` strings and was correct.
+
+Since 016 authors the canonical template set, it uses `E''` and repairs the
+existing rows, so the first tenant does not end up with worse templates than the
+second. Five rows were affected in the live database; none remain.
+
+One measurement note: the first check for this used `LIKE '%\n%'`, which in a
+LIKE pattern means "contains the letter n" because backslash is the escape
+character — it reported 22 affected rows out of 22. `position('\n' in ...)` is
+the correct predicate and reports the real number.
