@@ -1,12 +1,12 @@
 .operations-studio {
   --ops-ink: #183d35;
-  --ops-muted: #71827e;
+  --ops-muted: #606e6b;
   --ops-line: #dce7e3;
   --ops-paper: #ffffff;
   --ops-soft: #f5f9f7;
-  --ops-green: #2f8068;
+  --ops-green: #2c7861;
   --ops-green-light: #dff1ea;
-  --ops-coral: #bd694d;
+  --ops-coral: #b05d41;
   --ops-coral-light: #f8e8e0;
   --ops-blue: #477b9b;
   --ops-blue-light: #e4eff5;
@@ -422,7 +422,10 @@
 
 .operations-appointment > span,
 .operations-appointment > small {
-  color: #60716d;
+  /* The card background is color-mix(staff colour 12%, white), so darkening the
+     team palette so initials chips are readable also darkened these tints and
+     pushed this text from just-passing to 4.40:1. */
+  color: #5e6f6b;
   font-size: 9px;
 }
 
@@ -588,6 +591,15 @@
 
 .operations-details div {
   min-width: 0;
+}
+
+/* The customer's email is a link standing alone in its cell, not one sitting
+   inside a sentence, so the WCAG 2.2 inline exemption does not cover it and it
+   needs the full 24px. Inline-flex rather than padding keeps the row height. */
+.operations-details dd a {
+  align-items: center;
+  display: inline-flex;
+  min-height: 24px;
 }
 
 .operations-details dt,

@@ -42,7 +42,7 @@ select:focus-visible,
   --admin-paper: #fffefb;
   --admin-paper-strong: #ffffff;
   --admin-ink: #17352d;
-  --admin-ink-soft: #667871;
+  --admin-ink-soft: #5e6e68;
   --admin-forest: #173b32;
   --admin-forest-deep: #102d27;
   --admin-mint: #4ba987;
@@ -200,7 +200,7 @@ select:focus-visible,
 
 .admin-avatar {
   align-items: center;
-  background: #4b856f;
+  background: #49816c;
   border-radius: 11px;
   color: #fff;
   display: inline-flex;
@@ -672,7 +672,7 @@ select:focus-visible,
 
 .admin-staff-filter > small {
   align-items: center;
-  color: #8a9892;
+  color: #6b7973;
   display: flex;
   flex: 0 0 auto;
   font-size: 0.58rem;
@@ -727,7 +727,7 @@ select:focus-visible,
 .admin-calendar-head > button.is-active { background: #f0f8f4; }
 
 .admin-calendar-head > button span {
-  color: #7d8c86;
+  color: #6b7973;
   font-size: 0.59rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -764,7 +764,7 @@ select:focus-visible,
 }
 
 .admin-time-axis span {
-  color: #8c9994;
+  color: #66736e;
   font-size: 0.54rem;
   font-weight: 600;
   position: absolute;
@@ -1022,7 +1022,7 @@ select:focus-visible,
 }
 
 .admin-inspector__header p {
-  color: #8a9892;
+  color: #6b7973;
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.1em;

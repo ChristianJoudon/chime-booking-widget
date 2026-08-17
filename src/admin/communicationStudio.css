@@ -159,7 +159,7 @@
 .communication-status.is-pending { background: #e5f4ee; color: #2b7660; }
 .communication-status.is-processing { background: #e8f0f6; color: #48738d; }
 .communication-status.is-sent,
-.communication-status.is-delivered { background: #edf2f0; color: #60766f; }
+.communication-status.is-delivered { background: #edf2f0; color: #5d726c; }
 .communication-status.is-failed { background: #fbe5dd; color: #aa5437; }
 .communication-status.is-suppressed { background: #f2eee5; color: #81745b; }
 .communication-row__actions { display: flex; flex-direction: column; gap: 6px; }

@@ -46,7 +46,7 @@
 .launch-link-row { align-items: center; background: #f3f8f5; border: 1px solid #e1ebe6; border-radius: 13px; display: flex; gap: 12px; justify-content: space-between; margin-top: 15px; min-width: 0; padding: 11px 12px; }
 .launch-link-row > div { min-width: 0; }
 .launch-link-row small, .launch-link-row strong { display: block; }
-.launch-link-row small { color: #84918b; font-size: .51rem; font-weight: 700; margin-bottom: 3px; }
+.launch-link-row small { color: #68746f; font-size: .51rem; font-weight: 700; margin-bottom: 3px; }
 .launch-link-row strong { font-size: .62rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .launch-link-row button, .launch-code button, .launch-domain-input button { background: #fff; border: 1px solid #ccdad3; border-radius: 9px; color: #356f5a; flex: 0 0 auto; font-size: .56rem; font-weight: 800; min-height: 32px; padding: 0 11px; }
 
@@ -54,7 +54,7 @@
 .launch-mode-grid > button { background: #f8faf9; border: 1px solid #e0e9e4; border-radius: 14px; color: #5f7069; display: grid; gap: 4px; min-height: 126px; padding: 13px; text-align: left; }
 .launch-mode-grid > button:hover, .launch-mode-grid > button.is-active { background: #eff8f3; border-color: #7bc4a5; box-shadow: inset 0 0 0 1px rgba(65,151,116,.16); color: #275f4c; }
 .launch-mode-grid strong { font-size: .64rem; }
-.launch-mode-grid small { color: #7f8c87; font-size: .52rem; line-height: 1.42; }
+.launch-mode-grid small { color: #68736f; font-size: .52rem; line-height: 1.42; }
 .launch-mode-icon { align-items: center; background: #fff; border: 1px solid #dce7e1; border-radius: 9px; display: flex; height: 32px; justify-content: center; margin-bottom: 3px; position: relative; width: 42px; }
 .launch-mode-icon i { border: 2px solid #55a684; border-radius: 3px; height: 17px; position: relative; width: 25px; }
 .launch-mode-icon--modal i::after { background: #78c4a5; border-radius: 2px; content: ''; inset: 3px; position: absolute; }
@@ -73,20 +73,24 @@
 .launch-any-domain { align-items: center; background: #f7faf8; border: 1px solid #e2ebe6; border-radius: 12px; display: flex; gap: 12px; justify-content: space-between; margin-top: 15px; padding: 11px 12px; }
 .launch-any-domain strong, .launch-any-domain small { display: block; }
 .launch-any-domain strong { font-size: .61rem; }
-.launch-any-domain small { color: #84918b; font-size: .51rem; margin-top: 2px; }
+.launch-any-domain small { color: #68746f; font-size: .51rem; margin-top: 2px; }
 .launch-any-domain input { accent-color: #3c9a75; height: 17px; width: 17px; }
 .launch-domain-input { display: grid; gap: 8px; grid-template-columns: minmax(0,1fr) auto; margin-top: 11px; }
 .launch-domain-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .launch-domain-list > span { align-items: center; background: #e8f4ee; border: 1px solid #cee6da; border-radius: 99px; color: #326d58; display: inline-flex; font-size: .54rem; font-weight: 750; gap: 6px; padding: 5px 6px 5px 9px; }
-.launch-domain-list > span button { align-items: center; background: rgba(255,255,255,.7); border: 0; border-radius: 99px; color: #5e8173; display: flex; font-size: .75rem; height: 18px; justify-content: center; padding: 0; width: 18px; }
-.launch-domain-list > small { color: #8c9994; font-size: .55rem; padding: 5px 0; }
+/* 24x24, the WCAG 2.2 minimum. A transparent ::after outset was tried first
+   and did enlarge the clickable region, but the element's own box stayed 18px,
+   so anything measuring the target still saw an undersized control. Making the
+   button the right size is simpler and honest. */
+.launch-domain-list > span button { align-items: center; background: rgba(255,255,255,.7); border: 0; border-radius: 99px; color: #5e8173; display: flex; font-size: .75rem; height: 24px; justify-content: center; padding: 0; width: 24px; }
+.launch-domain-list > small { color: #66736e; font-size: .55rem; padding: 5px 0; }
 
 .launch-advanced { padding: 0; }
 .launch-advanced summary { cursor: pointer; list-style: none; padding: 17px 19px; }
 .launch-advanced summary::-webkit-details-marker { display: none; }
 .launch-advanced summary span, .launch-advanced summary small { display: block; }
 .launch-advanced summary span { font-size: .65rem; font-weight: 800; }
-.launch-advanced summary small { color: #84918b; font-size: .52rem; margin-top: 3px; }
+.launch-advanced summary small { color: #68746f; font-size: .52rem; margin-top: 3px; }
 .launch-advanced[open] summary { border-bottom: 1px solid #e4ece8; }
 .launch-advanced__fields { display: grid; gap: 11px; grid-template-columns: repeat(2,minmax(0,1fr)); padding: 17px 19px 19px; }
 
@@ -99,8 +103,8 @@
 .launch-preview-site i { background: #d8e1dc; border-radius: 99px; height: 4px; width: 4px; }
 .launch-preview-widget { background: #fff; border: 1px solid #dce8e2; border-radius: 16px; box-shadow: 0 14px 32px rgba(36,67,57,.12); display: flex; flex-direction: column; margin: 24px auto 0; max-width: 250px; padding: 25px 20px; text-align: center; }
 .launch-preview-widget strong, .launch-preview-modal strong { font: 750 .75rem 'Manrope', sans-serif; margin-top: 9px; }
-.launch-preview-widget small, .launch-preview-modal small { color: #819089; font-size: .5rem; margin-top: 4px; }
-.launch-preview-widget button { background: #3f9c78; border: 0; border-radius: 9px; color: white; font-size: .52rem; font-weight: 800; margin-top: 14px; min-height: 32px; }
+.launch-preview-widget small, .launch-preview-modal small { color: #6b7a73; font-size: .5rem; margin-top: 4px; }
+.launch-preview-widget button { background: #358466; border: 0; border-radius: 9px; color: white; font-size: .52rem; font-weight: 800; margin-top: 14px; min-height: 32px; }
 .launch-preview-bell { border: 2px solid #d29b3e; border-radius: 12px 12px 8px 8px; display: inline-block; height: 20px; margin: auto; position: relative; width: 22px; }
 .launch-preview-bell::after { background: #d29b3e; border-radius: 99px; bottom: -5px; content: ''; height: 5px; left: 7px; position: absolute; width: 5px; }
 .launch-preview-trigger { background: #3d9875; border: 0; border-radius: 10px; color: #fff; display: block; font-size: .57rem; font-weight: 800; margin: 112px auto 0; min-height: 36px; padding: 0 15px; }
@@ -130,7 +134,7 @@
 .launch-installations__empty > span { border: 2px solid #7bb59d; border-radius: 7px; height: 24px; margin-bottom: 9px; position: relative; width: 34px; }
 .launch-installations__empty > span::after { background: #7bb59d; border-radius: 99px; bottom: 4px; content: ''; height: 3px; left: 7px; position: absolute; width: 16px; }
 .launch-installations__empty strong { font-size: .61rem; }
-.launch-installations__empty small { color: #84918b; font-size: .51rem; line-height: 1.45; margin-top: 4px; max-width: 220px; }
+.launch-installations__empty small { color: #68746f; font-size: .51rem; line-height: 1.45; margin-top: 4px; max-width: 220px; }
 .launch-installation-row { align-items: center; border-top: 1px solid #e6ede9; display: grid; gap: 8px; grid-template-columns: auto minmax(0,1fr) auto; margin-top: 12px; padding-top: 12px; }
 .launch-installation-row > span { background: #d9ae55; border-radius: 99px; height: 8px; width: 8px; }
 .launch-installation-row > span[data-status='verified'] { background: #48a47e; }

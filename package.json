@@ -24,7 +24,8 @@
     "typecheck": "tsc -p tsconfig.admin.json --noEmit",
     "typecheck:widget": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern dist-admin --ignore-pattern dist-embed --ignore-pattern dist-approval --ignore-pattern server/dist",
-    "css:check": "tailwindcss -i ./src/index.css -o /dev/null --minify"
+    "css:check": "tailwindcss -i ./src/index.css -o /dev/null --minify",
+    "test:accessibility": "node scripts/accessibility-smoke.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "3.7.0",
@@ -45,11 +46,13 @@
     "@typescript-eslint/parser": "8.33.1",
     "@vitejs/plugin-react": "4.5.1",
     "autoprefixer": "10.4.21",
+    "axe-core": "^4.13.0",
     "eslint": "9.28.0",
     "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-react-refresh": "0.4.20",
     "globals": "16.2.0",
     "postcss": "8.5.4",
+    "puppeteer-core": "^23.11.1",
     "tailwindcss": "4.1.8",
     "typescript": "5.8.3",
     "vite": "6.3.5"

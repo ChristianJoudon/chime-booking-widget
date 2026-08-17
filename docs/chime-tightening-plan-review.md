@@ -1157,3 +1157,128 @@ Capture, availability publish, void, refund and merge get no one-click undo.
 Capture and publish are reversible but not in one step — a refund needs a reason
 under section 10, and republishing availability needs edits first. The other
 three are genuinely permanent and say so.
+
+## Accessibility coverage, plan Phase 5 item 3 (2026-08-16)
+
+The plan asks for coverage of keyboard and touch interactions. There was none —
+no test tooling of any kind in the project.
+
+`npm run test:accessibility` drives the real studio against the real API and
+checks three things on all eleven screens, plus a separate pass on the modal:
+
+- **axe-core**, limited to WCAG A and AA
+- **keyboard reachability**: every control that responds to a click can be
+  reached with Tab and shows a focus indicator
+- **touch target size**: 24x24 CSS pixels, the WCAG 2.2 AA minimum, measured
+  after layout rather than inferred from CSS
+
+It uses `puppeteer-core` against the Chrome already installed, so it downloads
+no browser. Two dev dependencies, 15MB, nothing shipped to customers.
+
+### What was already right
+
+Worth saying first, because it shaped how much of this was fixing versus
+building. No `onClick` on a `div` anywhere. The availability blocks — the
+drag-to-resize ones — already carry `role="button"`, `tabIndex`, arrow-key
+handling and a label that says arrow keys work. There is a skip link and a
+visually-hidden helper, and a global `:focus-visible` outline. Someone had
+thought about this.
+
+### The modal was the serious one
+
+The action preview declared `aria-modal="true"`, which tells assistive
+technology the rest of the page is inert. Nothing made that true:
+
+- Tab left the dialog after **one press** and never came back
+- **Escape did nothing**
+- focus never moved into the dialog, so a keyboard user got no signal it opened
+- focus was lost to `<body>` on close
+
+A keyboard user who opened this dialog was stuck in it, or rather stuck outside
+it with it still on screen. It now traps Tab in both directions, closes on
+Escape, takes focus on open and returns it to the opener on close.
+
+### Controls that announced nothing
+
+The hosted-booking-link switch is a `<label>` containing only the switch track,
+so it announced as an unnamed checkbox — the heading beside it says what it
+does, but nothing connects them. Both service toggles were `<button><i/></button>`
+with no text. All three now have labels.
+
+### Contrast: 44 failing colour pairs, and why
+
+Every muted grey in the studio was too light. The cause is that the studio's
+body text renders at **9px and 11px** — 67 of the leaf text elements — and at
+that size WCAG requires the strict 4.5:1 rather than the 3:1 large-text
+threshold. The palette had also drifted into **29 near-identical greys**
+(`#7f8c87`, `#84918b`, `#87958f`, `#8c9994`…), each declared separately.
+
+Each was darkened by the minimum needed to clear 4.5:1 against the lightest
+background it actually appears on, keeping hue and saturation. Computed rather
+than eyeballed, then verified by re-running the check.
+
+Two genuine visual bugs surfaced on the way:
+
+- **Location initials were invisible.** `.service-team-picker > button > i` set
+  `color: #fff` with no background. Staff chips get theirs inline from the team
+  member's swatch; location chips never did, so white initials sat on a
+  near-white card at a contrast ratio of **1.03**.
+- **Four of the six default team colours could not support readable text** at
+  all — neither white nor the dark ink reached 4.5:1 on a mid-tone swatch. The
+  palette is now darkened so white initials work, and `readableInk()` picks
+  white or dark ink per colour so a business choosing its own colour still gets
+  readable initials. CSS cannot do that, because the colour is data.
+
+Darkening the team palette then broke something else, which is the honest shape
+of this kind of change: calendar cards tint themselves with
+`color-mix(staff-colour 12%, white)`, so darker swatches meant darker cards, and
+text that had been passing at 4.5 dropped to 4.40. Caught by re-running.
+
+### Touch targets
+
+Five controls were under 24px: the domain remove buttons (18x18), the payment
+provider Details link (51x17), the team colour swatches (22x22), the working-day
+toggles (**82x12** — the height of their own label, with no padding), and the
+customer email link.
+
+The first attempt at the domain button grew the clickable area with a
+transparent `::after` outset and left the element 18px. That does enlarge the
+hit region, but anything measuring the target still sees 18px, and so would a
+person checking against the standard. Making the button 24px is simpler and
+honest.
+
+### The harness had three bugs of its own
+
+Worth recording, because each produced a finding that looked real:
+
+1. Screen buttons render as `<Icon/><span>Label</span>` plus a count badge, so
+   `textContent` read "Requests2" and the Requests screen was reported
+   unreachable. It reads the span now.
+2. The widget preview renders in a sandboxed iframe, and seeding the session
+   into it threw a `SecurityError` that got reported as a page error.
+3. The target-size check flagged an email address inside a sentence, which WCAG
+   2.2 explicitly exempts.
+
+And one that mattered more: the control count swung between **120 and 141**
+between runs, because several studios render their editor only once a record is
+selected, and whether one was selected on arrival depended on load order. A pass
+meant "nothing failed in whatever happened to render". The script now selects
+the first record explicitly; three consecutive runs check 150 controls each.
+
+### Verified that it fails
+
+A green result is worth nothing unless it can go red. I deliberately removed the
+Escape handler and shrank the colour swatches back to 22px, and the run reported
+exactly those two: `dialog:no-escape` and six 22x22 targets. Then restored both
+and confirmed the pass returns.
+
+### Not fixed: the text is 9px
+
+The single biggest readability problem here is not contrast, it is that most of
+the studio's text renders at 9 to 11 pixels. Contrast is now compliant at that
+size, which is the standard being met rather than the text being comfortable to
+read.
+
+Fixing it properly means changing the type scale across every screen, and that
+is a design decision about how the product should look, not a bug with a correct
+answer. Flagging it rather than deciding it.

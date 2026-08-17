@@ -4,6 +4,7 @@ import type { DepositMode, StaffId } from '../../packages/contracts/src';
 import type { AdminPersistenceState } from './adminApi';
 import { ServiceLocationPicker, useServiceStudioDirectory } from './serviceStudioDirectory';
 import type { Notify } from './undo';
+import { readableInk } from './readableInk';
 import type {
   AdminServiceDefinition,
   ServiceGlyph,
@@ -446,7 +447,7 @@ function ServiceStudio({
                   const isAssigned = selectedService.staffIds.includes(staff.id);
                   return (
                     <button className={isAssigned ? 'is-active' : ''} type="button" key={staff.id} onClick={() => toggleStaff(staff.id)}>
-                      <i style={{ background: staff.color }}>{staff.initials}</i>
+                      <i style={{ background: staff.color, color: readableInk(staff.color) }}>{staff.initials}</i>
                       <span><strong>{staff.name}</strong><small>{isAssigned ? 'Assigned' : 'Not assigned'}</small></span>
                       <b>{isAssigned ? <StudioIcon name="check" size={14} /> : null}</b>
                     </button>
@@ -483,11 +484,11 @@ function ServiceStudio({
             <legend>Availability</legend>
             <div className="service-toggle-row">
               <div><strong>Service is active</strong><span>Allow this appointment type to use availability and schedule rules.</span></div>
-              <button aria-pressed={selectedService.isActive} className="service-switch" type="button" onClick={() => updateSelected({ isActive: !selectedService.isActive })}><i /></button>
+              <button aria-label="Service is active" aria-pressed={selectedService.isActive} className="service-switch" type="button" onClick={() => updateSelected({ isActive: !selectedService.isActive })}><i /></button>
             </div>
             <div className="service-toggle-row">
               <div><strong>Show in customer widget</strong><span>Customers can see and choose this service when it is published.</span></div>
-              <button aria-pressed={selectedService.isPublic} className="service-switch" type="button" onClick={() => updateSelected({ isPublic: !selectedService.isPublic })}><i /></button>
+              <button aria-label="Show in customer widget" aria-pressed={selectedService.isPublic} className="service-switch" type="button" onClick={() => updateSelected({ isPublic: !selectedService.isPublic })}><i /></button>
             </div>
           </fieldset>
           </>

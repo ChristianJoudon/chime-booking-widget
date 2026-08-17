@@ -47,9 +47,9 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, time_zone = EXCLUDED.time_z
 
 INSERT INTO chime_app.staff_members (id, organization_id, display_name, email, color)
 VALUES
-  ('00000000-0000-4000-8000-000000002001', '00000000-0000-4000-8000-000000000001', 'Mara Kealoha', 'mara@chime.local', '#3d9b7c'),
-  ('00000000-0000-4000-8000-000000002002', '00000000-0000-4000-8000-000000000001', 'Noah Reyes', 'noah@chime.local', '#5689b9'),
-  ('00000000-0000-4000-8000-000000002003', '00000000-0000-4000-8000-000000000001', 'Lei Nakamura', 'lei@chime.local', '#d47e61')
+  ('00000000-0000-4000-8000-000000002001', '00000000-0000-4000-8000-000000000001', 'Mara Kealoha', 'mara@chime.local', '#348469'),
+  ('00000000-0000-4000-8000-000000002002', '00000000-0000-4000-8000-000000000001', 'Noah Reyes', 'noah@chime.local', '#477aab'),
+  ('00000000-0000-4000-8000-000000002003', '00000000-0000-4000-8000-000000000001', 'Lei Nakamura', 'lei@chime.local', '#bf5734')
 ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   email = EXCLUDED.email,

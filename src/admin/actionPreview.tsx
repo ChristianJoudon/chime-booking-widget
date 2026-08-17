@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import './actionPreview.css';
 
@@ -110,11 +110,87 @@ interface DialogProps {
   onCancel: () => void;
 }
 
+/** Everything inside `root` that a Tab press can land on, in document order. */
+function tabbableWithin(root: HTMLElement): HTMLElement[] {
+  const candidates = root.querySelectorAll<HTMLElement>(
+    'a[href], button, input, select, textarea, [tabindex]',
+  );
+  return [...candidates].filter((element) => {
+    if (element.hasAttribute('disabled')) return false;
+    if (element.getAttribute('tabindex') === '-1') return false;
+    // A control inside a collapsed section has no box and cannot be focused.
+    return element.offsetWidth > 0 || element.offsetHeight > 0;
+  });
+}
+
 function ActionPreviewDialog({
   request, reason, onReasonChange, onConfirm, onCancel,
 }: DialogProps) {
   const needsReason = Boolean(request.reasonPrompt);
   const blocked = needsReason && reason.trim().length < 3;
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Keyboard behaviour a dialog has to provide, and this one did not.
+   *
+   * `aria-modal="true"` tells assistive technology the rest of the page is
+   * inert. Nothing was making that true: Tab walked straight out of the dialog
+   * into the page behind it, with no way back, and Escape did nothing. The
+   * accessibility check catches all three.
+   *
+   * Focus also has to go somewhere on open, or a keyboard user gets no signal
+   * that anything appeared, and it has to come back to the control that opened
+   * the dialog on close, or they restart from the top of the page.
+   */
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const opener = document.activeElement as HTMLElement | null;
+
+    // The reason field already claims focus when present, because typing is
+    // the next thing to do. Otherwise start on the dialog itself, so a screen
+    // reader announces the title rather than jumping to the first button.
+    if (!dialog.contains(document.activeElement)) dialog.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const stops = tabbableWithin(dialog);
+      if (!stops.length) {
+        event.preventDefault();
+        return;
+      }
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      // Wrap at both ends, and pull focus back in if it somehow escaped.
+      if (!dialog.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      // Only restore if the opener is still on the page — after a confirm, the
+      // control that opened the dialog is often gone.
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [onCancel]);
 
   return (
     <div
@@ -126,7 +202,11 @@ function ActionPreviewDialog({
         aria-labelledby="action-preview-title"
         aria-modal="true"
         className={`action-preview action-preview--${request.tone ?? 'normal'}`}
+        ref={dialogRef}
         role="dialog"
+        // Focusable so the dialog itself can hold focus on open, but not a Tab
+        // stop, so it does not sit in the cycle afterwards.
+        tabIndex={-1}
       >
         <h2 id="action-preview-title">{request.title}</h2>
         <p className="action-preview__summary">{request.summary}</p>

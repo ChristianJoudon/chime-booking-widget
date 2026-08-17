@@ -250,8 +250,13 @@ export default function LaunchStudio({ api, onNotify }: LaunchStudioProps) {
                 <div><h2>Hosted booking link</h2><p>The fastest way to take bookings. No website changes needed.</p></div>
               </div>
               <label className="launch-switch">
+                {/* This label holds only the switch track, which has no text,
+                    so the control announced itself as an unnamed checkbox. The
+                    heading beside it says what the switch is for, but nothing
+                    tells assistive technology they belong together. */}
                 <input
                   type="checkbox"
+                  aria-label="Publish the hosted booking link"
                   checked={draft.hostedPageEnabled}
                   onChange={(event) => setDraft({ ...draft, hostedPageEnabled: event.target.checked })}
                 />

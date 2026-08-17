@@ -87,9 +87,9 @@
 .settings-readiness-ring::after { background: #f8fbfa; border-radius: 50%; content: ''; height: 69px; position: absolute; width: 69px; }
 .settings-readiness-ring > span { display: grid; position: relative; text-align: center; z-index: 1; }
 .settings-readiness-ring strong { font-size: 1.14rem; }
-.settings-readiness-ring small { color: #7a8984; font-size: .52rem; }
+.settings-readiness-ring small { color: #66736e; font-size: .52rem; }
 .settings-readiness-summary > div:last-child > strong { font-size: .8rem; }
-.settings-readiness-summary p { color: #71817b; font-size: .61rem; line-height: 1.5; margin: 6px 0 0; }
+.settings-readiness-summary p { color: #687671; font-size: .61rem; line-height: 1.5; margin: 6px 0 0; }
 .settings-checklist { display: grid; gap: 8px; }
 .settings-checklist article { align-items: center; background: #fafbfb; border: 1px solid rgba(30, 77, 66, .09); border-radius: 12px; display: grid; gap: 10px; grid-template-columns: 28px 1fr auto; padding: 10px 12px; }
 .settings-checklist article > i { align-items: center; background: #edf0ef; border-radius: 8px; color: #fff; display: flex; font-size: .68rem; font-style: normal; height: 28px; justify-content: center; width: 28px; }

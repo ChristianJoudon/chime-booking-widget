@@ -137,7 +137,7 @@
 .insights-customer-legend strong { font-size: .75rem; }
 .insights-customer-legend small { color: #87948f; font-size: .57rem; }
 .insights-customer-legend b { font-size: .66rem; }
-.insights-customer-note { background: #f2f7f5; border-radius: 10px; color: #76867f; font-size: .58rem; line-height: 1.45; padding: 9px 10px; }
+.insights-customer-note { background: #f2f7f5; border-radius: 10px; color: #66746e; font-size: .58rem; line-height: 1.45; padding: 9px 10px; }
 
 .insights-service-list { display: grid; gap: 13px; margin-top: 21px; }
 .insights-service { align-items: center; display: grid; gap: 10px; grid-template-columns: minmax(140px, 1fr) minmax(90px, 1.2fr) 26px 70px; }
@@ -175,7 +175,7 @@
 .insights-readout-list > div > i.is-coral { background: #e7a994; }
 .insights-readout-list span { display: grid; gap: 5px; }
 .insights-readout-list strong { font-size: .64rem; line-height: 1.35; }
-.insights-readout-list small { color: #7f8e88; font-size: .56rem; line-height: 1.45; }
+.insights-readout-list small { color: #67756f; font-size: .56rem; line-height: 1.45; }
 .insights-empty { align-items: center; color: #83918c; display: flex; font-size: .65rem; justify-content: center; min-height: 210px; text-align: center; }
 .insights-empty.is-compact { min-height: 90px; }
 

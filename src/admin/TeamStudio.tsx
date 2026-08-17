@@ -11,6 +11,7 @@ import {
 import './teamStudio.css';
 import { describeMissingConnection } from './adminConnection';
 import type { Notify } from './undo';
+import { readableInk } from './readableInk';
 
 const DAYS = [
   ['monday', 'Mon'],
@@ -22,7 +23,7 @@ const DAYS = [
   ['sunday', 'Sun'],
 ] as const;
 
-const COLORS = ['#3d9b7c', '#5689b9', '#d47e61', '#b17dba', '#d09b36', '#507d68'];
+const COLORS = ['#348469', '#477aab', '#bf5734', '#9e5eaa', '#976f23', '#507d68'];
 
 interface WorkingDay {
   enabled: boolean;
@@ -335,7 +336,7 @@ function TeamStudio({ api, onNotify }: TeamStudioProps) {
                   type="button"
                   onClick={() => setSelectedId(member.id)}
                 >
-                  <i style={{ background: member.color ?? COLORS[0] }}>{initials(member.displayName)}</i>
+                  <i style={{ background: member.color ?? COLORS[0], color: readableInk(member.color ?? COLORS[0]) }}>{initials(member.displayName)}</i>
                   <span><strong>{member.displayName}</strong><small>{memberSettings.role}</small></span>
                   <em>{member.isActive ? 'Active' : 'Off'}</em>
                 </button>
@@ -348,7 +349,7 @@ function TeamStudio({ api, onNotify }: TeamStudioProps) {
           <div className="team-editor">
             <div className="team-editor__heading">
               <div className="team-editor__identity">
-                <i style={{ background: selected.color ?? COLORS[0] }}>{initials(selected.displayName)}</i>
+                <i style={{ background: selected.color ?? COLORS[0], color: readableInk(selected.color ?? COLORS[0]) }}>{initials(selected.displayName)}</i>
                 <div><span>Team member</span><h2>{selected.displayName}</h2></div>
               </div>
               <div><small>Version {selected.version}</small><button type="button" onClick={() => updateSelected({ isActive: !selected.isActive })}>{selected.isActive ? 'Deactivate' : 'Reactivate'}</button></div>

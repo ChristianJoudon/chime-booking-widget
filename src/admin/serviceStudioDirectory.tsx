@@ -15,7 +15,7 @@ export interface StudioStaff {
   color: string;
 }
 
-const STAFF_COLORS = ['#3d9b7c', '#5689b9', '#d47e61', '#8a76b8', '#c2915a'];
+const STAFF_COLORS = ['#348469', '#477aab', '#bf5734', '#806ab2', '#9b6d39'];
 
 interface DirectoryStaffResponse {
   staff: Array<{

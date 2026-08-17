@@ -24,10 +24,13 @@
 .availability-staff { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding: 1px 1px 4px; }
 .availability-staff button { align-items: center; background: rgba(255,255,255,.72); border: 1px solid #d7e0dd; border-radius: 12px; color: #31584c; cursor: pointer; display: flex; flex: 0 0 190px; gap: 9px; min-height: 56px; padding: 8px 10px; text-align: left; }
 .availability-staff button[aria-pressed='true'] { background: #e9f4ef; border-color: #9fc7b8; box-shadow: inset 0 0 0 1px #b9d8cd; }
-.availability-staff button > i { align-items: center; background: color-mix(in srgb, var(--staff-color) 20%, white); border-radius: 9px; color: var(--staff-color); display: flex; font-size: 9px; font-style: normal; font-weight: 900; height: 35px; justify-content: center; width: 35px; }
+.availability-staff button > i { align-items: center; background: color-mix(in srgb, var(--staff-color) 20%, white); border-radius: 9px; /* Chip and text derive from one staff colour, so the raw swatch on its own
+     20% tint lands near 3.5:1. Mixing 15% black into the text clears 4.5:1
+     for every swatch in the palette while still reading as that colour. */
+  color: color-mix(in srgb, var(--staff-color) 85%, black); display: flex; font-size: 9px; font-style: normal; font-weight: 900; height: 35px; justify-content: center; width: 35px; }
 .availability-staff button span, .availability-staff button strong, .availability-staff button small { display: block; min-width: 0; }
 .availability-staff button strong { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.availability-staff button small { color: #7b8d87; font-size: 7px; margin-top: 3px; }
+.availability-staff button small { color: #62716c; font-size: 7px; margin-top: 3px; }
 .availability-toolbar { align-items: center; background: rgba(255,255,255,.83); border: 1px solid #d3dfdb; border-radius: 16px 16px 0 0; display: grid; gap: 14px; grid-template-columns: auto 1fr auto; padding: 13px 15px; }
 .availability-toolbar > div:first-child span, .availability-toolbar > div:first-child strong, .availability-toolbar > div:first-child small { display: block; }
 .availability-toolbar > div:first-child span { color: #7a8e87; font-size: 7px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
@@ -91,7 +94,7 @@
 .availability-preview-card__status { background: #eef6f2; border-radius: 11px; display: grid; gap: 3px 9px; grid-template-columns: auto 1fr; margin-top: 14px; padding: 11px; }
 .availability-preview-card__status > i { background: #62a58d; border-radius: 50%; grid-row: span 2; height: 8px; margin-top: 4px; width: 8px; }
 .availability-preview-card__status strong { font-size: 9px; }
-.availability-preview-card__status span { color: #71857e; font-size: 7px; line-height: 1.5; }
+.availability-preview-card__status span { color: #62746d; font-size: 7px; line-height: 1.5; }
 .availability-service-list { margin-top: 10px; }
 .availability-service-list article { align-items: center; border-bottom: 1px solid #e5eae8; display: flex; justify-content: space-between; padding: 9px 1px; }
 .availability-service-list strong, .availability-service-list small { display: block; }
