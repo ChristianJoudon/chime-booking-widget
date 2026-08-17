@@ -13,6 +13,7 @@ import {
   type AdminPersistenceState,
 } from './adminApi';
 import { describeMissingConnection } from './adminConnection';
+import { ConflictNotice, compareRecords } from './conflictNotice';
 import ServiceStudio from './ServiceStudio';
 import TeamStudio from './TeamStudio';
 import OperationsStudio from './OperationsStudio';
@@ -194,6 +195,7 @@ function AdminApp() {
     () => areaContaining('Schedule')?.label ?? null,
   );
   const [counts, setCounts] = useState<AdminNavigationCounts | null>(null);
+  const [conflict, setConflict] = useState<{ mine: AdminServiceDefinition; theirs: AdminServiceDefinition } | null>(null);
   const [adminServices, setAdminServices] = useState<AdminServiceDefinition[]>([]);
   // Rebuilt whenever the token changes, so requests never carry a stale one.
   const adminApi = useMemo(() => createAdminApiClient(session?.token), [session?.token]);
@@ -289,6 +291,17 @@ function AdminApp() {
       setToast(`${saved.name} was saved with version ${saved.version}.`);
       return saved;
     } catch (error) {
+      // A version conflict is not an ordinary failure: nothing was overwritten,
+      // and the administrator needs to see what differs before choosing whether
+      // to discard their work. Fetch the saved record and compare.
+      if (error instanceof AdminApiClientError && error.code === 'SERVICE_VERSION_CONFLICT') {
+        const saved = await adminApi.listServices()
+          .then((all) => all.find((item) => item.id === service.id) ?? null)
+          .catch(() => null);
+        setConflict(saved ? { mine: service, theirs: saved } : null);
+        setAdminPersistence({ mode: 'error', label: 'Changed elsewhere' });
+        return service;
+      }
       const message = error instanceof AdminApiClientError
         ? error.message
         : 'The service could not be saved.';
@@ -423,6 +436,30 @@ function AdminApp() {
           ) : activeWorkspace === 'Messages' ? (
           <CommunicationStudio api={adminApi} onNotify={setToast} />
           ) : activeWorkspace === 'Services' ? (
+          <>
+          {conflict ? (
+            <ConflictNotice
+              fields={compareRecords(conflict.mine, conflict.theirs, [
+                { key: 'name', label: 'Service name' },
+                { key: 'category', label: 'Category' },
+                { key: 'shortDescription', label: 'Short description' },
+                { key: 'priceMinor', label: 'Price', format: (value) => `$${(Number(value) / 100).toFixed(2)}` },
+                { key: 'capacity', label: 'Capacity' },
+                { key: 'isActive', label: 'Active', format: (value) => (value ? 'Yes' : 'No') },
+                { key: 'isPublic', label: 'Shown to customers', format: (value) => (value ? 'Yes' : 'No') },
+              ])}
+              onDismiss={() => setConflict(null)}
+              onReload={() => {
+                setAdminServices((current) => current.map((item) =>
+                  item.id === conflict.theirs.id ? conflict.theirs : item,
+                ));
+                setConflict(null);
+                setAdminPersistence({ mode: 'connected', label: 'Saved to Chime' });
+                setToast('Loaded the version saved in the other session.');
+              }}
+              title={`${conflict.mine.name} changed in another session`}
+            />
+          ) : null}
           <ServiceStudio
             services={adminServices}
             onServicesChange={setAdminServices}
@@ -430,6 +467,7 @@ function AdminApp() {
             onSaveService={saveAdminService}
             persistence={adminPersistence}
           />
+          </>
         ) : activeWorkspace === 'Availability' ? (
           <AvailabilityStudio api={adminApi} onNotify={setToast} />
         ) : activeWorkspace === 'Customers' ? (

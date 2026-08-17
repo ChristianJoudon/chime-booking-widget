@@ -1,0 +1,94 @@
+/* Shown when a save is refused because the record moved underneath. */
+
+.conflict-notice {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--admin-yellow);
+  background: var(--admin-yellow-soft);
+  color: var(--admin-ink);
+}
+
+.conflict-notice > strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 640;
+}
+
+.conflict-notice > p {
+  margin: 0.3rem 0 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--admin-ink-soft);
+}
+
+.conflict-notice__table {
+  width: 100%;
+  margin-bottom: 0.85rem;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.conflict-notice__table th,
+.conflict-notice__table td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--admin-line);
+  vertical-align: top;
+}
+
+.conflict-notice__table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--admin-ink-soft);
+  font-weight: 620;
+}
+
+.conflict-notice__table tbody th {
+  font-weight: 580;
+  color: var(--admin-ink-soft);
+}
+
+.conflict-notice__identical {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  color: var(--admin-ink-soft);
+}
+
+.conflict-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.conflict-notice__actions button {
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-paper);
+  color: var(--admin-ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 580;
+  cursor: pointer;
+}
+
+.conflict-notice__actions button:hover {
+  background: var(--admin-canvas);
+}
+
+.conflict-notice__actions button:focus-visible {
+  outline: 2px solid var(--admin-forest);
+  outline-offset: 2px;
+}
+
+.conflict-notice__reload {
+  border-color: transparent;
+  background: var(--admin-forest);
+  color: var(--admin-paper);
+}
+
+.conflict-notice__reload:hover {
+  background: var(--admin-forest-deep);
+}
