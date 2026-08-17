@@ -9,6 +9,7 @@ import {
 import {
   AdminApiClientError,
   createAdminApiClient,
+  type AdminNavigationCounts,
   type AdminPersistenceState,
 } from './adminApi';
 import { describeMissingConnection } from './adminConnection';
@@ -109,19 +110,75 @@ function Icon({ name, size = 20, strokeWidth = 1.8 }: IconProps) {
   );
 }
 
-const NAV_ITEMS: readonly { label: string; icon: IconName }[] = [
-  { label: 'Schedule', icon: 'calendar' },
-  { label: 'Requests', icon: 'inbox' },
-  { label: 'Messages', icon: 'mail' },
-  { label: 'Services', icon: 'services' },
-  { label: 'Team', icon: 'team' },
-  { label: 'Availability', icon: 'calendar' },
-  { label: 'Customers', icon: 'customers' },
-  { label: 'Payments', icon: 'payments' },
-  { label: 'Insights', icon: 'insights' },
-  { label: 'Widget designer', icon: 'palette' },
-  { label: 'Launch', icon: 'send' },
+type Workspace =
+  | 'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team' | 'Availability'
+  | 'Customers' | 'Payments' | 'Insights' | 'Widget designer' | 'Launch' | 'Settings';
+
+/** Which count, if any, belongs beside an area. */
+type CountKey = 'pendingRequests' | 'failedMessages';
+
+interface NavArea {
+  label: string;
+  icon: IconName;
+  /** Screens inside this area, shown when it is open. */
+  screens: readonly Workspace[];
+  /** Summed onto the area header so a collapsed area still shows its work. */
+  counts?: readonly CountKey[];
+}
+
+/**
+ * Eleven flat destinations asked a small-business owner to choose among things
+ * that are parts of the same job. These are the same screens, grouped into the
+ * five areas the tightening plan describes — nothing added, nothing removed.
+ */
+const NAV_AREAS: readonly NavArea[] = [
+  {
+    label: 'Appointments',
+    icon: 'calendar',
+    screens: ['Schedule', 'Requests'],
+    counts: ['pendingRequests'],
+  },
+  {
+    label: 'Business setup',
+    icon: 'services',
+    screens: ['Services', 'Team', 'Availability'],
+  },
+  {
+    label: 'Customers',
+    icon: 'customers',
+    screens: ['Customers', 'Messages'],
+    counts: ['failedMessages'],
+  },
+  {
+    label: 'Money',
+    icon: 'payments',
+    screens: ['Payments', 'Insights'],
+  },
+  {
+    label: 'Booking widget',
+    icon: 'palette',
+    screens: ['Widget designer', 'Launch'],
+  },
 ];
+
+const SCREEN_ICONS: Record<Workspace, IconName> = {
+  Schedule: 'calendar',
+  Requests: 'inbox',
+  Services: 'services',
+  Team: 'team',
+  Availability: 'clock',
+  Customers: 'customers',
+  Messages: 'mail',
+  Payments: 'payments',
+  Insights: 'insights',
+  'Widget designer': 'palette',
+  Launch: 'send',
+  Settings: 'settings',
+};
+
+function areaContaining(screen: Workspace): NavArea | undefined {
+  return NAV_AREAS.find((area) => area.screens.includes(screen));
+}
 
 function AdminApp() {
   // sessionStorage is external to React, so the session is mirrored into state
@@ -130,7 +187,13 @@ function AdminApp() {
   // because nothing in the memo body references it.
   const [session, setSession] = useState(() => readSession());
   const [toast, setToast] = useState<string | null>(null);
-  const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team' | 'Availability' | 'Customers' | 'Payments' | 'Insights' | 'Widget designer' | 'Launch' | 'Settings'>('Schedule');
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('Schedule');
+  // Exactly one area is open at a time, so at most five headers plus one area's
+  // screens are visible — the plan's "no more than five primary choices".
+  const [openArea, setOpenArea] = useState<string | null>(
+    () => areaContaining('Schedule')?.label ?? null,
+  );
+  const [counts, setCounts] = useState<AdminNavigationCounts | null>(null);
   const [adminServices, setAdminServices] = useState<AdminServiceDefinition[]>([]);
   // Rebuilt whenever the token changes, so requests never carry a stale one.
   const adminApi = useMemo(() => createAdminApiClient(session?.token), [session?.token]);
@@ -146,6 +209,24 @@ function AdminApp() {
     onSessionEnded(() => setSession(null));
     return () => onSessionEnded(null);
   }, []);
+
+  useEffect(() => {
+    const area = areaContaining(activeWorkspace);
+    if (area) setOpenArea(area.label);
+  }, [activeWorkspace]);
+
+  // Badges must reflect real work, so they come from the server rather than
+  // from whichever studio happens to be mounted. Refreshed when the active
+  // screen changes, which is when an administrator has likely just resolved
+  // something.
+  useEffect(() => {
+    if (!adminApi.configured) return;
+    let cancelled = false;
+    void adminApi.getNavigationCounts()
+      .then((next) => { if (!cancelled) setCounts(next); })
+      .catch(() => { if (!cancelled) setCounts(null); });
+    return () => { cancelled = true; };
+  }, [adminApi, activeWorkspace]);
 
   useEffect(() => {
     if (!toast) return;
@@ -228,7 +309,14 @@ function AdminApp() {
       <a className="admin-skip-link" href="#admin-schedule">Skip to schedule</a>
 
       <aside className="admin-sidebar">
-        <div className="admin-brand">
+        {/* The plan asks that Schedule be reachable from anywhere in one
+            action. The brand is the one element present on every screen. */}
+        <button
+          className="admin-brand"
+          onClick={() => setActiveWorkspace('Schedule')}
+          title="Back to Schedule"
+          type="button"
+        >
           <span className="admin-brand__mark" aria-hidden="true">
             <img src={chimeBellLogo} alt="" />
           </span>
@@ -236,7 +324,7 @@ function AdminApp() {
             <img className="admin-brand__wordmark" src={chimeWordmarkLogo} alt="Chime" />
             <small>business studio</small>
           </div>
-        </div>
+        </button>
 
         <button className="admin-workspace-switcher" type="button">
           <span className="admin-avatar admin-avatar--sun">SK</span>
@@ -250,25 +338,55 @@ function AdminApp() {
         <WorkspaceBadge api={adminApi} />
 
         <nav className="admin-nav" aria-label="Admin workspace">
-          <p>Workspace</p>
-          {NAV_ITEMS.map((item) => (
-            <button
-              className={item.label === activeWorkspace ? 'is-active' : ''}
-              type="button"
-              key={item.label}
-              aria-current={item.label === activeWorkspace ? 'page' : undefined}
-              onClick={() => {
-                if (item.label === 'Schedule' || item.label === 'Requests' || item.label === 'Messages' || item.label === 'Services' || item.label === 'Team' || item.label === 'Availability' || item.label === 'Customers' || item.label === 'Payments' || item.label === 'Insights' || item.label === 'Widget designer' || item.label === 'Launch') {
-                  setActiveWorkspace(item.label);
-                } else {
-                  setToast(`${item.label} is mapped for the next Chime build.`);
-                }
-              }}
-            >
-              <Icon name={item.icon} size={19} />
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {NAV_AREAS.map((area) => {
+            const open = openArea === area.label;
+            const areaCount = (area.counts ?? [])
+              .reduce((total, key) => total + (counts?.[key] ?? 0), 0);
+            const holdsActive = area.screens.includes(activeWorkspace);
+
+            return (
+              <div className="admin-nav__area" key={area.label}>
+                <button
+                  aria-expanded={open}
+                  className={`admin-nav__area-header${holdsActive ? ' holds-active' : ''}`}
+                  onClick={() => setOpenArea(open ? null : area.label)}
+                  type="button"
+                >
+                  <Icon name={area.icon} size={19} />
+                  <span>{area.label}</span>
+                  {areaCount > 0 ? (
+                    <b title={`${areaCount} need${areaCount === 1 ? 's' : ''} attention`}>
+                      {areaCount}
+                    </b>
+                  ) : null}
+                  <i className={open ? 'is-open' : ''} aria-hidden="true">
+                    <Icon name="chevron-right" size={15} />
+                  </i>
+                </button>
+
+                {open ? (
+                  <div className="admin-nav__screens">
+                    {area.screens.map((screen) => (
+                      <button
+                        aria-current={screen === activeWorkspace ? 'page' : undefined}
+                        className={screen === activeWorkspace ? 'is-active' : ''}
+                        key={screen}
+                        onClick={() => setActiveWorkspace(screen)}
+                        type="button"
+                      >
+                        <Icon name={SCREEN_ICONS[screen]} size={17} />
+                        <span>{screen}</span>
+                        {screen === 'Requests' && (counts?.pendingRequests ?? 0) > 0
+                          ? <b>{counts?.pendingRequests}</b> : null}
+                        {screen === 'Messages' && (counts?.failedMessages ?? 0) > 0
+                          ? <b>{counts?.failedMessages}</b> : null}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="admin-sidebar__bottom">

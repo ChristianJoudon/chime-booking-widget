@@ -9,6 +9,7 @@ import { createPaymentRouter } from './paymentRoutes.js';
 import { createInsightRouter } from './insightRoutes.js';
 import { createBusinessSettingsRouter } from './businessSettingsRoutes.js';
 import { createLaunchRouter } from './launchRoutes.js';
+import { createNavigationRouter } from './navigationRoutes.js';
 import { describeWorkspace } from './workspaceEnvironment.js';
 import { randomUUID } from 'node:crypto';
 
@@ -57,6 +58,7 @@ export function createAdminRouter(pool: Pool): Router {
   router.use(createInsightRouter(pool));
   router.use(createBusinessSettingsRouter(pool));
   router.use(createLaunchRouter(pool));
+  router.use(createNavigationRouter(pool));
   const services = new ServiceRepository(pool);
 
   router.use((_request, response, next) => {

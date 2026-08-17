@@ -382,6 +382,11 @@ export interface AdminWorkspaceRuntime {
   summary: string;
 }
 
+export interface AdminNavigationCounts {
+  pendingRequests: number;
+  failedMessages: number;
+}
+
 export interface AdminSessionResponse {
   user: { id: string; email: string; organizationId: string; role: string };
   workspace: AdminWorkspaceRuntime;
@@ -937,6 +942,10 @@ export class AdminApiClient {
       },
       body: JSON.stringify(settings),
     });
+  }
+
+  getNavigationCounts(): Promise<AdminNavigationCounts> {
+    return this.request<AdminNavigationCounts>('/navigation/counts');
   }
 
   getSession(): Promise<AdminSessionResponse> {
