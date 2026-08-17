@@ -204,7 +204,11 @@ export function createWidgetConfigRouter(pool: Pool) {
         copy: { ...DEFAULT_COPY, businessName: row.name, headerTitle: `Book with ${row.name}` },
         locale: 'en-US',
         timeZone: row.default_time_zone,
-        isActive: true,
+        // Not active: nothing is stored yet, so the public widget endpoint has
+        // nothing to serve and answers 404. Reporting `true` told the studio a
+        // design was live to customers when no customer could reach it. The
+        // id: null and version: 0 beside it already say it was never saved.
+        isActive: false,
         version: 0,
       },
     });

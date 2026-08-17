@@ -1282,3 +1282,82 @@ read.
 Fixing it properly means changing the type scale across every screen, and that
 is a design decision about how the product should look, not a bug with a correct
 answer. Flagging it rather than deciding it.
+
+## Cross-workspace contracts, plan Phase 5 item 2 (2026-08-16)
+
+The plan's opening instruction is not to redesign screens until "Services, Team,
+Availability, Customers, Widget Designer, and Launch all report the same
+organization data". `npm run test:contracts` checks that they do.
+
+This is two applications over one database. The studio works in `chime_app.*`;
+the customer widget works in `public.chime_*`. Every place those meet is a
+contract, and a contract nothing enforces is a guess:
+
+| contract | how it is kept | held? |
+|---|---|---|
+| availability | the admin engine writes the table the widget reads | yes, by construction |
+| widget appearance | both sides use `chime_app.widget_configs` | yes |
+| bookings | widget writes, a trigger projects into `chime_app.*` (migration 005) | yes |
+| **services** | **nothing** | **no** |
+
+### The studio was editing a table no customer reads
+
+An owner could rename a service, change its length, change its deposit, or
+unpublish it entirely, and customers would keep being offered the old one
+indefinitely. Confirmed before writing any fix: the studio reported **"Quick
+check-in RENAMED / 45 min"** while the widget still offered **"Quick check-in /
+30 min"**.
+
+It looked correct because the demo seed inserts the same UUIDs into both tables.
+Agreement by coincidence. A test that only compared the two lists would have
+passed — which is why the checks that matter *change* something and then look,
+rather than reading both sides and comparing.
+
+Migration 019 adds the projection, deliberately mirroring migration 005's
+booking projection in the opposite direction: one mechanism to understand rather
+than two. The link column and its unique index already existed from migration
+004 and were populated by the seed; only the write was missing.
+
+Three details that are visible to customers if they are wrong:
+
+- The widget's query filters on `active`, but a service reaches customers only
+  when it is **both active and public** in the studio. Both flags collapse into
+  the one the widget understands.
+- **Test-origin services are never projected.** Records that exist so someone
+  can try the product must not reach a paying customer.
+- Deleting in the studio removes the customer-facing row.
+
+### A second, smaller lie
+
+The studio's widget design endpoint synthesises a default when nothing has been
+saved — reasonable, an owner who has customised nothing should still see a
+starting point. But it reported `isActive: true` next to `id: null` and
+`version: 0`. The studio said the design was live to customers while the public
+endpoint answered **404**, because `chime_app.widget_configs` held no row at
+all. It now reports `isActive: false`, which is what "never saved" means.
+
+### Thirteen contracts, and proof they can fail
+
+The run covers services agreeing on name, length and deposit; an edit reaching
+customers; unpublishing hiding a service; availability agreeing; the widget
+design being served only when saved and active; and all three branches of the
+new projection trigger — create, test-quarantine, and delete.
+
+Disabling the trigger drops the run to **3 failures**, so it detects the
+regression it exists to catch.
+
+It also surfaced two checks that were **passing for the wrong reason**. With the
+projection broken, "a test service is withdrawn from customers" and "deleting
+removes the customer row" both passed — because the service had never been
+projected, so its absence proved nothing. They now skip with a note instead,
+and the run reports 9 checks rather than 13. A green result that cannot go red
+is worse than no check, and this is the second time in two sections that the
+same mistake appeared in my own test code.
+
+The quarantine check also had to reach the database directly: the admin API
+already filters test records out of its own list, so that branch is unreachable
+through the API and would have gone permanently unexercised.
+
+Verified on a throwaway container built from the compose mounts alone: 26
+mounts, zero init errors, and an admin edit reaching `public.chime_services`
+immediately.
