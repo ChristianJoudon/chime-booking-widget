@@ -1549,3 +1549,74 @@ by removing three of them and watching two conditions go red.
 Shadow DOM is still the stronger answer, because it makes isolation structural
 rather than a cascade a future edit could quietly undo. It is no longer required
 to pass these conditions, and that tradeoff is recorded in ISOLATION.md.
+
+## Shadow DOM for the embed (2026-08-17)
+
+The CSS defences held all ten host conditions, but they were an agreement every
+future edit had to keep: one `!important` in the wrong place and the isolation
+quietly reverts, with nothing failing. The widget now renders inside a shadow
+root, where host selectors do not match at all — structural rather than
+negotiated.
+
+### Terrain checked first
+
+Shadow DOM breaks things that reach across the boundary, so the widget was
+surveyed before anything moved: no `createPortal`, no `document.querySelector`
+for its own elements, no `@font-face` (shadow roots ignore it). The one
+`document.body` use is a download-link trick, unaffected. The admin studio's
+Widget Designer imports `App` directly rather than through `mount()`, so it was
+never going to be touched by this.
+
+### Three things stay outside, by necessity
+
+- **Inherited properties still cross** a shadow boundary — font-family,
+  font-size, line-height, colour, direction. The widget already resets these on
+  `.chime-widget`, which lives inside the shadow.
+- **The `<dialog>`** has to be in the host document to reach the top layer, and
+  `::backdrop` belongs to it. Those two rules are injected into the document,
+  copied from `index.css` rather than approximated — the first version guessed a
+  460px width where the real value is 720px.
+- **`<dialog>` and `<button>` cannot host a shadow root.** Only a fixed list of
+  elements can.
+
+That last one broke modal mode, and it is worth recording how. `attachShadow`
+on the dialog threw, which happened after the launcher was already in place and
+its click handler bound — so the button rendered, looked right, opened the
+dialog, and the dialog was **empty**. `isolate()` now detects the refusal with a
+try/catch rather than a copy of the browser's element list, and falls back to a
+plain `<div>` inside. That fallback also protects a host page mounting the
+widget on something unusual.
+
+Nothing tested modal mode, which is why it took a deliberate check to find. The
+host-styles suite only exercises inline mounting.
+
+### A silent pass in my own test
+
+The first run after the change printed **nothing** and exited **0**. The widget
+had failed to render at all — `document.querySelector` cannot see into a shadow
+root — and an early `return` inside the run skipped the reporting entirely.
+
+That is worse than any failure it was built to catch. Reporting now happens in a
+`finally`, and a run that checks nothing fails rather than passes. The probes go
+through a shadow-piercing query.
+
+### Both mechanisms now hold independently
+
+Removing the shadow boundary changes none of the layout measurements, because
+the CSS defences still cover every condition on their own. Good for resilience,
+bad for a test: the isolation could revert to a cascade agreement with
+everything still green.
+
+So the boundary is asserted structurally — the widget's root node must not be
+the document. Verified by removing it and watching that one check, and only that
+one, go red.
+
+The CSS defences stay. The Widget Designer renders the widget into the admin
+document with no shadow root at all, and they are the only thing protecting it
+there.
+
+### Unchanged where it counts
+
+Fingerprinting all 80 rendered elements before any of this work and after all of
+it: one decorative element differs by a pixel. Modal mode verified end to end —
+launcher styled, dialog opens, widget mounts inside, close button present.

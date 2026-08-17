@@ -2,6 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import type { WidgetConfigInput } from '@/types/widget';
+import { isolate } from './embedIsolation';
+// Still imported for its side effect so the build keeps emitting
+// chime-widget.css. Embed snippets already in the wild link that file, and a
+// 404 in a customer's console is a poor way to ship an improvement. Nothing
+// inside a shadow root reads it — embedIsolation injects its own copy.
 import '@/index.css';
 
 /**
@@ -31,7 +36,11 @@ export function mount(
 
   element.setAttribute('data-chime-mounted', 'true');
 
-  const root = ReactDOM.createRoot(element);
+  // Rendered inside a shadow root rather than directly into the host's element,
+  // so the host page's stylesheet cannot reach the widget at all.
+  const container = isolate(element);
+
+  const root = ReactDOM.createRoot(container);
   root.render(
     <React.StrictMode>
       <App />
@@ -56,7 +65,7 @@ export function autoMount(): number {
   );
 
   targets.forEach((element) => {
-    mountConfiguredElement(element, mount);
+    mountConfiguredElement(element, mount, isolate);
   });
 
   return targets.length;

@@ -234,12 +234,32 @@ function startServer(pages) {
   });
 }
 
+
+/**
+ * Installs a shadow-piercing query on the page.
+ *
+ * The widget renders inside a shadow root, which is the point — but it means
+ * `document.querySelectorAll` cannot see it. Every probe here goes through
+ * `window.__deepQueryAll` instead, which walks into open shadow roots.
+ */
+async function installDeepQuery(page) {
+  await page.evaluate(() => {
+    window.__deepQueryAll = (selector, root = document) => {
+      const found = [...root.querySelectorAll(selector)];
+      for (const element of root.querySelectorAll('*')) {
+        if (element.shadowRoot) found.push(...window.__deepQueryAll(selector, element.shadowRoot));
+      }
+      return found;
+    };
+  });
+}
+
 /** Box sizes and the computed styles that reveal inherited host CSS. */
 async function fingerprint(page, selectors) {
   return page.evaluate((list) => {
     const record = {};
     for (const selector of list) {
-      const elements = [...document.querySelectorAll(selector)].slice(0, 6);
+      const elements = window.__deepQueryAll(selector).slice(0, 6);
       record[selector] = elements.map((element) => {
         const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
@@ -292,8 +312,11 @@ async function render(browser, url) {
   await page.setViewport({ width: 1100, height: 900 });
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   // The widget mounts on defer, so wait for it rather than a fixed delay.
-  await page.waitForSelector('.chime-widget', { timeout: 15000 }).catch(() => {});
+  // waitForSelector cannot see into a shadow root either, so this waits on the
+  // mount attribute the widget sets on the host element instead.
+  await page.waitForSelector('[data-chime-mounted]', { timeout: 15000 }).catch(() => {});
   await new Promise((resolve) => setTimeout(resolve, 700));
+  await installDeepQuery(page);
   return page;
 }
 
@@ -325,10 +348,24 @@ async function main() {
     const base = `http://127.0.0.1:${port}`;
 
     const neutral = await render(browser, `${base}/host/neutral`);
-    const mounted = await neutral.evaluate(() => !!document.querySelector('.chime-widget'));
+    const mounted = await neutral.evaluate(() => window.__deepQueryAll('.chime-widget').length > 0);
     check('the widget renders on a neutral host page', mounted,
       'no .chime-widget element appeared, so nothing below tests anything');
     if (!mounted) return;
+
+    // Asserted structurally, not inferred from layout. The CSS defences and the
+    // shadow boundary each hold all ten conditions on their own, so removing
+    // the boundary changes none of the measurements below — the isolation would
+    // silently become a cascade agreement again, which is the thing Shadow DOM
+    // was adopted to stop being.
+    check(
+      'the widget renders inside a shadow root',
+      await neutral.evaluate(() => {
+        const widget = window.__deepQueryAll('.chime-widget')[0];
+        return Boolean(widget) && widget.getRootNode() !== document;
+      }),
+      'the widget is in the host document, so isolation rests entirely on CSS',
+    );
 
     const widgetBaseline = await fingerprint(neutral, WIDGET_PROBES);
     const hostWithWidget = await fingerprint(neutral, ['h1.host-title', 'p.host-copy', 'button.host-button']);
@@ -349,7 +386,7 @@ async function main() {
     // --- inward direction: does host CSS reach into the widget? ---
     for (const host of HOSTILE_HOSTS) {
       const page = await render(browser, `${base}/host/${host.id}`);
-      const present = await page.evaluate(() => !!document.querySelector('.chime-widget'));
+      const present = await page.evaluate(() => window.__deepQueryAll('.chime-widget').length > 0);
       if (!present) {
         check(`survives ${host.id}`, false, `the widget did not render at all on ${host.what}`);
         await page.close();
@@ -369,17 +406,31 @@ async function main() {
   } finally {
     await browser.close();
     server.close();
+    report();
   }
+}
 
+/**
+ * Prints the result. Called from a finally, because an early return inside the
+ * run used to skip it: the widget failed to render at all, and the script
+ * printed nothing and exited 0. A silent pass is worse than a loud failure.
+ */
+function report() {
   for (const name of passes) console.log(`  ok    ${name}`);
   for (const failure of failures) {
     console.log(`  FAIL  ${failure.name}`);
     if (failure.detail) console.log(`        ${failure.detail}`);
   }
 
+  if (!passes.length && !failures.length) {
+    console.log('\nFAIL  nothing was checked');
+    process.exitCode = 1;
+    return;
+  }
   if (failures.length) {
     console.log(`\nFAIL  ${failures.length} of ${passes.length + failures.length} host conditions break the widget`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log(`\nPASS  the widget holds its shape across ${passes.length} host conditions`);
 }

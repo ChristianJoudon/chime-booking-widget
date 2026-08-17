@@ -102,10 +102,12 @@ sets `emptyOutDir`, so it deletes everything already in `dist-embed/`.
 
 ### One authorized exception, 2026-08-17
 
-`src/index.css` was changed with the owner's explicit approval — first to stop
-the widget inheriting the host page's text size, then to close the remaining
-host-style conditions. See "Host-page style leakage" below for what it does and
-why. `dist-embed/` was rebuilt from it.
+Widget files were changed with the owner's explicit approval, across three
+requests: stop the widget inheriting the host page's text size, close the
+remaining host-style conditions, then move to Shadow DOM. The files touched are
+`src/index.css`, `src/embed.tsx`, `src/embedPresentation.ts`, and a new
+`src/embedIsolation.ts`. See "Host-page style leakage" below for what they do
+and why. `dist-embed/` was rebuilt from them.
 
 Nothing else in widget territory was touched, and nothing outside this folder
 was touched — the other Chime checkouts on this machine are unaffected. The
@@ -116,7 +118,7 @@ boundary above still stands for everything else.
 `npm run typecheck:widget` reports one error:
 
 ```
-src/embed.tsx(59,37): error TS2345: 'string | Element' is not assignable to 'string | HTMLElement'
+src/embed.tsx(68,37): error TS2345: 'string | Element' is not assignable to 'string | HTMLElement'
 ```
 
 `autoMount` calls `mountConfiguredElement`, whose `MountWidget` type accepts
@@ -126,46 +128,53 @@ Resolving it is a widget decision, not a standalone one.
 ### Host-page style leakage
 
 `npm run test:embed-host-styles` renders the built widget under stylesheets real
-small-business sites carry, and compares its layout against a neutral page. All
-ten conditions pass, in both directions: no host CSS reaches into the widget,
-and the host page is identical with and without it.
+small-business sites carry. All eleven checks pass, in both directions: no host
+CSS reaches the widget, and the host page is identical with and without it.
 
-What makes that true:
+**The widget renders inside a shadow root.** Selectors in the host document do
+not match anything inside one, whatever their specificity and whatever they mark
+important. That makes the isolation structural rather than an agreement every
+future edit has to keep.
 
-- Sizes derive from `--chime-root` on `.chime-widget`, not `rem`, which resolves
-  against the *host's* root element. A site with `html { font-size: 32px }` used
-  to double the widget.
-- The widget's own `font-size`, `font-family`, `line-height`, `box-sizing`,
-  `margin` and `padding` declarations carry `!important` — applied to **every**
-  declaration of those properties, not a chosen few. Uniformity is the point:
-  precedence among the widget's own rules is then decided by specificity and
-  order exactly as before, so its appearance does not move. Marking only some
-  would reshuffle them.
-- `.chime-widget *` carries `font-size: inherit` and `line-height: inherit`
-  floors, anchored by a base on `.chime-widget` itself. Without the anchor a
-  host's `*` selector matches `.chime-widget` too and every descendant dutifully
-  inherits the host's value.
+Three things sit outside the boundary by necessity:
 
-The floors tie in specificity with any single-class selector, so **their
-position in the file decides who wins**. They sit ahead of the widget's own
-rules, which all override them. Placed after, the font-size floor beat
-`.chime-powered-by` and pushed the footer from 11.5px to 16px.
+- **Inherited properties still cross** — font-family, font-size, line-height,
+  colour, direction. The widget resets these on `.chime-widget`, inside the
+  shadow, which is where its own styling begins anyway.
+- **The `<dialog>` element** has to be in the host document to reach the top
+  layer, and `::backdrop` belongs to it rather than to anything inside. Those
+  two rules are injected into the document by `ensureDialogStyles()`, copied
+  from `index.css`. If the `.chime-embed-dialog` rules there change, that
+  function has to change with them.
+- **`<dialog>` and `<button>` cannot host a shadow root** at all — only a fixed
+  list of elements can. `isolate()` detects this with a try/catch rather than a
+  copy of the browser's list, and falls back to a plain `<div>` inside the
+  element. Without that fallback the modal launcher opened an empty dialog.
 
-Verified by fingerprinting all 80 rendered elements before and after the whole
-effort: **zero differences**. The isolation is free.
+The CSS defences underneath — `!important` on every `font-size`, `font-family`,
+`line-height`, `box-sizing`, `margin` and `padding` declaration, plus `inherit`
+floors on `.chime-widget *` anchored at `.chime-widget` — are **still
+load-bearing** and must not be removed. The admin studio's Widget Designer
+renders the widget directly into the admin document with no shadow root, and
+those rules are all that protect it there.
 
-Two things worth knowing if this is revisited:
+They also mean the two mechanisms each hold all ten style conditions
+independently, so removing the shadow boundary changes none of the layout
+measurements. The check asserts the boundary structurally for that reason —
+without it, isolation could quietly revert to a cascade agreement and every
+measurement would still pass.
 
-- The `box-sizing` rule was already correct and already covered `::before` and
-  `::after`. It was simply not authoritative. A floor added alongside it was
-  redundant, less complete, and was the one thing that moved a decorative
-  element by a pixel — removing it fixed that.
-- The check pins the mount point at a fixed width. Without that it measured the
-  host's layout as much as the widget's: an aggressive reset removes the test
-  page's own body padding, the container grows 48px, and the widget correctly
-  fills it. That is an embedded component behaving properly and was being
-  reported as leakage.
+Applying `!important` **uniformly** to those properties is what keeps the
+widget's appearance unchanged: precedence among its own rules is then decided by
+specificity and source order exactly as before. Marking a chosen few would
+reshuffle the cascade. The floors tie with any single-class selector, so they
+sit ahead of the widget's own rules, which all override them.
 
-Shadow DOM remains the stronger guarantee — it makes isolation structural rather
-than a cascade the next edit could undo — but it is no longer needed to pass
-these conditions.
+Verified by fingerprinting all 80 rendered elements before any of this work and
+after all of it: one decorative element differs by a pixel.
+
+`dist-embed/chime-widget.css` is still emitted and `embed.tsx` still imports the
+stylesheet for its side effect, because embed snippets already in the wild link
+that file. Nothing inside a shadow root reads it — `embedIsolation` injects its
+own copy — but a 404 in a customer's console is a poor way to ship an
+improvement.
