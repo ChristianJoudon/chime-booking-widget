@@ -564,9 +564,24 @@ export function createCommunicationRouter(pool: Pool): Router {
     asyncRoute(async (request, response) => {
       const session = getAdminSession(request);
       const deliveryId = parseUuid(request.params.deliveryId, 'deliveryId');
+
+      // Suppressing stops a customer receiving something they were meant to
+      // receive. Who did it and why is part of the record, not optional.
+      const reason = typeof request.body?.reason === 'string' ? request.body.reason.trim() : '';
+      if (reason.length < 3) {
+        throw new AdminApiError(
+          400,
+          'REASON_REQUIRED',
+          'Give a reason for suppressing this message. It is recorded with your name and the time.',
+        );
+      }
+
       const result = await pool.query(
         `UPDATE chime_app.notification_deliveries
          SET status = 'suppressed',
+             suppressed_reason = $3,
+             suppressed_by_user_id = $4,
+             suppressed_at = now(),
              completed_at = now(),
              claimed_at = NULL,
              claim_token = NULL,
@@ -576,13 +591,14 @@ export function createCommunicationRouter(pool: Pool): Router {
            AND id = $2
            AND status IN ('pending', 'failed')
          RETURNING id`,
-        [session.organizationId, deliveryId],
+        [session.organizationId, deliveryId, reason.slice(0, 500), session.subject],
       );
       if (!result.rowCount) {
         throw new AdminApiError(409, 'DELIVERY_NOT_SUPPRESSIBLE', 'This message is already processing or complete.');
       }
       await audit(pool, request, 'notification.delivery_suppressed', 'notification_delivery', deliveryId, {
         status: 'suppressed',
+        reason: reason.slice(0, 500),
       });
       response.json({ delivery: { id: deliveryId, status: 'suppressed' } });
     }),

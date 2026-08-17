@@ -924,3 +924,83 @@ A duplicate-scan effect was written and referenced but **never wired to run on
 mount**, so the banner never appeared on first load. The insertion script had
 reported a "fallback" path that silently matched nothing — a reminder that a
 script reporting success is not evidence the change landed.
+
+## Payment and delivery reliability, plan section 10 (2026-08-16)
+
+| criterion | state |
+|---|---|
+| a booking that requires payment cannot complete unpaid | already met — verified |
+| the same payment cannot be applied twice | already met — verified |
+| a failed message can be retried without duplicating it | already met — verified |
+| refunds, voids and suppressions record who and why | **added** |
+| the payment ledger connects to appointments and customers | already met — verified |
+
+Four of the five criteria were already satisfied. That is worth stating plainly:
+this section was mostly verification, and most of what it verified held up.
+
+### What was verified rather than built
+
+A booking against a service requiring payment, submitted with no payment intent,
+returns **402 and writes no rows** — not an appointment, not a hold.
+
+The same payment intent submitted for a second appointment returns **409, "That
+payment has already been used for another appointment"**, leaving one booking,
+one hold and one payment.
+
+`chime_app.payments.appointment_id` is `NOT NULL` with a foreign key, so a
+payment cannot exist detached from the appointment it paid for, and reaches the
+customer through it. The ledger is connected by the schema rather than by
+convention.
+
+Message retry **updates the existing delivery row** rather than inserting a
+second one, so a retried message is one message with a higher attempt count.
+
+Crashed-worker recovery was proven rather than assumed: a delivery left in
+`processing` with a ten-minute-old claim was reclaimed by the next pass and
+sent, with `attempt_count` going 1 → 2. A worker dying mid-send does not strand
+a customer's message forever.
+
+### What was missing
+
+`payment_actions` recorded who and when, but `reason` was nullable and the API
+accepted an empty string. Suppressing a delivery recorded **nothing at all** —
+the row simply changed status, with no trace of who stopped it or why.
+
+These are exactly the actions someone asks about months later: a customer
+disputes a refund, or asks why they never got a confirmation. "Who and why" is
+only useful if the why cannot be skipped.
+
+Migration 018 makes `reason` `NOT NULL` on `payment_actions` and adds a check
+requiring at least three non-blank characters for `refund` and `void`. `capture`
+and `sync` are exempt — they move no money away from the business. Suppression
+gains `suppressed_reason`, `suppressed_by_user_id` and `suppressed_at`, with a
+check that a suppressed row must carry a reason.
+
+Existing rows are backfilled with "Recorded before reasons were required" rather
+than a plausible-sounding invention. Saying nobody recorded it is more honest
+than fabricating what they would have written.
+
+### Enforced in three places, deliberately
+
+The studio prompts for a reason and keeps the confirm button disabled until
+three characters are typed. The API rejects a reasonless refund, void or
+suppression with `REASON_REQUIRED`. The database refuses the row regardless of
+caller.
+
+A prompt is not enforcement — it only governs the one path that renders it.
+Verified all three independently: the API returns `REASON_REQUIRED` for a
+reasonless refund and accepts the same refund with a reason; and going around
+the API entirely, the constraints still reject a reasonless refund and a
+reasonless suppression, while correctly allowing `capture`.
+
+### Also worth noting
+
+Migration 017, added in section 9, was **never mounted in `docker-compose.yml`**
+— it had been applied to the running database by the migration runner, so
+everything worked locally while a fresh database would have come up without it.
+Both 017 and 018 are now mounted, and a throwaway container built from the
+compose mounts alone comes up with **41 tables, `merge_customers`, both new
+constraints, and zero errors**.
+
+This is the failure mode the migration ledger exists to catch and did not: the
+runner tracks what has been applied, not what a new machine would get.

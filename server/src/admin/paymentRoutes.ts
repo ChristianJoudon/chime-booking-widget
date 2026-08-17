@@ -487,6 +487,18 @@ export function createPaymentRouter(pool: Pool): Router {
       }
       const requestedAmount = Number(request.body?.amountMinor ?? 0);
       const reason = text(request.body?.reason, 500);
+
+      // Refunds and voids take money back or release a hold, and are the
+      // actions someone asks about months later. Enforced here as well as by a
+      // database constraint: the studio prompts for a reason, but a prompt is
+      // not enforcement — any other caller could skip it.
+      if ((action === 'refund' || action === 'void') && (reason ?? '').length < 3) {
+        throw new AdminApiError(
+          400,
+          'REASON_REQUIRED',
+          `Give a reason for this ${action}. It is recorded with your name and the time.`,
+        );
+      }
       const client = await pool.connect();
       let payment: PaymentRow;
       let actionRow: Record<string, unknown>;

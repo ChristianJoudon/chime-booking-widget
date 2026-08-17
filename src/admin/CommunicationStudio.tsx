@@ -334,10 +334,31 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
   };
 
   const suppress = async (delivery: AdminCommunicationDelivery) => {
+    // Suppressing stops a customer receiving something they were meant to
+    // receive, so the reason is required and recorded with the account and time.
+    const preview = await confirmAction({
+      title: 'Stop this message being sent',
+      summary: `${delivery.recipient} will not receive the ${delivery.templateKey.replaceAll('_', ' ')} message.`,
+      changes: [
+        { label: 'Delivery status', before: delivery.status, after: 'Suppressed' },
+        { label: 'Recipient', after: delivery.recipient },
+      ],
+      notifies: null,
+      paymentEffect: null,
+      reversible: {
+        kind: 'undo',
+        detail: 'Yes — a suppressed message can be returned to the queue with Retry.',
+      },
+      confirmLabel: 'Suppress this message',
+      tone: 'caution',
+      reasonPrompt: 'Why is this being suppressed? Recorded with your name and the time.',
+    });
+    if (!preview.confirmed) return;
+
     setWorking(delivery.id);
     setError(null);
     try {
-      await api.suppressCommunication(delivery.id);
+      await api.suppressCommunication(delivery.id, preview.reason ?? '');
       onNotify('Message suppressed. No provider will receive it.');
       await load();
     } catch (suppressError) {

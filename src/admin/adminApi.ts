@@ -902,8 +902,8 @@ export class AdminApiClient {
     await this.request(`/communications/${encodeURIComponent(deliveryId)}/retry`, { method: 'POST' });
   }
 
-  async suppressCommunication(deliveryId: string): Promise<void> {
-    await this.request(`/communications/${encodeURIComponent(deliveryId)}/suppress`, { method: 'POST' });
+  async suppressCommunication(deliveryId: string, reason: string): Promise<void> {
+    await this.request(`/communications/${encodeURIComponent(deliveryId)}/suppress`, { method: 'POST', body: JSON.stringify({ reason }) });
   }
 
   async listCommunicationTemplates(): Promise<AdminCommunicationTemplate[]> {
