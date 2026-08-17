@@ -382,6 +382,13 @@ export interface AdminWorkspaceRuntime {
   summary: string;
 }
 
+export interface AdminTemplateTestResult {
+  queued: boolean;
+  recipient: string;
+  mode: 'sandbox' | 'live';
+  rendered: { subject: string | null; body: string; html: string | null };
+}
+
 export interface AdminNavigationCounts {
   pendingRequests: number;
   failedMessages: number;
@@ -942,6 +949,13 @@ export class AdminApiClient {
       },
       body: JSON.stringify(settings),
     });
+  }
+
+  sendTemplateTest(templateKey: string, channel: string): Promise<AdminTemplateTestResult> {
+    return this.request<AdminTemplateTestResult>(
+      `/communications/templates/${encodeURIComponent(templateKey)}/${encodeURIComponent(channel)}/test`,
+      { method: 'POST', headers: { 'Idempotency-Key': requestKey() } },
+    );
   }
 
   getNavigationCounts(): Promise<AdminNavigationCounts> {

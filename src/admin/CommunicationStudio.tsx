@@ -5,6 +5,7 @@ import {
   type AdminApiClient,
   type AdminCommunicationDelivery,
   type AdminCommunicationTemplate,
+  type AdminTemplateTestResult,
   type AdminCommunicationsPayload,
 } from './adminApi';
 import { useActionPreview } from './actionPreview';
@@ -125,6 +126,8 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
   const [filter, setFilter] = useState<CommunicationFilter>('all');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
+  const [view, setView] = useState<'outbox' | 'templates'>('outbox');
+  const [testResult, setTestResult] = useState<AdminTemplateTestResult | null>(null);
   const { confirm: confirmAction, element: previewElement } = useActionPreview();
   const [error, setError] = useState<string | null>(null);
   const [editorView, setEditorView] = useState<'compose' | 'html'>('compose');
@@ -344,6 +347,27 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
     }
   };
 
+  const sendTest = async () => {
+    if (!draft) return;
+    setWorking('test');
+    setError(null);
+    setTestResult(null);
+    try {
+      const result = await api.sendTemplateTest(draft.templateKey, draft.channel);
+      setTestResult(result);
+      onNotify(
+        result.mode === 'live'
+          ? `Test sent to ${result.recipient}.`
+          : `Test queued for ${result.recipient}. Sandbox mode records it without sending.`,
+      );
+      await load();
+    } catch (testError) {
+      setError(errorMessage(testError));
+    } finally {
+      setWorking(null);
+    }
+  };
+
   const saveTemplate = async () => {
     if (!draft) return;
     setWorking('template');
@@ -388,9 +412,19 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
           <span className={`communication-mode is-${payload?.runtime.mode ?? 'sandbox'}`}>
             <i />{payload?.runtime.mode === 'live' ? 'Live delivery' : 'Safe sandbox'}
           </span>
-          <button type="button" onClick={() => void processReady()} disabled={working === 'process'}>
+          <button
+            type="button"
+            onClick={() => void processReady()}
+            disabled={working === 'process' || (payload?.summary.ready ?? 0) === 0}
+          >
             <MessageIcon><path d="m21 3-7.5 18-3.2-7.3L3 10.5 21 3Z" /><path d="m10.3 13.7 4.2-4.2" /></MessageIcon>
-            {working === 'process' ? 'Processing...' : 'Process ready'}
+            {working === 'process'
+              ? 'Sending...'
+              : (payload?.summary.ready ?? 0) === 0
+                ? 'Queue is empty'
+                : payload?.runtime.mode === 'live'
+                  ? `Send ${payload.summary.ready} queued message${payload.summary.ready === 1 ? '' : 's'}`
+                  : `Process ${payload?.summary.ready} in sandbox`}
           </button>
         </div>
       </header>
@@ -423,7 +457,29 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
         </article>
       </div>
 
-      <div className="communication-layout">
+      <div className="communication-tabs" role="tablist" aria-label="Messages">
+        <button
+          aria-selected={view === 'outbox'}
+          className={view === 'outbox' ? 'is-active' : ''}
+          onClick={() => setView('outbox')}
+          role="tab"
+          type="button"
+        >
+          Outbox
+          {(payload?.summary.failed ?? 0) > 0 ? <b>{payload?.summary.failed}</b> : null}
+        </button>
+        <button
+          aria-selected={view === 'templates'}
+          className={view === 'templates' ? 'is-active' : ''}
+          onClick={() => setView('templates')}
+          role="tab"
+          type="button"
+        >
+          Templates
+        </button>
+      </div>
+
+      <div className="communication-layout" data-view={view}>
         <section className="communication-queue">
           <div className="communication-section-heading">
             <div><p>Delivery desk</p><h2>Message queue</h2></div>
@@ -615,12 +671,38 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
                   <input type="checkbox" checked={draft.isActive} onChange={(event) => setDraft({ ...draft, isActive: event.target.checked })} />
                   <span><i />Active template</span>
                 </label>
+                {/* The plan asks that an administrator be able to check a
+                    template safely before activating it. The recipient is the
+                    signed-in account, taken from the session on the server. */}
+                <button
+                  className="communication-test-button"
+                  disabled={working === 'test'}
+                  onClick={() => void sendTest()}
+                  type="button"
+                >
+                  {working === 'test' ? 'Sending test...' : 'Send test to myself'}
+                </button>
                 <button type="button" onClick={() => void saveTemplate()} disabled={working === 'template'}>
                   {working === 'template' ? 'Saving...' : 'Save language'}
                 </button>
               </div>
             </div>
           ) : <div className="communication-empty">No editable templates are available yet.</div>}
+
+          {testResult ? (
+            <div className="communication-test-result" role="status">
+              <strong>Test {testResult.mode === 'live' ? 'sent' : 'queued'}</strong>
+              <dl>
+                <div><dt>To</dt><dd>{testResult.recipient}</dd></div>
+                <div><dt>Delivery</dt><dd>{testResult.mode === 'live' ? 'Live — really sent' : 'Sandbox — recorded, not sent'}</dd></div>
+                {testResult.rendered.subject
+                  ? <div><dt>Subject</dt><dd>{testResult.rendered.subject}</dd></div>
+                  : null}
+              </dl>
+              <pre>{testResult.rendered.body}</pre>
+              <button onClick={() => setTestResult(null)} type="button">Dismiss</button>
+            </div>
+          ) : null}
         </aside>
       </div>
       {previewElement}

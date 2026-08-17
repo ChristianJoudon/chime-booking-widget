@@ -130,7 +130,12 @@ function textValue(value: unknown, fallback = ''): string {
   return fallback;
 }
 
-function render(source: string | null, context: Record<string, unknown>): string | null {
+/**
+ * Exported so the administrator test-send renders through exactly this code.
+ * A preview that substitutes placeholders differently from the real sender is
+ * not a test of anything.
+ */
+export function render(source: string | null, context: Record<string, unknown>): string | null {
   if (source === null) return null;
   return source.replace(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g, (_match, path: string) =>
     textValue(pathValue(context, path), ''));
@@ -145,7 +150,7 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#039;');
 }
 
-function renderHtml(source: string | null, context: Record<string, unknown>): string | null {
+export function renderHtml(source: string | null, context: Record<string, unknown>): string | null {
   if (source === null) return null;
   return source.replace(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g, (_match, path: string) =>
     escapeHtml(textValue(pathValue(context, path), '')));
@@ -609,4 +614,30 @@ export async function processNotificationBatch(
     }
   }
   return result;
+}
+
+/**
+ * Representative values for previewing and test-sending a template.
+ *
+ * Deliberately obvious placeholders rather than plausible-looking invented
+ * people, so nobody mistakes a test for a real appointment. The shape mirrors
+ * the context loadRenderedMessage builds for a genuine delivery, so a template
+ * that renders here renders there.
+ */
+export function sampleTemplateContext(businessName = 'your business'): Record<string, unknown> {
+  const when = new Date(Date.now() + 2 * 86_400_000);
+  return {
+    customer: { name: 'Sample Customer', email: 'sample.customer@example.invalid', phone: '' },
+    service: { name: 'Sample service' },
+    staff: { name: 'A team member' },
+    location: { name: businessName },
+    appointment: {
+      referenceCode: 'CH-SAMPLE',
+      when: new Intl.DateTimeFormat('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric',
+        hour: 'numeric', minute: '2-digit',
+      }).format(when),
+    },
+    approval: { url: 'https://example.invalid/approval/sample' },
+  };
 }

@@ -13,10 +13,13 @@ import {
   describeNotificationRuntime,
   notificationConfigFromEnv,
   processNotificationBatch,
+  render,
+  renderHtml,
+  sampleTemplateContext,
 } from '../notifications/service.js';
 import { getAdminSession, requireRoles } from './auth.js';
 import { AdminApiError } from './types.js';
-import { parseExpectedVersion, parseUuid } from './validation.js';
+import { parseExpectedVersion, parseUuid, requireIdempotencyKey } from './validation.js';
 
 const CHANNELS = new Set(['email', 'sms', 'push', 'webhook']);
 const FILTERS = new Set(['all', 'ready', 'failed', 'sent', 'suppressed', 'processing']);
@@ -429,6 +432,83 @@ export function createCommunicationRouter(pool: Pool): Router {
       });
       response.setHeader('ETag', `"${template.version}"`);
       response.json({ template: mapTemplate(template) });
+    }),
+  );
+
+  /**
+   * Sends one rendered test of a template to the signed-in administrator.
+   *
+   * The plan asks that an administrator be able to check a template safely
+   * before it reaches customers. The recipient is taken from the session, never
+   * from the request body, so this cannot be turned into a way to mail an
+   * arbitrary address through the business's sender reputation.
+   *
+   * It queues a real delivery rather than faking one, so it travels the same
+   * path as a customer message and honours the sandbox or live mode. The
+   * rendered subject and body come back immediately so the administrator can
+   * read them without waiting for the queue.
+   */
+  router.post(
+    '/communications/templates/:templateKey/:channel/test',
+    requireRoles('owner', 'admin', 'manager'),
+    asyncRoute(async (request, response) => {
+      const session = getAdminSession(request);
+      const templateKey = requiredText(request.params.templateKey, 'templateKey', 100);
+      const channel = requiredText(request.params.channel, 'channel', 20);
+      const idempotencyKey = requireIdempotencyKey(request.get('idempotency-key'));
+
+      const found = await pool.query<{
+        subject_template: string | null;
+        body_template: string;
+        body_html: string | null;
+        display_name: string;
+        business_name: string | null;
+      }>(
+        `SELECT template.subject_template, template.body_template, template.body_html,
+                template.display_name,
+                COALESCE(settings.public_name, organization.name) AS business_name
+           FROM chime_app.notification_templates template
+           JOIN chime_app.organizations organization ON organization.id = template.organization_id
+           LEFT JOIN chime_app.business_settings settings
+                  ON settings.organization_id = template.organization_id
+          WHERE template.organization_id = $1
+            AND template.template_key = $2
+            AND template.channel = $3`,
+        [session.organizationId, templateKey, channel],
+      );
+      const template = found.rows[0];
+      if (!template) {
+        throw new AdminApiError(404, 'TEMPLATE_NOT_FOUND', 'That template could not be found.');
+      }
+
+      const context = sampleTemplateContext(template.business_name ?? undefined);
+      const subject = render(template.subject_template, context);
+      const body = render(template.body_template, context) ?? '';
+      const html = renderHtml(template.body_html, context);
+
+      if (channel === 'email' && !session.email) {
+        throw new AdminApiError(
+          400,
+          'NO_TEST_RECIPIENT',
+          'This administrator account has no email address to send a test to.',
+        );
+      }
+
+      await pool.query(
+        `INSERT INTO chime_app.notification_deliveries (
+           organization_id, channel, recipient, template_key, idempotency_key, status
+         ) VALUES ($1, $2, $3, $4, $5, 'pending')
+         ON CONFLICT (organization_id, idempotency_key) DO NOTHING`,
+        [session.organizationId, channel, session.email, templateKey, `test:${idempotencyKey}`],
+      );
+
+      const runtime = describeNotificationRuntime(notificationConfigFromEnv());
+      response.status(202).json({
+        queued: true,
+        recipient: session.email,
+        mode: runtime.mode,
+        rendered: { subject, body, html },
+      });
     }),
   );
 

@@ -224,3 +224,120 @@
   .communication-editor__footer { align-items: stretch; flex-direction: column; }
   .communication-editor__footer > button { justify-content: center; width: 100%; }
 }
+
+/* ------------------------------------------------- Outbox / Templates
+   Queue management and template editing shared one screen side by side and
+   competed for space. One is shown at a time now. */
+
+.communication-tabs {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0 0 1rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--admin-canvas);
+  width: fit-content;
+}
+
+.communication-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1.1rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-ink-soft);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 580;
+  cursor: pointer;
+}
+
+.communication-tabs button:hover { color: var(--admin-ink); }
+
+.communication-tabs button.is-active {
+  background: var(--admin-paper);
+  color: var(--admin-forest);
+  font-weight: 640;
+  box-shadow: 0 1px 2px rgba(23, 59, 50, 0.12);
+}
+
+.communication-tabs button:focus-visible {
+  outline: 2px solid var(--admin-forest);
+  outline-offset: 1px;
+}
+
+.communication-tabs b {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--admin-coral);
+  color: var(--admin-paper);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* One pane at a time, so neither is squeezed. */
+.communication-layout[data-view='outbox'] .communication-templates { display: none; }
+.communication-layout[data-view='templates'] .communication-queue { display: none; }
+.communication-layout[data-view] { grid-template-columns: 1fr; }
+
+.communication-test-button {
+  border: 1px solid var(--admin-line) !important;
+  background: var(--admin-paper) !important;
+  color: var(--admin-ink) !important;
+}
+
+.communication-test-button:hover:not(:disabled) {
+  background: var(--admin-canvas) !important;
+}
+
+/* What was actually rendered and where it went. */
+.communication-test-result {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--admin-mint);
+  background: var(--admin-mint-soft);
+}
+
+.communication-test-result > strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.communication-test-result dl { margin: 0 0 0.6rem; }
+
+.communication-test-result dl > div {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.15rem 0;
+  font-size: 0.82rem;
+}
+
+.communication-test-result dt { min-width: 4.5rem; color: var(--admin-ink-soft); }
+.communication-test-result dd { margin: 0; }
+
+.communication-test-result pre {
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  background: var(--admin-paper);
+  font-family: inherit;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.communication-test-result button {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-paper);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
