@@ -560,10 +560,51 @@ this project.** Recorded in `ISOLATION.md`.
 
 ### Still open after this
 
-- **No migration runner.** Ordering is filename-based in `docker-compose.yml`,
-  now through 015.
+- ~~**No migration runner.**~~ Done — `npm run migrate` / `npm run migrate:status`,
+  with a checksum ledger. See `database/README.md`.
 - **`widget_configs` is still empty**, so Launch reads 75%.
 - Session tokens are bearer credentials held by JavaScript, readable by an XSS
   bug. The httpOnly-cookie alternative needs CSRF protection and a same-site
   story for the embed.
 - Phase 2 onward is untouched.
+
+---
+
+## Migration runner (2026-08-16)
+
+`npm run migrate` applies pending migrations to an **existing** database and
+records them in `public.chime_schema_migrations` with a sha256 of each file.
+`npm run migrate:status` reports applied, pending, and edited-since-applied;
+both refuse to proceed on a drifted checksum, because two databases would
+otherwise silently disagree.
+
+This closes the gap that caused the original confusion: docker-compose mounts
+SQL into `/docker-entrypoint-initdb.d`, which Postgres runs **only when the data
+directory is empty**, so an existing volume never received a new migration.
+Migrations 014 and 015 had to be applied by hand.
+
+### Two findings from testing against a genuinely empty database
+
+**The migration sequence does not stand alone.** Migration 002 constrains
+`public.chime_bookings`, created by `postgres-schema.sql`, which is not part of
+the numbered sequence. Running migrations against an empty database fails at
+002. The runner now applies it first and records it as `000`, so the
+prerequisite is tracked rather than folklore.
+
+**Seeds interleave with migrations, and that is load-bearing.** Migrations 007,
+008, 011, 012 and 013 seed organization-scoped rows with
+`SELECT ... FROM chime_app.organizations`, so they insert nothing unless an
+organization already exists. `docker-compose.yml` runs `seed-admin-demo.sql`
+between migrations 001 and 002 for this reason. Running all migrations then all
+seeds produces a database with **no notification templates** — confirmed by
+doing it. The explicit mount list is therefore not redundant with the runner.
+
+### Latent multi-tenancy bug this exposed
+
+Because those five migrations seed from *existing* organizations, an
+organization created later receives none of those defaults. `launch_settings`
+self-heals via `ensureLaunchSettings`; **notification templates do not** — there
+is no runtime insert anywhere in `server/src`. A second business onboarded today
+would have zero email templates. Chime is explicitly a multi-tenant product, so
+this will bite on the first real second tenant. Provisioning should seed these,
+not a migration. Flagged as separate work.
