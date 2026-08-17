@@ -821,6 +821,20 @@ export default function OperationsStudio({
                           className={[
                             'operations-appointment',
                             `is-${appointment.status}`,
+                            // Drops the service line when the card cannot hold it
+                            // legibly. Time, name and service need about 64px; a
+                            // 30-minute slot is 46px, so the service was being
+                            // sliced mid-word. An appointment that is not simply
+                            // confirmed also carries a status badge, which needs
+                            // roughly another 30px and matters more than the
+                            // service name — that is the one thing asking the
+                            // owner to do something. The service is always on the
+                            // detail panel, and the colour already says who is
+                            // covering it.
+                            position.height < 64
+                            || (appointment.status !== 'confirmed' && position.height < 96)
+                              ? 'is-compact'
+                              : '',
                             selectedId === appointment.id ? 'is-selected' : '',
                           ].join(' ')}
                           key={appointment.id}

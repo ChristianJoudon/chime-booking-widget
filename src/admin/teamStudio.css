@@ -62,7 +62,7 @@
 .team-editor__heading button { background: transparent; border: 1px solid #d8e2dd; border-radius: 8px; color: #9b594e; cursor: pointer; font-size: 0.75rem; font-weight: 800; padding: 7px 9px; }
 .team-editor__section { border: 0; border-bottom: 1px solid #e8eeeb; margin: 0; padding: 20px; }
 .team-editor__section legend { color: #23483b; float: left; font-size: 0.8838rem; font-weight: 800; padding: 0; width: 100%; }
-.team-editor__section > p { clear: both; color: #84918d; font-size: 0.7641rem; line-height: 1.5; margin: 4px 0 14px; }
+.team-editor__section > p { clear: both; color: #66726f; font-size: 0.7641rem; line-height: 1.5; margin: 4px 0 14px; }
 .team-editor__grid { display: grid; gap: 11px; grid-template-columns: repeat(2,minmax(0,1fr)); }
 .team-editor__grid label { display: grid; gap: 5px; }
 .team-editor__grid label span, .team-color-picker > span { color: #63736d; font-size: 0.75rem; font-weight: 800; }

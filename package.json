@@ -27,7 +27,8 @@
     "css:check": "tailwindcss -i ./src/index.css -o /dev/null --minify",
     "test:accessibility": "node scripts/accessibility-smoke.mjs",
     "test:contracts": "node scripts/cross-workspace-contract.mjs",
-    "test:embed-host-styles": "node scripts/embed-host-styles.mjs"
+    "test:embed-host-styles": "node scripts/embed-host-styles.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "3.7.0",

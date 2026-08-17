@@ -1659,3 +1659,62 @@ was true only while nothing could decline. It now counts what actually mounted
 rather than what matched the selector.
 
 All four typechecks pass — admin, server, widget — with no errors.
+
+## Practice data that stays current (2026-08-17)
+
+The demo workspace looked empty. The data was there — ten appointments, six
+customers — but every one was dated 10–14 August, and the week had moved on. The
+studio opened on a blank calendar, which is the first screen anyone sees.
+
+The seed wrote absolute timestamps, so this was not a one-off drift: a fresh
+`docker compose up` would have been stale from the day it was built, and getting
+staler.
+
+The schedule is now anchored to `date_trunc('week', now())`, keeping the
+weekday-and-time pattern it always had. `npm run seed:demo` re-applies it, which
+both refreshes an existing database and moves the demo week forward. Re-running
+is safe: every row has a fixed UUID and the update is restricted to
+`origin = 'demo'`, so it can only touch its own records.
+
+Three screens were empty for a different reason — nothing had ever been seeded
+for them. Payments, Requests, and the notes panel on every customer profile now
+have content: two deposits on the one service that actually charges one, a
+customer asking to move a Thursday appointment, and four notes of the kind a
+small business really writes.
+
+### The database refused two of my rows, correctly
+
+`payments_check` rejected a collected deposit with no `verified_at` — the rule
+that a payment cannot claim to be collected without proof it was verified with
+the provider. And `appointment_change_requests.base_appointment_version` is
+mandatory, because a decision made after the appointment moved on has to be
+refused rather than silently applied.
+
+Both are constraints added earlier in this work, doing exactly what they were
+added to do, to seed data that was cutting corners.
+
+### What the data immediately exposed
+
+Real content on previously-empty screens found real bugs within minutes.
+
+**Calendar cards clipped their own text.** A 30-minute appointment is 46px tall
+and the time, name and service need about 64px, so the service was sliced
+mid-word. Short cards now show the time and who is coming; an appointment
+carrying a status badge drops the service too, because the badge is the part
+asking for a decision. The service is always on the detail panel.
+
+Worth recording how that was missed: `scrollHeight` reported no overflow,
+because the name has `overflow: hidden` of its own and clips internally, so the
+card never saw the spill. It had to be measured against the card's own edge.
+The same measurement then produced a false positive — the resize indicator is
+absolutely positioned in the padding by design, and looked like a 3px overflow
+until I checked what it was.
+
+**Five colours failed contrast** on Payments and the Schedule badge. They had
+never been measured, because there were no payment rows and no non-confirmed
+appointments to render them. The accessibility check now covers 158 controls
+rather than 139.
+
+That is the argument for practice data beyond making the studio look alive: an
+empty screen is unmeasurable, and the checks were quietly passing over screens
+they could not see.

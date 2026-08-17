@@ -193,7 +193,7 @@
 .payments-row > span:not(.payments-status),
 .payments-customer > span { display: grid; gap: 4px; min-width: 0; }
 .payments-row strong { font-size: 0.868rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.payments-row small { color: #84918d; font-size: 0.8064rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.payments-row small { color: #66726f; font-size: 0.8064rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .payments-customer { align-items: center; display: flex !important; gap: 10px !important; }
 .payments-customer > i {
@@ -224,7 +224,7 @@
 
 .payments-status i { background: currentColor; border-radius: 50%; height: 6px; width: 6px; }
 .payments-status.is-succeeded { background: #dff2e9; color: #32745f; }
-.payments-status.is-authorized { background: #e4eff6; color: #4f7891; }
+.payments-status.is-authorized { background: #e4eff6; color: #4a7088; }
 .payments-status.is-processing,
 .payments-status.is-requires_payment { background: #f8edc9; color: #96731d; }
 .payments-status.is-failed { background: #f8e2dc; color: #a95540; }
@@ -253,7 +253,7 @@
 
 .payments-breakdown { background: #f1f7f4; border-radius: 14px; margin: 18px 0 14px; padding: 8px 13px; }
 .payments-breakdown > div { align-items: center; display: flex; justify-content: space-between; padding: 7px 0; }
-.payments-breakdown dt { color: #74837e; font-size: 0.8295rem; }
+.payments-breakdown dt { color: #66736f; font-size: 0.8295rem; }
 .payments-breakdown dd { font-size: 0.8517rem; font-weight: 760; margin: 0; }
 .payments-breakdown .is-total { border-top: 1px solid rgba(30, 77, 66, .12); margin-top: 4px; padding-top: 10px; }
 .payments-breakdown .is-total dt,

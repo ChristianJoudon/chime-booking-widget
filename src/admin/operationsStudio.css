@@ -10,7 +10,7 @@
   --ops-coral-light: #f8e8e0;
   --ops-blue: #477b9b;
   --ops-blue-light: #e4eff5;
-  --ops-gold: #a17627;
+  --ops-gold: #946d24;
   --ops-gold-light: #f7efd9;
   color: var(--ops-ink);
   font-family: "Avenir Next", "Trebuchet MS", sans-serif;
@@ -436,6 +436,32 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* One line each. A service name long enough to wrap pushed the card past its
+   own height and got cut off part-way through a word. */
+.operations-appointment > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operations-appointment.is-compact > small {
+  display: none;
+}
+
+/* Two lines in a 46px box leaves nothing spare: the default padding and the
+   name's margin together put the last line about a pixel past the card, and
+   `overflow: hidden` sliced the descenders off. The name's own `overflow:
+   hidden` meant the card never reported the spill, so this needed measuring
+   against the card's edge rather than trusting scrollHeight. */
+.operations-appointment.is-compact {
+  padding-top: 5px;
+  padding-bottom: 4px;
+}
+
+.operations-appointment.is-compact > strong {
+  margin: 0;
 }
 
 .operations-appointment > em {

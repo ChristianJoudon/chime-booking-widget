@@ -48,6 +48,7 @@ services:
       - ./database/seeds/001-demo-customers.sql:/docker-entrypoint-initdb.d/24-demo-customers.sql:ro
       - ./database/seeds/002-demo-schedule.sql:/docker-entrypoint-initdb.d/25-demo-schedule.sql:ro
       - ./database/seeds/003-demo-availability.sql:/docker-entrypoint-initdb.d/26-demo-availability.sql:ro
+      - ./database/seeds/004-demo-activity.sql:/docker-entrypoint-initdb.d/27-demo-activity.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chime -d chime"]
       interval: 5s
