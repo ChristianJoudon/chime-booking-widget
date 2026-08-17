@@ -816,3 +816,112 @@
   .service-editor__footer { align-items: stretch; display: grid; gap: 10px; }
   .service-editor__footer .admin-primary-button { width: 100%; }
 }
+
+/* ------------------------------------------- Essentials / Advanced rules
+   The editor is split so first-time setup is not met with resize increments
+   and buffer rules before the service even has a price. */
+
+.service-editor__tabs {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 1.1rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--admin-canvas);
+}
+
+.service-editor__tabs button {
+  flex: 1;
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-ink-soft);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 580;
+  cursor: pointer;
+}
+
+.service-editor__tabs button:hover {
+  color: var(--admin-ink);
+}
+
+.service-editor__tabs button.is-active {
+  background: var(--admin-paper);
+  color: var(--admin-forest);
+  font-weight: 640;
+  box-shadow: 0 1px 2px rgba(23, 59, 50, 0.12);
+}
+
+.service-editor__tabs button:focus-visible {
+  outline: 2px solid var(--admin-forest);
+  outline-offset: 1px;
+}
+
+/* Duplicate moved out of the header into a menu, so the header no longer
+   advertises "make another one" above editing the current service. */
+.service-actions-menu {
+  position: relative;
+}
+
+.service-actions-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-paper);
+  color: var(--admin-ink-soft);
+  cursor: pointer;
+}
+
+.service-actions-menu__trigger:hover {
+  color: var(--admin-ink);
+  border-color: var(--admin-ink-soft);
+}
+
+.service-actions-menu__trigger:focus-visible {
+  outline: 2px solid var(--admin-forest);
+  outline-offset: 1px;
+}
+
+.service-actions-menu__items {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 13rem;
+  padding: 0.3rem;
+  border-radius: 12px;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-paper);
+  box-shadow: 0 12px 28px rgba(23, 59, 50, 0.14);
+}
+
+.service-actions-menu__items button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--admin-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.service-actions-menu__items button:hover {
+  background: var(--admin-canvas);
+}
+
+.service-actions-menu__items button:focus-visible {
+  outline: 2px solid var(--admin-forest);
+  outline-offset: -2px;
+}

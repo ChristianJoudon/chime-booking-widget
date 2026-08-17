@@ -19,6 +19,7 @@ interface ServiceStudioProps {
 
 type StudioIconName =
   | ServiceGlyph
+  | 'more'
   | 'search'
   | 'plus'
   | 'clock'
@@ -43,6 +44,7 @@ const STUDIO_ICON_PATHS: Record<StudioIconName, ReactNode> = {
   people: <><circle cx="9" cy="8" r="3" /><path d="M3.5 19c.5-4 2.4-6 5.5-6s5 2 5.5 6" /><circle cx="17" cy="9" r="2.3" /></>,
   eye: <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>,
   copy: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" /></>,
+  more: <><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" /></>,
   check: <path d="m5 12 4 4L19 6" />,
   phone: <><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2" /></>,
   desktop: <><rect x="2" y="4" width="20" height="14" rx="2" /><path d="M8 22h8M12 18v4" /></>,
@@ -101,6 +103,8 @@ function ServiceStudio({
   const [selectedId, setSelectedId] = useState(services[0]?.id ?? '');
   const [query, setQuery] = useState('');
   const [previewSize, setPreviewSize] = useState<'desktop' | 'phone'>('desktop');
+  const [editorTab, setEditorTab] = useState<'essentials' | 'advanced'>('essentials');
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const selectedService = services.find((service) => service.id === selectedId) ?? services[0];
   const filteredServices = useMemo(() => {
@@ -223,14 +227,38 @@ function ServiceStudio({
         </div>
         <div className="service-studio__top-actions">
           <span className="service-studio__saved" data-mode={persistence.mode} aria-live="polite"><i /><span>{persistence.label}</span></span>
-          <button className="admin-secondary-button" type="button" onClick={duplicateService}>
-            <StudioIcon name="copy" size={16} />
-            Duplicate
-          </button>
-          <button className="admin-primary-button" type="button" onClick={createService}>
+          {/* The product already has enough appointment types, so neither of
+              these is the primary action here — editing the selected service
+              is. Add service is demoted to secondary and Duplicate moves into
+              a menu, per the tightening plan. */}
+          <button className="admin-secondary-button" type="button" onClick={createService}>
             <StudioIcon name="plus" size={17} />
-            New service
+            Add service
           </button>
+          <div className="service-actions-menu">
+            <button
+              aria-expanded={actionsOpen}
+              aria-haspopup="menu"
+              aria-label="Service actions"
+              className="service-actions-menu__trigger"
+              onClick={() => setActionsOpen((open) => !open)}
+              type="button"
+            >
+              <StudioIcon name="more" size={17} />
+            </button>
+            {actionsOpen ? (
+              <div className="service-actions-menu__items" role="menu">
+                <button
+                  onClick={() => { setActionsOpen(false); duplicateService(); }}
+                  role="menuitem"
+                  type="button"
+                >
+                  <StudioIcon name="copy" size={15} />
+                  Duplicate this service
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -303,6 +331,28 @@ function ServiceStudio({
             <span className="service-editor__version">Version {selectedService.version}</span>
           </div>
 
+          {/* The plan splits this editor so a first-time setup is not met with
+              resize increments and buffer rules. Essentials is everything needed
+              to offer a service; Advanced is everything that tunes it. */}
+          <div className="service-editor__tabs" role="tablist" aria-label="Service settings">
+            <button
+              aria-selected={editorTab === 'essentials'}
+              className={editorTab === 'essentials' ? 'is-active' : ''}
+              onClick={() => setEditorTab('essentials')}
+              role="tab"
+              type="button"
+            >Essentials</button>
+            <button
+              aria-selected={editorTab === 'advanced'}
+              className={editorTab === 'advanced' ? 'is-active' : ''}
+              onClick={() => setEditorTab('advanced')}
+              role="tab"
+              type="button"
+            >Advanced rules</button>
+          </div>
+
+          {editorTab === 'essentials' ? (
+          <>
           <fieldset className="service-editor__section">
             <legend>Customer-facing details</legend>
             <p>Use everyday language so customers immediately know what to choose.</p>
@@ -335,33 +385,15 @@ function ServiceStudio({
           </fieldset>
 
           <fieldset className="service-editor__section">
-            <legend>Timing rules</legend>
-            <p>These controls make appointments flexible while keeping the calendar predictable.</p>
+            <legend>Appointment length</legend>
+            <p>How long a booking runs unless someone resizes it.</p>
             <div className="service-form-grid service-form-grid--four">
-              <label className="service-field">
-                <span>Default length</span>
-                <select value={selectedService.duration.defaultMinutes} onChange={(event) => updateDuration('defaultMinutes', Number(event.target.value))}>
-                  {[15, 30, 45, 60, 75, 90, 120, 180].map((value) => <option value={value} key={value}>{durationLabel(value)}</option>)}
-                </select>
-              </label>
-              <label className="service-field">
-                <span>Shortest</span>
-                <select value={selectedService.duration.minimumMinutes} onChange={(event) => updateDuration('minimumMinutes', Number(event.target.value))}>
-                  {[15, 30, 45, 60, 90].map((value) => <option value={value} key={value}>{durationLabel(value)}</option>)}
-                </select>
-              </label>
-              <label className="service-field">
-                <span>Longest</span>
-                <select value={selectedService.duration.maximumMinutes} onChange={(event) => updateDuration('maximumMinutes', Number(event.target.value))}>
-                  {[30, 45, 60, 90, 120, 180, 240].map((value) => <option value={value} key={value}>{durationLabel(value)}</option>)}
-                </select>
-              </label>
-              <label className="service-field">
-                <span>Resize steps</span>
-                <select value={selectedService.duration.incrementMinutes} onChange={(event) => updateDuration('incrementMinutes', Number(event.target.value))}>
-                  {[5, 10, 15, 30].map((value) => <option value={value} key={value}>{value} min</option>)}
-                </select>
-              </label>
+                <label className="service-field">
+                  <span>Default length</span>
+                  <select value={selectedService.duration.defaultMinutes} onChange={(event) => updateDuration('defaultMinutes', Number(event.target.value))}>
+                    {[15, 30, 45, 60, 75, 90, 120, 180].map((value) => <option value={value} key={value}>{durationLabel(value)}</option>)}
+                  </select>
+                </label>
             </div>
             <div className="service-timing-visual">
               <span style={{ width: `${Math.max(24, selectedService.duration.minimumMinutes / selectedService.duration.maximumMinutes * 100)}%` }}>
@@ -369,73 +401,6 @@ function ServiceStudio({
                 <b>Default {durationLabel(selectedService.duration.defaultMinutes)}</b>
               </span>
               <em>Resizable up to {durationLabel(selectedService.duration.maximumMinutes)}</em>
-            </div>
-            <div className="service-form-grid service-form-grid--two service-form-grid--compact">
-              <label className="service-field">
-                <span>Buffer before</span>
-                <div className="service-number-input"><input type="number" min="0" step="5" value={selectedService.buffers.beforeMinutes} onChange={(event) => updateBuffer('beforeMinutes', Number(event.target.value))} /><b>minutes</b></div>
-              </label>
-              <label className="service-field">
-                <span>Buffer after</span>
-                <div className="service-number-input"><input type="number" min="0" step="5" value={selectedService.buffers.afterMinutes} onChange={(event) => updateBuffer('afterMinutes', Number(event.target.value))} /><b>minutes</b></div>
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset className="service-editor__section">
-            <legend>Booking & approval</legend>
-            <p>Choose what happens after a customer requests this appointment.</p>
-            <div className="service-choice-grid">
-              <button
-                className={selectedService.confirmationMode === 'automatic' ? 'is-active' : ''}
-                type="button"
-                onClick={() => updateSelected({ confirmationMode: 'automatic' })}
-              >
-                <span><StudioIcon name="check" size={16} /></span>
-                <strong>Confirm automatically</strong>
-                <small>Open times become confirmed bookings right away.</small>
-              </button>
-              <button
-                className={selectedService.confirmationMode === 'manual' ? 'is-active' : ''}
-                type="button"
-                onClick={() => updateSelected({ confirmationMode: 'manual' })}
-              >
-                <span><StudioIcon name="eye" size={16} /></span>
-                <strong>Review each request</strong>
-                <small>Keep requests pending until someone approves them.</small>
-              </button>
-            </div>
-            <div className="service-form-grid service-form-grid--three service-form-grid--spaced">
-              <label className="service-field">
-                <span>Schedule changes</span>
-                <select value={selectedService.changeApprovalMode} onChange={(event) => updateSelected({ changeApprovalMode: event.target.value as AdminServiceDefinition['changeApprovalMode'] })}>
-                  <option value="automatic">Apply automatically</option>
-                  <option value="business">Business approves</option>
-                  <option value="affected_staff">Assigned staff approves</option>
-                  <option value="business_and_affected_staff">Business and staff approve</option>
-                </select>
-              </label>
-              <label className="service-field">
-                <span>Minimum notice</span>
-                <select value={selectedService.bookingWindow.minimumNoticeMinutes} onChange={(event) => updateBookingWindow('minimumNoticeMinutes', Number(event.target.value))}>
-                  <option value="0">No minimum</option>
-                  <option value="30">30 minutes</option>
-                  <option value="60">1 hour</option>
-                  <option value="120">2 hours</option>
-                  <option value="1440">1 day</option>
-                  <option value="2880">2 days</option>
-                </select>
-              </label>
-              <label className="service-field">
-                <span>Book ahead</span>
-                <select value={selectedService.bookingWindow.maximumAdvanceDays} onChange={(event) => updateBookingWindow('maximumAdvanceDays', Number(event.target.value))}>
-                  <option value="30">30 days</option>
-                  <option value="45">45 days</option>
-                  <option value="60">60 days</option>
-                  <option value="90">90 days</option>
-                  <option value="180">6 months</option>
-                </select>
-              </label>
             </div>
           </fieldset>
 
@@ -473,33 +438,44 @@ function ServiceStudio({
           </fieldset>
 
           <fieldset className="service-editor__section">
-            <legend>Team & capacity</legend>
-            <p>Select who can provide this service and how many customers can share a time.</p>
-            <div className="service-team-picker">
-              {serviceStudioStaff.map((staff) => {
-                const isAssigned = selectedService.staffIds.includes(staff.id);
-                return (
-                  <button className={isAssigned ? 'is-active' : ''} type="button" key={staff.id} onClick={() => toggleStaff(staff.id)}>
-                    <i style={{ background: staff.color }}>{staff.initials}</i>
-                    <span><strong>{staff.name}</strong><small>{isAssigned ? 'Assigned' : 'Not assigned'}</small></span>
-                    <b>{isAssigned ? <StudioIcon name="check" size={14} /> : null}</b>
-                  </button>
-                );
-              })}
-            </div>
-            <ServiceLocationPicker
-              service={selectedService}
-              onChange={(locationIds) => updateSelected({ locationIds })}
-            />
-            <label className="service-field service-capacity-field">
-              <span>Capacity per start time</span>
-              <div className="service-stepper">
-                <button type="button" aria-label="Reduce capacity" onClick={() => updateSelected({ capacity: Math.max(1, selectedService.capacity - 1) })}>-</button>
-                <strong>{selectedService.capacity}</strong>
-                <button type="button" aria-label="Increase capacity" onClick={() => updateSelected({ capacity: selectedService.capacity + 1 })}>+</button>
+            <legend>Who provides it, and where</legend>
+            <p>Select who can provide this service and what happens after a customer requests it.</p>
+              <div className="service-team-picker">
+                {serviceStudioStaff.map((staff) => {
+                  const isAssigned = selectedService.staffIds.includes(staff.id);
+                  return (
+                    <button className={isAssigned ? 'is-active' : ''} type="button" key={staff.id} onClick={() => toggleStaff(staff.id)}>
+                      <i style={{ background: staff.color }}>{staff.initials}</i>
+                      <span><strong>{staff.name}</strong><small>{isAssigned ? 'Assigned' : 'Not assigned'}</small></span>
+                      <b>{isAssigned ? <StudioIcon name="check" size={14} /> : null}</b>
+                    </button>
+                  );
+                })}
               </div>
-              <small>{selectedService.capacity === 1 ? 'One customer per appointment' : `Up to ${selectedService.capacity} customers at the same time`}</small>
-            </label>
+              <ServiceLocationPicker
+                service={selectedService}
+                onChange={(locationIds) => updateSelected({ locationIds })}
+              />
+              <div className="service-choice-grid">
+                <button
+                  className={selectedService.confirmationMode === 'automatic' ? 'is-active' : ''}
+                  type="button"
+                  onClick={() => updateSelected({ confirmationMode: 'automatic' })}
+                >
+                  <span><StudioIcon name="check" size={16} /></span>
+                  <strong>Confirm automatically</strong>
+                  <small>Open times become confirmed bookings right away.</small>
+                </button>
+                <button
+                  className={selectedService.confirmationMode === 'manual' ? 'is-active' : ''}
+                  type="button"
+                  onClick={() => updateSelected({ confirmationMode: 'manual' })}
+                >
+                  <span><StudioIcon name="eye" size={16} /></span>
+                  <strong>Review each request</strong>
+                  <small>Keep requests pending until someone approves them.</small>
+                </button>
+              </div>
           </fieldset>
 
           <fieldset className="service-editor__section service-editor__section--last">
@@ -513,6 +489,96 @@ function ServiceStudio({
               <button aria-pressed={selectedService.isPublic} className="service-switch" type="button" onClick={() => updateSelected({ isPublic: !selectedService.isPublic })}><i /></button>
             </div>
           </fieldset>
+          </>
+          ) : (
+          <>
+          <fieldset className="service-editor__section">
+            <legend>Duration limits and buffers</legend>
+            <p>How far an appointment can be resized, and the gap kept around it.</p>
+            <div className="service-form-grid service-form-grid--four">
+                <label className="service-field">
+                  <span>Shortest</span>
+                  <select value={selectedService.duration.minimumMinutes} onChange={(event) => updateDuration('minimumMinutes', Number(event.target.value))}>
+                    {[15, 30, 45, 60, 90].map((value) => <option value={value} key={value}>{durationLabel(value)}</option>)}
+                  </select>
+                </label>
+                <label className="service-field">
+                  <span>Longest</span>
+                  <select value={selectedService.duration.maximumMinutes} onChange={(event) => updateDuration('maximumMinutes', Number(event.target.value))}>
+                    {[30, 45, 60, 90, 120, 180, 240].map((value) => <option value={value} key={value}>{durationLabel(value)}</option>)}
+                  </select>
+                </label>
+                <label className="service-field">
+                  <span>Resize steps</span>
+                  <select value={selectedService.duration.incrementMinutes} onChange={(event) => updateDuration('incrementMinutes', Number(event.target.value))}>
+                    {[5, 10, 15, 30].map((value) => <option value={value} key={value}>{value} min</option>)}
+                  </select>
+                </label>
+              </div>
+            <div className="service-form-grid service-form-grid--two service-form-grid--compact">
+              <label className="service-field">
+                <span>Buffer before</span>
+                <div className="service-number-input"><input type="number" min="0" step="5" value={selectedService.buffers.beforeMinutes} onChange={(event) => updateBuffer('beforeMinutes', Number(event.target.value))} /><b>minutes</b></div>
+              </label>
+              <label className="service-field">
+                <span>Buffer after</span>
+                <div className="service-number-input"><input type="number" min="0" step="5" value={selectedService.buffers.afterMinutes} onChange={(event) => updateBuffer('afterMinutes', Number(event.target.value))} /><b>minutes</b></div>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="service-editor__section">
+            <legend>Booking window and changes</legend>
+            <p>How far ahead customers can book, and who approves a change.</p>
+            <div className="service-form-grid service-form-grid--three service-form-grid--spaced">
+              <label className="service-field">
+                <span>Schedule changes</span>
+                <select value={selectedService.changeApprovalMode} onChange={(event) => updateSelected({ changeApprovalMode: event.target.value as AdminServiceDefinition['changeApprovalMode'] })}>
+                  <option value="automatic">Apply automatically</option>
+                  <option value="business">Business approves</option>
+                  <option value="affected_staff">Assigned staff approves</option>
+                  <option value="business_and_affected_staff">Business and staff approve</option>
+                </select>
+              </label>
+              <label className="service-field">
+                <span>Minimum notice</span>
+                <select value={selectedService.bookingWindow.minimumNoticeMinutes} onChange={(event) => updateBookingWindow('minimumNoticeMinutes', Number(event.target.value))}>
+                  <option value="0">No minimum</option>
+                  <option value="30">30 minutes</option>
+                  <option value="60">1 hour</option>
+                  <option value="120">2 hours</option>
+                  <option value="1440">1 day</option>
+                  <option value="2880">2 days</option>
+                </select>
+              </label>
+              <label className="service-field">
+                <span>Book ahead</span>
+                <select value={selectedService.bookingWindow.maximumAdvanceDays} onChange={(event) => updateBookingWindow('maximumAdvanceDays', Number(event.target.value))}>
+                  <option value="30">30 days</option>
+                  <option value="45">45 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                  <option value="180">6 months</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="service-editor__section service-editor__section--last">
+            <legend>Capacity</legend>
+            <p>How many customers can share one start time.</p>
+              <label className="service-field service-capacity-field">
+                <span>Capacity per start time</span>
+                <div className="service-stepper">
+                  <button type="button" aria-label="Reduce capacity" onClick={() => updateSelected({ capacity: Math.max(1, selectedService.capacity - 1) })}>-</button>
+                  <strong>{selectedService.capacity}</strong>
+                  <button type="button" aria-label="Increase capacity" onClick={() => updateSelected({ capacity: selectedService.capacity + 1 })}>+</button>
+                </div>
+                <small>{selectedService.capacity === 1 ? 'One customer per appointment' : `Up to ${selectedService.capacity} customers at the same time`}</small>
+              </label>
+          </fieldset>
+          </>
+          )}
 
           <div className="service-editor__footer">
             <div><span><StudioIcon name="check" size={15} /></span><p><strong>Ready to use</strong><small>All required service rules are complete.</small></p></div>
