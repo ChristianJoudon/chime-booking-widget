@@ -20,7 +20,8 @@ function stripDemoRelationshipIds<T>(input: T): T {
 }
 
 import type { AdminServiceDefinition } from './serviceTypes';
-import { describeMissingConnection, normalizeBaseUrl, resolveAdminConnection } from './adminConnection';
+import { describeMissingConnection, normalizeBaseUrl, resolveAdminBaseUrl, resolveAdminConnection } from './adminConnection';
+import { clearSession, notifySessionEnded } from './adminSession';
 
 export interface AdminStaffMember {
   id: string;
@@ -717,6 +718,12 @@ export class AdminApiClient {
       error?: { code?: string; message?: string; details?: unknown };
     } | null;
     if (!response.ok) {
+      // An expired or revoked session should return the administrator to the
+      // login screen, not leave every workspace reporting its own failure.
+      if (response.status === 401) {
+        clearSession();
+        notifySessionEnded();
+      }
       throw new AdminApiClientError(
         response.status,
         body?.error?.message ?? `Administrator request failed with ${response.status}.`,
@@ -953,10 +960,18 @@ export class AdminApiClient {
   }
 }
 
-export function createAdminApiClient(): AdminApiClient {
+/**
+ * Builds a client for the current connection.
+ *
+ * `token` may be passed explicitly. Resolution reads sessionStorage, which is
+ * invisible to React's dependency analysis, so a caller that rebuilds the
+ * client when the session changes can pass the token and have that dependency
+ * be a real one rather than a suppressed warning.
+ */
+export function createAdminApiClient(token?: string): AdminApiClient {
   const connection = resolveAdminConnection();
   return new AdminApiClient({
-    baseUrl: connection?.baseUrl,
-    token: connection?.token,
+    baseUrl: connection?.baseUrl ?? resolveAdminBaseUrl(),
+    token: token ?? connection?.token,
   });
 }

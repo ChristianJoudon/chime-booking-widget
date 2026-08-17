@@ -1449,3 +1449,27 @@ select:focus-visible,
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Sign out, in the sidebar profile row. Quiet by default: it is a deliberate
+   action, not a primary one. */
+.admin-sign-out {
+  margin-left: auto;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-line);
+  background: transparent;
+  color: var(--admin-ink-soft);
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.admin-sign-out:hover {
+  border-color: var(--admin-coral);
+  color: var(--admin-coral);
+}
+
+.admin-sign-out:focus-visible {
+  outline: 2px solid var(--admin-forest);
+  outline-offset: 2px;
+}

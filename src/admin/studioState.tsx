@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
-import { ADMIN_CONNECTION, describeMissingConnection } from './adminConnection';
+import { getAdminConnection, describeMissingConnection } from './adminConnection';
 import './studioState.css';
 
 /**
@@ -49,7 +49,7 @@ export function useStudioResource<T>(
   useEffect(() => {
     if (skip) return;
 
-    if (!ADMIN_CONNECTION) {
+    if (!getAdminConnection()) {
       setStatus('unconfigured');
       setError(describeMissingConnection());
       setData(null);

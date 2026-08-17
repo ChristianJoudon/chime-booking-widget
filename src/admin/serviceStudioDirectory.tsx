@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect, useMemo, useState } from 'react';
-import { ADMIN_CONNECTION, describeMissingConnection } from './adminConnection';
+import { getAdminConnection, describeMissingConnection } from './adminConnection';
 
 /**
  * Shaped for the studio's team picker. Previously this type was derived from the
@@ -79,7 +79,8 @@ function endpoint(baseUrl: string, path: string): string {
 }
 
 async function requestDirectory(): Promise<StudioDirectory> {
-  if (!ADMIN_CONNECTION) {
+  const connection = getAdminConnection();
+  if (!connection) {
     return {
       staff: [],
       locations: [],
@@ -88,10 +89,10 @@ async function requestDirectory(): Promise<StudioDirectory> {
     };
   }
 
-  const headers = { Authorization: `Bearer ${ADMIN_CONNECTION.token}` };
+  const headers = { Authorization: `Bearer ${connection.token}` };
   const [staffResponse, locationResponse] = await Promise.all([
-    fetch(endpoint(ADMIN_CONNECTION.baseUrl, '/staff'), { headers }),
-    fetch(endpoint(ADMIN_CONNECTION.baseUrl, '/locations'), { headers }),
+    fetch(endpoint(connection.baseUrl, '/staff'), { headers }),
+    fetch(endpoint(connection.baseUrl, '/locations'), { headers }),
   ]);
 
   if (!staffResponse.ok || !locationResponse.ok) {
@@ -161,8 +162,8 @@ export function useServiceStudioDirectory(): StudioDirectory {
   const [directory, setDirectory] = useState<StudioDirectory>(() => cachedDirectory ?? {
     staff: [],
     locations: [],
-    state: ADMIN_CONNECTION ? 'loading' : 'unconfigured',
-    message: ADMIN_CONNECTION ? null : describeMissingConnection(),
+    state: getAdminConnection() ? 'loading' : 'unconfigured',
+    message: getAdminConnection() ? null : describeMissingConnection(),
   });
 
   useEffect(() => {

@@ -24,6 +24,8 @@ import InsightsStudio from './InsightsStudio';
 import SettingsStudio from './SettingsStudio';
 import LaunchStudio from './LaunchStudio';
 import WorkspaceBadge from './WorkspaceBadge';
+import LoginScreen from './LoginScreen';
+import { clearSession, onSessionEnded, readSession } from './adminSession';
 import chimeBellLogo from '@/assets/brand/chime-bell.png';
 import chimeWordmarkLogo from '@/assets/brand/chime-wordmark.png';
 import type { AdminServiceDefinition } from './serviceTypes';
@@ -122,15 +124,28 @@ const NAV_ITEMS: readonly { label: string; icon: IconName }[] = [
 ];
 
 function AdminApp() {
+  // sessionStorage is external to React, so the session is mirrored into state
+  // and updated explicitly at sign-in, sign-out, and on a 401. Keying a useMemo
+  // off a counter would work at runtime but reads as an unnecessary dependency,
+  // because nothing in the memo body references it.
+  const [session, setSession] = useState(() => readSession());
   const [toast, setToast] = useState<string | null>(null);
   const [activeWorkspace, setActiveWorkspace] = useState<'Schedule' | 'Requests' | 'Messages' | 'Services' | 'Team' | 'Availability' | 'Customers' | 'Payments' | 'Insights' | 'Widget designer' | 'Launch' | 'Settings'>('Schedule');
   const [adminServices, setAdminServices] = useState<AdminServiceDefinition[]>([]);
-  const adminApi = useMemo(() => createAdminApiClient(), []);
+  // Rebuilt whenever the token changes, so requests never carry a stale one.
+  const adminApi = useMemo(() => createAdminApiClient(session?.token), [session?.token]);
   const [adminPersistence, setAdminPersistence] = useState<AdminPersistenceState>(() =>
     adminApi.configured
       ? { mode: 'loading', label: 'Connecting to Chime...' }
       : { mode: 'error', label: 'Not connected' },
   );
+
+  useEffect(() => {
+    // A 401 anywhere in the studio ends the session; re-render into the login
+    // screen rather than leaving stale workspaces on screen.
+    onSessionEnded(() => setSession(null));
+    return () => onSessionEnded(null);
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -165,6 +180,11 @@ function AdminApp() {
     };
   }, [adminApi]);
 
+  const signOut = useCallback(() => {
+    clearSession();
+    setSession(null);
+  }, []);
+
   const saveAdminService = useCallback(async (
     service: AdminServiceDefinition,
   ): Promise<AdminServiceDefinition> => {
@@ -197,6 +217,12 @@ function AdminApp() {
     }
   }, [adminApi]);
 
+  // No session means no studio. Previously the shell rendered regardless and
+  // each workspace failed on its own, which read as a broken product rather
+  // than as "you are signed out".
+  if (!session) {
+    return <LoginScreen onSignedIn={() => setSession(readSession())} />;
+  }
   return (
     <div className="chime-admin">
       <a className="admin-skip-link" href="#admin-schedule">Skip to schedule</a>
@@ -251,12 +277,21 @@ function AdminApp() {
             <span>Settings</span>
           </button>
           <div className="admin-profile">
-            <span className="admin-avatar">CJ</span>
-            <span>
-              <strong>Christian</strong>
-              <small>Owner</small>
+            <span className="admin-avatar">
+              {session.email.slice(0, 2).toUpperCase()}
             </span>
-            <span className="admin-online-dot" title="Online" />
+            <span>
+              <strong>{session.email}</strong>
+              <small>{session.role}</small>
+            </span>
+            <button
+              className="admin-sign-out"
+              onClick={signOut}
+              title="Sign out"
+              type="button"
+            >
+              Sign out
+            </button>
           </div>
         </div>
       </aside>

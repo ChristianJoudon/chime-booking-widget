@@ -6,22 +6,23 @@
  * VITE_CHIME_ADMIN_TOKEN at all, so a correctly configured workspace could still
  * fall back to demo staff and zero locations. Everything now goes through here.
  *
- * Resolution order, first match wins:
+ * Token resolution order, first match wins:
  *
- *   1. window.CHIME_ADMIN_CONFIG   — supplied at runtime by the host page
- *   2. VITE_CHIME_ADMIN_API_URL / VITE_CHIME_ADMIN_TOKEN — build-time env
+ *   1. the session created by signing in — the normal path
+ *   2. window.CHIME_ADMIN_CONFIG, injected at runtime by a host page
  *
- * Prefer (1). Vite inlines VITE_* values into the JavaScript bundle, so a token
- * provided that way is readable by anyone who can fetch the built asset. See
- * ISOLATION.md.
+ * There is deliberately no environment path for a token. See the note on
+ * envApiUrl below, and ISOLATION.md.
  */
+
+import { readSession } from './adminSession';
 
 export interface AdminConnection {
   /** Normalized, no trailing slash, always ending in /api/chime/admin. */
   baseUrl: string;
   token: string;
   /** Where the values came from, for display in the workspace indicator. */
-  source: 'runtime' | 'build';
+  source: 'session' | 'runtime';
 }
 
 /** Accepted aliases, kept so an existing host page keeps working. */
@@ -54,25 +55,52 @@ export function normalizeBaseUrl(value: string): string {
     : `${trimmed}${API_SUFFIX}`;
 }
 
-function readEnv(key: string): string {
-  // import.meta.env is absent when this module is loaded outside Vite.
-  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.[key]?.trim() ?? '';
+/**
+ * NOTHING SECRET MAY EVER BE PUT IN A VITE_* VARIABLE IN THIS PROJECT.
+ *
+ * The admin bundle reaches src/lib/widgetConfig.ts through WidgetStudio's live
+ * preview of the booking app, and that module does a bare `import.meta.env`
+ * read. A bare read makes Vite inline the ENTIRE env object — every VITE_*
+ * value — into the bundle as a plain object literal. No amount of care on this
+ * side prevents it: a `import.meta.env.DEV` guard, static property access, and
+ * dead-code elimination were all tried, and the value still shipped, because
+ * it is that other module pulling the object in, not this one.
+ *
+ * widgetConfig.ts belongs to the booking widget and is not ours to change.
+ *
+ * The API address below is deliberately not a secret. There is no environment
+ * path for a token at all: administrators sign in.
+ */
+function envApiUrl(): string {
+  return (import.meta.env.VITE_CHIME_ADMIN_API_URL ?? '').trim();
+}
+
+/**
+ * Where the API lives, independent of who is signed in. Needed by the login
+ * screen, which has no session yet.
+ */
+export function resolveAdminBaseUrl(): string {
+  const runtime = typeof window === 'undefined' ? undefined : window.CHIME_ADMIN_CONFIG;
+  const candidate = runtime?.baseUrl ?? runtime?.apiBaseUrl ?? runtime?.apiUrl
+    ?? envApiUrl();
+  return candidate ? normalizeBaseUrl(candidate) : '';
 }
 
 export function resolveAdminConnection(): AdminConnection | null {
-  const runtime = typeof window === 'undefined' ? undefined : window.CHIME_ADMIN_CONFIG;
+  const baseUrl = resolveAdminBaseUrl();
+  if (!baseUrl) return null;
 
-  const runtimeBase = runtime?.baseUrl ?? runtime?.apiBaseUrl ?? runtime?.apiUrl ?? '';
-  const runtimeToken = runtime?.token ?? runtime?.accessToken ?? runtime?.sessionToken ?? '';
-  if (runtimeBase && runtimeToken) {
-    return { baseUrl: normalizeBaseUrl(runtimeBase), token: runtimeToken, source: 'runtime' };
+  // 1. A session obtained by signing in. This is the normal path.
+  const session = readSession();
+  if (session) {
+    return { baseUrl, token: session.token, source: 'session' };
   }
 
-  const envBase = readEnv('VITE_CHIME_ADMIN_API_URL');
-  const envToken = readEnv('VITE_CHIME_ADMIN_TOKEN');
-  if (envBase && envToken) {
-    return { baseUrl: normalizeBaseUrl(envBase), token: envToken, source: 'build' };
+  // 2. A token injected at runtime by the host page.
+  const runtime = typeof window === 'undefined' ? undefined : window.CHIME_ADMIN_CONFIG;
+  const runtimeToken = runtime?.token ?? runtime?.accessToken ?? runtime?.sessionToken ?? '';
+  if (runtimeToken) {
+    return { baseUrl, token: runtimeToken, source: 'runtime' };
   }
 
   return null;
@@ -83,23 +111,18 @@ export function resolveAdminConnection(): AdminConnection | null {
  * Returns null when the connection is fine.
  */
 export function describeMissingConnection(): string | null {
-  const runtime = typeof window === 'undefined' ? undefined : window.CHIME_ADMIN_CONFIG;
-  const hasBase = Boolean(
-    (runtime?.baseUrl ?? runtime?.apiBaseUrl ?? runtime?.apiUrl ?? '') || readEnv('VITE_CHIME_ADMIN_API_URL'),
-  );
-  const hasToken = Boolean(
-    (runtime?.token ?? runtime?.accessToken ?? runtime?.sessionToken ?? '') || readEnv('VITE_CHIME_ADMIN_TOKEN'),
-  );
-
-  if (hasBase && hasToken) return null;
-  if (!hasBase && !hasToken) {
-    return 'This studio has no Chime connection configured. Add VITE_CHIME_ADMIN_API_URL and VITE_CHIME_ADMIN_TOKEN to config/admin/.env.local, then restart the dev server.';
+  if (resolveAdminConnection()) return null;
+  if (!resolveAdminBaseUrl()) {
+    return 'No Chime API address is configured. Set VITE_CHIME_ADMIN_API_URL in config/admin/.env.local, then restart the dev server.';
   }
-  if (!hasToken) {
-    return 'A Chime API address is configured but no administrator session. Run "cd server && npm run session:admin" and put the token in VITE_CHIME_ADMIN_TOKEN in config/admin/.env.local.';
-  }
-  return 'An administrator session is configured but no Chime API address. Set VITE_CHIME_ADMIN_API_URL in config/admin/.env.local.';
+  return 'You are not signed in to Chime. Sign in to continue.';
 }
 
-/** Resolved once at module load; the values cannot change without a reload. */
-export const ADMIN_CONNECTION = resolveAdminConnection();
+/**
+ * Call this rather than caching the result: signing in creates a session after
+ * these modules have already been evaluated, and signing out removes it. A
+ * module-level constant would be stale in both directions.
+ */
+export function getAdminConnection(): AdminConnection | null {
+  return resolveAdminConnection();
+}

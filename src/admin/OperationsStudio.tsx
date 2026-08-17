@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import './operationsStudio.css';
-import { ADMIN_CONNECTION, describeMissingConnection } from './adminConnection';
+import { getAdminConnection, describeMissingConnection } from './adminConnection';
 
 type OperationsStudioProps = {
   initialWorkspace?: 'schedule' | 'requests';
@@ -118,8 +118,6 @@ type OperationsPayload = {
 
 class OperationsApiError extends Error {}
 
-const API_URL = ADMIN_CONNECTION?.baseUrl ?? '';
-const ADMIN_TOKEN = ADMIN_CONNECTION?.token ?? '';
 const HOUR_HEIGHT = 76;
 const DAY_START_MINUTES = 8 * 60;
 const DAY_END_MINUTES = 18 * 60;
@@ -128,15 +126,18 @@ async function operationsRequest<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  if (!API_URL || !ADMIN_TOKEN) {
+  // Resolved per request, not at module load: the session appears at sign-in
+  // and disappears at sign-out.
+  const connection = getAdminConnection();
+  if (!connection) {
     throw new OperationsApiError(
       describeMissingConnection() ?? 'The administrator session is not configured.',
     );
   }
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${connection.baseUrl}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${ADMIN_TOKEN}`,
+      Authorization: `Bearer ${connection.token}`,
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
       ...init.headers,
     },

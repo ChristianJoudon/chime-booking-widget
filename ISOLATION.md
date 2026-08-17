@@ -55,9 +55,20 @@ the root is therefore compiled into `dist-embed/chime-widget.js` — the
 customer-facing bundle that gets copied onto public websites. Scoping `envDir`
 keeps administrator credentials out of every widget build.
 
-`npm run build:admin` still inlines whatever token is present into
-`dist-admin/`. Prefer the dev server locally, and do not deploy a build made
-with a token in place.
+Administrators sign in with a password; there is no environment path for a
+token at all. `POST /api/chime/admin/session` issues a short-lived session,
+held in `sessionStorage` for the life of the tab.
+
+**Never put a secret in a `VITE_*` variable in this project.** The admin bundle
+reaches `src/lib/widgetConfig.ts` through Widget Designer's live preview, and
+that module does a bare `import.meta.env` read, which makes Vite inline the
+*entire* env object — every `VITE_*` value — into the built JavaScript as a
+plain object literal. Careful handling on the admin side does not help: a
+`import.meta.env.DEV` guard, static property access, and dead-code elimination
+were all tried against a sentinel token and it shipped every time, because a
+different module pulls the object in. `widgetConfig.ts` belongs to the widget
+and is not ours to change. The admin API address is the only `VITE_*` value
+this studio reads, and it is public information.
 
 ## The booking widget is not ours to change
 
