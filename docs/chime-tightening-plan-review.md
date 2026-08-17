@@ -500,10 +500,70 @@ both the admin and booking APIs, so the mistake surfaces before a booking is tak
 
 ### Still open
 
-- **No login.** The build-time token remains the largest gap to production.
+- ~~**No login.**~~ Done — see [Sign-in](#sign-in-2026-08-16) below.
 - **No migration runner.** Ordering is still filename-based in `docker-compose.yml`, now through
   014.
 - **`widget_configs` is still empty**, so Launch reads 75%.
 - Phase 2 onward — navigation consolidation, Services Studio essentials/advanced split, the
   preview pattern for consequential actions, and the Messages Outbox/Templates split — is
   untouched.
+
+---
+
+## Sign-in (2026-08-16)
+
+The largest gap to production is closed. Administrators sign in with a password;
+there is no environment path for a token anywhere in the studio.
+
+Migration 015 adds `chime_app.user_credentials`, separate from `users` because
+credentials have a different lifecycle and because `users.auth_subject` shows an
+external identity provider is the intended long-term path. Hashing is scrypt
+from `node:crypto`, so no native dependency was added. Work factors travel with
+each hash and can be raised later without invalidating existing passwords.
+
+`POST /session` sits outside `requireAdminSession` and carries two independent
+defenses: a per-account lockout after 5 failures for 15 minutes, and a
+per-address throttle of 10 per minute in front of it. Unknown account, wrong
+password, and no password set all return the same message and perform the same
+work.
+
+**No credential is stored in this repository.** `cd server && npm run
+set-password` reads from stdin with echo suppressed.
+
+### Two things that only showed up because they were checked
+
+**A timing oracle.** The stand-in hash used when no credential exists had a
+leading `$`, so it failed to parse and returned before doing any scrypt work. A
+known account answered in 0.06s and an unknown one in 0.01s — enough to
+enumerate accounts. The stand-in is now shaped exactly like a stored hash and
+the timings match.
+
+**The token kept shipping.** Removing the build-time token took three attempts,
+and the first two looked correct:
+
+1. A runtime guard refusing an env token in a production build — the guard
+   worked, but Vite had already inlined the string into `dist-admin`.
+2. Static access behind `import.meta.env.DEV` for dead-code elimination — still
+   shipped, because `import.meta.env?.NAME` with optional chaining is not the
+   form Vite rewrites.
+3. Dropping the optional chaining — **still shipped.** The admin bundle reaches
+   `src/lib/widgetConfig.ts` via Widget Designer's live preview, and that module
+   does a bare `import.meta.env` read, which inlines the entire env object no
+   matter how the admin side behaves. It is widget code and not ours to change.
+
+The fix was to remove the environment token path entirely rather than guard it.
+Each attempt was caught by building with a sentinel token and grepping the
+output; without that check, two of them would have been reported as done.
+
+**Consequence worth remembering: no secret may go in any `VITE_*` variable in
+this project.** Recorded in `ISOLATION.md`.
+
+### Still open after this
+
+- **No migration runner.** Ordering is filename-based in `docker-compose.yml`,
+  now through 015.
+- **`widget_configs` is still empty**, so Launch reads 75%.
+- Session tokens are bearer credentials held by JavaScript, readable by an XSS
+  bug. The httpOnly-cookie alternative needs CSRF protection and a same-site
+  story for the embed.
+- Phase 2 onward is untouched.
