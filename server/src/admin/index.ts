@@ -125,6 +125,21 @@ const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => 
     return;
   }
 
+  // Body-size rejections happen in body-parser before any route runs, so they
+  // surfaced as a bare INTERNAL_ERROR. An administrator importing a newsletter
+  // needs to know it was too big, not that something unspecified went wrong.
+  if (typeof error === 'object' && error && 'type' in error
+      && (error as { type: unknown }).type === 'entity.too.large') {
+    response.status(413).json({
+      error: {
+        code: 'REQUEST_TOO_LARGE',
+        message: 'That content is larger than Chime accepts in one request (96 KB). '
+          + 'Host large images and link to them instead of embedding them.',
+      },
+    });
+    return;
+  }
+
   const databaseCode = typeof error === 'object' && error && 'code' in error
     ? String((error as { code: unknown }).code)
     : '';

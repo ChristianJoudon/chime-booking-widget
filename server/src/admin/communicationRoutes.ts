@@ -47,21 +47,110 @@ function optionalSubject(value: unknown): string | null {
   return requiredText(value, 'subjectTemplate', 500);
 }
 
+/**
+ * URL schemes permitted in imported newsletter HTML.
+ *
+ * An allowlist, not a blocklist. The previous version pattern-matched
+ * `javascript:` and required the value to be quoted, so `<a href=javascript:...>`
+ * with no quotes went straight through. Enumerating what is safe cannot be
+ * bypassed by finding a scheme nobody thought to ban.
+ */
+const SAFE_LINK_SCHEME = /^(?:https?:|mailto:|tel:|#|\/(?!\/))/i;
+/** Images may also be inline data, which newsletters legitimately use. */
+const SAFE_IMAGE_SCHEME = /^(?:https?:|\/(?!\/)|data:image\/(?:png|jpe?g|gif|webp);base64,)/i;
+
+/**
+ * Inline images are held in the template row, so they cannot be unbounded.
+ *
+ * Set below what fits in one request: the admin API caps bodies at 96 KB, so a
+ * limit above that could never be reached — the request would be rejected by
+ * body-parser first and the administrator would see a size error from the
+ * transport rather than this one. Anything larger belongs on a host, linked by
+ * URL.
+ */
+const MAX_INLINE_IMAGE_BYTES = 48 * 1024;
+
+function attributeIsSafe(name: string, value: string): boolean {
+  const trimmed = value.trim().replace(/^\s+/, '');
+  if (!trimmed) return true;
+  if (name.toLowerCase() === 'src') {
+    if (!SAFE_IMAGE_SCHEME.test(trimmed)) return false;
+    if (trimmed.toLowerCase().startsWith('data:')) {
+      // base64 encodes 3 bytes per 4 characters.
+      const payload = trimmed.slice(trimmed.indexOf(',') + 1);
+      if ((payload.length * 3) / 4 > MAX_INLINE_IMAGE_BYTES) {
+        throw new AdminApiError(
+          400,
+          'EMAIL_IMAGE_TOO_LARGE',
+          `Inline images must be smaller than ${MAX_INLINE_IMAGE_BYTES / 1024} KB. Link to a hosted image instead.`,
+        );
+      }
+    }
+    return true;
+  }
+  return SAFE_LINK_SCHEME.test(trimmed);
+}
+
+/**
+ * Every image must carry alt text, so a newsletter is not silent to anyone
+ * reading it with images off or with a screen reader.
+ */
+function assertImagesAreDescribed(html: string): void {
+  const images = html.match(/<img\b[^>]*>/gi) ?? [];
+  const undescribed = images.filter((tag) => {
+    const alt = /\balt\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
+    return !alt || !(alt[1] ?? alt[2] ?? alt[3] ?? '').trim();
+  });
+  if (undescribed.length) {
+    throw new AdminApiError(
+      400,
+      'EMAIL_IMAGE_ALT_REQUIRED',
+      `${undescribed.length} image${undescribed.length === 1 ? '' : 's'} in this content ${undescribed.length === 1 ? 'has' : 'have'} no alt text. Describe each image so the message still reads with images turned off.`,
+    );
+  }
+}
+
+/**
+ * Strips executable content from imported email HTML.
+ *
+ * This is pattern-based, which is a real limitation: a parser would be more
+ * durable against markup nobody anticipated. It is kept because the server has
+ * no HTML parser dependency and the content is administrator-authored rather
+ * than arriving from the public. The email clients that render it strip scripts
+ * again on their own. Replacing this with a parser-based sanitizer is the
+ * durable fix if imported HTML ever comes from a less trusted source.
+ */
 function sanitizeEmailHtml(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value !== 'string') {
     throw new AdminApiError(400, 'INVALID_EMAIL_HTML', 'Email HTML must be text.');
   }
-  if (value.length > 2_500_000) {
-    throw new AdminApiError(400, 'EMAIL_HTML_TOO_LARGE', 'Imported email content must be smaller than 2.5 MB.');
+  // Also below the 96 KB request cap, for the same reason.
+  if (value.length > 80_000) {
+    throw new AdminApiError(400, 'EMAIL_HTML_TOO_LARGE', 'Imported email content must be smaller than 80 KB. Link to hosted images instead of embedding them.');
   }
-  const sanitized = value
-    .replace(/<\s*(script|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
-    .replace(/<\s*(script|iframe|object|embed|form|input|button|meta|base|link)\b[^>]*\/?\s*>/gi, '')
-    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/\s(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, ' $1="#"')
-    .trim();
-  return sanitized || null;
+
+  let sanitized = value
+    // Executable and document-structure elements, with and without a closing tag.
+    .replace(/<\s*(script|iframe|object|embed|form|svg|math)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/<\s*(script|iframe|object|embed|form|input|button|meta|base|link|svg|math)\b[^>]*\/?\s*>/gi, '')
+    // Any inline event handler, quoted or not.
+    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+
+  // href and src are rewritten through the allowlist, handling quoted and
+  // unquoted values alike.
+  sanitized = sanitized.replace(
+    /\s(href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi,
+    (match, name: string, doubleQuoted?: string, singleQuoted?: string, bare?: string) => {
+      const raw = doubleQuoted ?? singleQuoted ?? bare ?? '';
+      return attributeIsSafe(name, raw) ? match : ` ${name}="#"`;
+    },
+  );
+
+  sanitized = sanitized.trim();
+  if (!sanitized) return null;
+  assertImagesAreDescribed(sanitized);
+  return sanitized;
 }
 
 function contentFormat(value: unknown, hasHtml: boolean): 'plain' | 'rich' | 'html' | 'image' {
