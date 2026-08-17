@@ -566,7 +566,7 @@ this project.** Recorded in `ISOLATION.md`.
 - Session tokens are bearer credentials held by JavaScript, readable by an XSS
   bug. The httpOnly-cookie alternative needs CSRF protection and a same-site
   story for the embed.
-- Phase 2 sections 4, 5 and most of 6 are done. Sections 7-11 remain.
+- Phase 2 sections 4, 5, most of 6, and 7 are done. Sections 8-11 remain.
 
 ---
 
@@ -760,3 +760,57 @@ rather than a tail of this one.
 **Conflict comparison beyond services.** Team, availability, business settings,
 launch settings and payments all detect conflicts server-side and return a clear
 message, but do not yet show the comparison.
+
+---
+
+## Messages, plan section 7 (2026-08-16)
+
+| item | state |
+|---|---|
+| Outbox and Templates tabs | done — one pane at a time; the template editor gets full width |
+| Process ready renamed to a concrete outcome | done — "Send 8 queued messages" live, "Process 8 in sandbox" otherwise, disabled when empty |
+| Send test to myself before activation | done — new endpoint, rendered result shown in the studio |
+| Legacy escaped line breaks | done earlier, in migration 016 |
+| Plain-text fallback for every HTML email | already present — `body_template` is required, `body_html` optional |
+| Server-side HTML sanitization | **a live bypass was found and closed** — see below |
+| Alt text and size limits for newsletter images | done, and the limits were made reachable |
+| Show recipient, subject and rendered message before sending | done for both the queue preview and the template test |
+
+### The sanitizer had a live bypass
+
+Testing the existing sanitizer against the attacks this section names found one:
+the `javascript:` rule required the attribute to be quoted, so
+`<a href=javascript:alert(1)>` with no quotes went straight through into stored
+newsletter HTML.
+
+`href` and `src` are now rewritten through an **allowlist of permitted schemes**
+rather than a blocklist of forbidden ones, handling quoted and unquoted values
+alike. Enumerating what is safe cannot be bypassed by finding a scheme nobody
+thought to ban. Verified through the API: unquoted and quoted `javascript:`,
+`vbscript:`, and a base64 `data:text/html` payload all become `href="#"`, and
+`svg` is stripped entirely.
+
+The sanitizer is still pattern-based, which is now stated in the code. A parser
+would be more durable and is the right fix if imported HTML ever comes from a
+less trusted source than an administrator.
+
+### The size limits were unreachable
+
+A 512 KB inline-image limit and the pre-existing 2.5 MB HTML limit could never
+fire: the admin API caps request bodies at **96 KB**, so body-parser rejected
+anything that large first and the administrator saw a bare `INTERNAL_ERROR`.
+Both limits now sit below the transport cap where they can actually trigger, and
+an oversized request returns 413 naming the cap. This is a good example of a
+check that would have been reported as working without being tested against a
+real request.
+
+### Test send
+
+The recipient comes from the session, never the request body — verified by
+trying to override it. It queues a real delivery rather than simulating one, so
+it honours sandbox or live mode, and `render`/`renderHtml` are now exported from
+the notification service and used directly, because a preview that substitutes
+placeholders differently from the real sender is not a test of anything.
+
+Verified: repeat calls with one `Idempotency-Key` create a single delivery, and
+saving a template creates no deliveries at all.
