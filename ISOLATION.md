@@ -131,6 +131,24 @@ skipped, and `autoMount` counts what mounted rather than what matched.
 
 `npm run typecheck:widget` reports no errors.
 
+### The widget sizes itself from its container, not the window
+
+Everything responsive in the widget keys off `@container chime-widget` and `cqi`
+units rather than `@media` and `vw`. `.chime-widget` declares
+`container: chime-widget / inline-size`, and the container is named so the
+queries resolve to the widget root regardless of the nested container on
+`.calendar-month-card`.
+
+This matters because a viewport is the wrong question for an embedded
+component. Dropped into a 700px panel on a 1400px window, the widget used to lay
+itself out as a desktop and then clip: step labels cut to "Servi", a heading
+sized from `3vw` of the *window* wrapping four lines deep in a narrow box. The
+administrator's live preview showed it first, but any host with a sidebar or a
+two-column layout got the same widget.
+
+Only preference queries stay as `@media` — `prefers-reduced-motion` and
+`prefers-reduced-transparency` ask about the person, not the box.
+
 ### Host-page style leakage
 
 `npm run test:embed-host-styles` renders the built widget under stylesheets real

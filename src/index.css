@@ -1,5 +1,14 @@
 .chime-widget {
   color-scheme: light;
+  /* The widget sizes itself from its own width, not the browser window.
+     Everything below used @media and vw, which ask how wide the *page* is —
+     a fair question for a page, and the wrong one for something dropped into
+     a column on someone else's site. Embedded in a 700px panel on a 1400px
+     window it laid itself out as a desktop and then clipped: step labels cut
+     to "Servi", a heading sized from 3cqi of the window wrapping four lines
+     deep. The administrator's live preview made it visible, but any host with
+     a sidebar or a two-column layout had the same widget. */
+  container: chime-widget / inline-size;
   /* Every size below is derived from this rather than from `rem`, which
      resolves against the host page's root element. A site with
      `html { font-size: 32px }` was doubling the whole widget — 850px tall
@@ -67,7 +76,7 @@
   max-width: none;
   overflow: visible;
   padding: 0 !important;
-  width: min(720px, calc(100vw - 32px));
+  width: min(720px, calc(100cqi - 32px));
 }
 
 .chime-embed-dialog::backdrop { background: rgba(15, 42, 34, .52); backdrop-filter: blur(4px); }
@@ -75,7 +84,7 @@
 .chime-embed-dialog__widget { min-height: 100%; }
 .chime-embed-dialog__close { align-items: center; appearance: none; background: rgba(255,255,255,.94); border: 1px solid #dce7e1; border-radius: 99px; color: #35564a; cursor: pointer; display: flex; font: 500 25px/1 sans-serif; height: 38px; justify-content: center; padding: 0 0 3px; position: absolute; right: 12px; top: 12px; width: 38px; z-index: 20; }
 
-@media (max-width: 620px) {
+@container chime-widget (max-width: 620px) {
   /* One step, four headings. On a wide screen "Calendar / Choose a date and
      time", then "Full calendar / Pick the best day and time", then "Available
      times" read as a hierarchy. On a phone they stack into a column of near
@@ -109,7 +118,7 @@
   }
 
   .chime-embed-launcher--floating_button { bottom: 14px; left: 14px; right: 14px; width: calc(100% - 28px); }
-  .chime-embed-dialog { height: 100dvh; width: 100vw; }
+  .chime-embed-dialog { height: 100dvh; width: 100cqi; }
   .chime-embed-dialog__surface { border-radius: 0; }
 }
 
@@ -135,7 +144,7 @@
   height: 42px;
   justify-content: flex-start;
   padding: 0 !important;
-  width: clamp(112px, 17vw, 150px);
+  width: clamp(112px, 17cqi, 150px);
 }
 
 .chime-widget .chime-logo img {
@@ -494,7 +503,7 @@
 
 .chime-header__title {
   color: var(--ink);
-  font-size: clamp(calc(1.08 * var(--chime-root)), 2vw, calc(1.34 * var(--chime-root))) !important;
+  font-size: clamp(calc(1.08 * var(--chime-root)), 2cqi, calc(1.34 * var(--chime-root))) !important;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1 !important;
@@ -616,7 +625,7 @@
 .chime-stage {
   margin: 0 auto !important;
   overflow: hidden;
-  padding: clamp(20px, 3vw, 34px) !important;
+  padding: clamp(20px, 3cqi, 34px) !important;
 }
 
 .chime-stage__header {
@@ -634,7 +643,7 @@
 .booking-summary-card h2,
 .confirmation-page h2 {
   color: var(--ink);
-  font-size: clamp(calc(1.8 * var(--chime-root)), 4vw, calc(3 * var(--chime-root))) !important;
+  font-size: clamp(calc(1.8 * var(--chime-root)), 4cqi, calc(3 * var(--chime-root))) !important;
   font-weight: 800;
   letter-spacing: -0.06em;
   line-height: 0.96 !important;
@@ -921,7 +930,7 @@
 }
 
 .calendar-title {
-  font-size: clamp(calc(1.45 * var(--chime-root)), 3vw, calc(2.3 * var(--chime-root))) !important;
+  font-size: clamp(calc(1.45 * var(--chime-root)), 3cqi, calc(2.3 * var(--chime-root))) !important;
   margin-bottom: calc(0.28 * var(--chime-root)) !important;
 }
 
@@ -966,7 +975,7 @@
   border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 28px;
   box-shadow: 0 18px 45px rgba(32, 90, 63, 0.09);
-  padding: clamp(16px, 2vw, 24px) !important;
+  padding: clamp(16px, 2cqi, 24px) !important;
 }
 
 .calendar-month-card {
@@ -989,7 +998,7 @@
 .payment-step-card__header h3,
 .chime-saving-card h3 {
   color: var(--ink);
-  font-size: clamp(calc(1.35 * var(--chime-root)), 2vw, calc(1.8 * var(--chime-root))) !important;
+  font-size: clamp(calc(1.35 * var(--chime-root)), 2cqi, calc(1.8 * var(--chime-root))) !important;
   font-weight: 800;
   letter-spacing: -0.04em;
   margin: calc(0.1 * var(--chime-root)) 0 0 !important;
@@ -1048,7 +1057,7 @@
 
 .calendar-day__number {
   display: block;
-  font-size: clamp(calc(1 * var(--chime-root)), 2vw, calc(1.34 * var(--chime-root))) !important;
+  font-size: clamp(calc(1 * var(--chime-root)), 2cqi, calc(1.34 * var(--chime-root))) !important;
   font-weight: 900;
   line-height: 1 !important;
   position: relative;
@@ -1232,7 +1241,7 @@
 }
 
 .booking-stage {
-  padding: clamp(18px, 2.5vw, 28px) !important;
+  padding: clamp(18px, 2.5cqi, 28px) !important;
 }
 
 .booking-flow-grid {
@@ -1255,7 +1264,7 @@
   border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 26px;
   box-shadow: 0 18px 45px rgba(32, 90, 63, 0.09);
-  padding: clamp(18px, 2vw, 24px) !important;
+  padding: clamp(18px, 2cqi, 24px) !important;
 }
 
 .booking-summary-card {
@@ -1265,7 +1274,7 @@
 }
 
 .booking-summary-card h2 {
-  font-size: clamp(calc(1.5 * var(--chime-root)), 3vw, calc(2.2 * var(--chime-root))) !important;
+  font-size: clamp(calc(1.5 * var(--chime-root)), 3cqi, calc(2.2 * var(--chime-root))) !important;
 }
 
 .booking-summary-card dl,
@@ -1315,7 +1324,7 @@
 }
 
 .booking-flow-panel__header h2 {
-  font-size: clamp(calc(1.55 * var(--chime-root)), 3vw, calc(2.4 * var(--chime-root))) !important;
+  font-size: clamp(calc(1.55 * var(--chime-root)), 3cqi, calc(2.4 * var(--chime-root))) !important;
 }
 
 .booking-back-button {
@@ -1498,7 +1507,7 @@
   /* Fill the reading window so the document looks like a single sheet even when
      the terms are short, instead of a small card floating on the glass. */
   min-height: 100%;
-  padding: clamp(18px, 2vw, 24px) !important;
+  padding: clamp(18px, 2cqi, 24px) !important;
 }
 
 .terms-document__paper h4 {
@@ -1682,7 +1691,7 @@
   width: 18px;
 }
 
-@media (max-width: 980px) {
+@container chime-widget (max-width: 980px) {
   .service-grid,
   .calendar-board,
   .booking-flow-grid {
@@ -1699,7 +1708,7 @@
   }
 }
 
-@media (max-width: 720px) {
+@container chime-widget (max-width: 720px) {
   .chime-main {
     padding-top: 18px !important;
   }
@@ -1912,7 +1921,7 @@
 }
 
 .chime-stage {
-  padding: clamp(18px, 3vw, 30px) !important;
+  padding: clamp(18px, 3cqi, 30px) !important;
 }
 
 .chime-stage__header h2,
