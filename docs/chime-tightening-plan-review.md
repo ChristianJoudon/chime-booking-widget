@@ -566,7 +566,8 @@ this project.** Recorded in `ISOLATION.md`.
 - Session tokens are bearer credentials held by JavaScript, readable by an XSS
   bug. The httpOnly-cookie alternative needs CSRF protection and a same-site
   story for the embed.
-- Phase 2 onward is untouched.
+- Phase 2 sections 4 and 5 are done — see [Phase 2](#phase-2-navigation-and-services-2026-08-16).
+  Sections 6-11 remain.
 
 ---
 
@@ -608,3 +609,58 @@ is no runtime insert anywhere in `server/src`. A second business onboarded today
 would have zero email templates. Chime is explicitly a multi-tenant product, so
 this will bite on the first real second tenant. Provisioning should seed these,
 not a migration. Flagged as separate work.
+
+---
+
+## Phase 2: navigation and services (2026-08-16)
+
+### Navigation, plan section 4
+
+Eleven flat destinations became the five areas the plan names — Appointments,
+Business setup, Customers, Money, Booking widget — with one area open at a
+time. Nothing was added or removed, and all eleven screens remain reachable.
+
+All four completion criteria verified in the studio:
+
+| criterion | result |
+|---|---|
+| no more than five primary choices | 5 |
+| every icon has a visible label | 0 unlabelled controls |
+| counts beside their parent area | Appointments showed 2, matching the database |
+| return to Schedule in one action | the brand, present on every screen |
+
+The badge needed real data. `AdminApp` previously had one bound to sample
+appointments, which was deleted along with the rest of the invented data in
+Phase 1, so there was nothing left to count. `GET /navigation/counts` returns
+pending requests and failed deliveries directly — the sidebar is on every
+screen and cannot depend on a particular studio being mounted, and loading two
+full payloads for two integers would be wasteful. It excludes test-origin
+records, so a smoke run cannot make the sidebar claim a business has work
+waiting.
+
+### Services Studio, plan section 5
+
+The editor now has Essentials and Advanced rules, containing exactly the fields
+the plan lists. Three original fieldsets mixed the two, so this is a regrouping
+rather than a reordering:
+
+| original fieldset | Essentials | Advanced |
+|---|---|---|
+| Timing rules | default length | shortest, longest, resize steps, buffers |
+| Booking & approval | confirmation choice | schedule changes, minimum notice, book ahead |
+| Team & capacity | staff, location | capacity |
+
+Add service is now secondary and Duplicate moved into an actions menu, so the
+header no longer advertises making another service above editing the current
+one. The other two items in that section were already satisfied: the core
+services are untouched, and automated test drafts stopped appearing when record
+origins were added in Phase 1.
+
+Round-trip verified: editing one field in each group saves and reaches the
+database. The demo service was restored to its original values afterwards.
+
+### Remaining
+
+Plan sections 6-11: previews for consequential actions, the Messages
+Outbox/Templates split, schedule safety, customer relationships, payment and
+delivery reliability, and the literal-language pass.
