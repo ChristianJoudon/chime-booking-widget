@@ -1071,3 +1071,35 @@
     display: none;
   }
 }
+
+/* Conflicts found while the administrator is still choosing a time, rather
+   than reported after they commit. Buffers are counted, so this can fire for
+   times that look free on the calendar. */
+.operations-conflict {
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--admin-coral);
+  background: var(--admin-coral-soft);
+}
+
+.operations-conflict > strong {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--admin-coral);
+}
+
+.operations-conflict ul {
+  margin: 0.35rem 0 0.3rem;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--admin-ink);
+}
+
+.operations-conflict li { padding: 0.05rem 0; }
+
+.operations-conflict small {
+  display: block;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--admin-ink-soft);
+}

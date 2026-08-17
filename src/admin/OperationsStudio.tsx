@@ -97,6 +97,13 @@ type Appointment = {
   pendingChange: ChangeRequest | null;
 };
 
+type ScheduleConflict = {
+  referenceCode: string;
+  startsAt: string;
+  endsAt: string;
+  customerName: string;
+};
+
 type Notification = {
   id: string;
   appointmentId: string | null;
@@ -288,6 +295,7 @@ export default function OperationsStudio({
   const [draftStaffId, setDraftStaffId] = useState('');
   const [draftLocationId, setDraftLocationId] = useState('');
   const [changeReason, setChangeReason] = useState('');
+  const [conflicts, setConflicts] = useState<ScheduleConflict[] | null>(null);
   const [decisionNote, setDecisionNote] = useState('');
   const { confirm: confirmAction, element: previewElement } = useActionPreview();
 
@@ -439,9 +447,88 @@ export default function OperationsStudio({
     })();
   };
 
+  // Asks the server what the proposed time would collide with, while the
+  // administrator is still editing. Debounced, because it fires on every
+  // keystroke in the datetime field.
+  useEffect(() => {
+    if (!selected || !draftStaffId || !draftStartsAt) {
+      setConflicts(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void operationsRequest<{ conflicts: ScheduleConflict[] }>(
+        `/appointments/${selected.id}/change-requests/check`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            startsAt: new Date(draftStartsAt).toISOString(),
+            durationMinutes: draftDuration,
+            staffMemberId: draftStaffId,
+            locationId: draftLocationId || null,
+            reason: 'conflict check',
+          }),
+        },
+      )
+        .then((result) => { if (!cancelled) setConflicts(result.conflicts); })
+        // A failed check must not block the form: the write path enforces the
+        // same rule regardless, so the worst case is losing the early warning.
+        .catch(() => { if (!cancelled) setConflicts(null); });
+    }, 400);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [selected, draftStartsAt, draftDuration, draftStaffId, draftLocationId]);
+
   const submitChange = (event: FormEvent) => {
     event.preventDefault();
     if (!selected || !draftStaffId) return;
+    const nextStart = new Date(draftStartsAt);
+    const nextEnd = new Date(nextStart.getTime() + draftDuration * 60_000);
+    const nextStaff = payload.staff.find((member) => member.id === draftStaffId);
+    const nextLocation = payload.locations.find((place) => place.id === draftLocationId);
+    const needsCustomerApproval = selected.changeApprovalMode !== 'automatic';
+
+    void (async () => {
+    const preview = await confirmAction({
+      title: 'Send this change to the customer',
+      summary: needsCustomerApproval
+        ? `${selected.customer.name} is asked to approve a new time for their ${selected.service.name}.`
+        : `Moves ${selected.customer.name}'s ${selected.service.name} and tells them the new time.`,
+      changes: [
+        {
+          label: 'When',
+          before: `${formatDateTime(selected.startsAt)} - ${formatTime(new Date(selected.endsAt))}`,
+          after: `${formatDateTime(nextStart.toISOString())} - ${formatTime(nextEnd)}`,
+        },
+        {
+          label: 'Length',
+          before: `${Math.round((new Date(selected.endsAt).getTime() - new Date(selected.startsAt).getTime()) / 60_000)} min`,
+          after: `${draftDuration} min`,
+        },
+        {
+          label: 'Team member',
+          before: selected.staff?.name ?? 'Unassigned',
+          after: nextStaff?.name ?? 'Unassigned',
+        },
+        {
+          label: 'Location',
+          before: selected.location?.name ?? 'No location',
+          after: nextLocation?.name ?? 'No location',
+        },
+      ].filter((change) => change.before !== change.after),
+      notifies: `${selected.customer.name} at ${selected.customer.email}`,
+      requiresCustomerApproval: needsCustomerApproval,
+      paymentEffect: null,
+      reversible: {
+        kind: 'undo',
+        detail: 'Yes — the request can be withdrawn until the customer answers.',
+      },
+      confirmLabel: needsCustomerApproval ? 'Ask the customer to approve' : 'Send the change',
+      tone: conflicts?.length ? 'caution' : 'normal',
+      reasonPrompt: 'Why is this changing? The customer sees this.',
+    });
+    if (!preview.confirmed) return;
+    const submittedReason = preview.reason ?? changeReason;
+
     void runMutation(
       () => operationsRequest(
         `/appointments/${selected.id}/change-requests`,
@@ -453,12 +540,13 @@ export default function OperationsStudio({
             durationMinutes: draftDuration,
             staffMemberId: draftStaffId,
             locationId: draftLocationId || null,
-            reason: changeReason,
+            reason: submittedReason,
           }),
         },
       ),
       'Change request sent. The original appointment remains in place until approval.',
     );
+    })();
   };
 
   const withdrawChange = () => {
@@ -878,6 +966,28 @@ export default function OperationsStudio({
                         ))}
                       </select>
                     </label>
+                    {conflicts?.length ? (
+                      <div className="operations-conflict" role="alert">
+                        <strong>
+                          {conflicts.length === 1
+                            ? 'That time is already taken'
+                            : `That time overlaps ${conflicts.length} appointments`}
+                        </strong>
+                        <ul>
+                          {conflicts.map((conflict) => (
+                            <li key={conflict.referenceCode}>
+                              {conflict.referenceCode} — {conflict.customerName},{' '}
+                              {formatTime(new Date(conflict.startsAt))} to {formatTime(new Date(conflict.endsAt))}
+                            </li>
+                          ))}
+                        </ul>
+                        <small>
+                          Overlaps count the buffer this service needs before and after,
+                          so a time can conflict even when the appointments do not touch.
+                        </small>
+                      </div>
+                    ) : null}
+
                     <label>
                       Why is this changing?
                       <textarea

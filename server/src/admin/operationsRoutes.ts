@@ -604,6 +604,79 @@ async function decideAppointment(
   });
 }
 
+/**
+ * Finds appointments that would collide with a proposed time for one staff
+ * member, counting the buffers required on both sides.
+ *
+ * Extracted so the same query answers two questions: the check the studio makes
+ * while an administrator is still choosing a time, and the guard that refuses
+ * the write. A separate implementation for the preview would eventually drift
+ * from the one that actually enforces, and the preview would start lying.
+ */
+async function findScheduleConflicts(
+  executor: Pick<Pool, 'query'> | Pick<PoolClient, 'query'>,
+  params: {
+    organizationId: string;
+    appointmentId: string;
+    staffMemberId: string;
+    startsAt: Date;
+    endsAt: Date;
+    bufferBeforeMinutes: number;
+    bufferAfterMinutes: number;
+  },
+): Promise<Array<{ referenceCode: string; startsAt: string; endsAt: string; customerName: string }>> {
+  const result = await executor.query<{
+    reference_code: string;
+    starts_at: Date;
+    ends_at: Date;
+    customer_name: string;
+  }>(
+    `SELECT other.reference_code, other.starts_at, other.ends_at,
+            customer.display_name AS customer_name
+       FROM chime_app.appointments other
+       JOIN chime_app.appointment_staff other_assignment
+         ON other_assignment.organization_id = other.organization_id
+        AND other_assignment.appointment_id = other.id
+        AND other_assignment.role = 'assigned'
+       JOIN chime_app.services other_service
+         ON other_service.organization_id = other.organization_id
+        AND other_service.id = other.service_id
+       JOIN chime_app.customers customer
+         ON customer.organization_id = other.organization_id
+        AND customer.id = other.customer_id
+      WHERE other.organization_id = $1
+        AND other.id <> $2
+        AND other_assignment.staff_member_id = $3
+        AND other.status IN ('pending_approval', 'confirmed', 'change_pending')
+        AND tstzrange(
+          other.starts_at - make_interval(mins => other_service.buffer_before_minutes),
+          other.ends_at + make_interval(mins => other_service.buffer_after_minutes),
+          '[)'
+        ) && tstzrange(
+          $4::timestamptz - make_interval(mins => $6),
+          $5::timestamptz + make_interval(mins => $7),
+          '[)'
+        )
+      ORDER BY other.starts_at
+      LIMIT 5`,
+    [
+      params.organizationId,
+      params.appointmentId,
+      params.staffMemberId,
+      params.startsAt.toISOString(),
+      params.endsAt.toISOString(),
+      params.bufferBeforeMinutes,
+      params.bufferAfterMinutes,
+    ],
+  );
+  return result.rows.map((row) => ({
+    referenceCode: row.reference_code,
+    startsAt: row.starts_at.toISOString(),
+    endsAt: row.ends_at.toISOString(),
+    customerName: row.customer_name,
+  }));
+}
+
 async function requestChange(
   pool: Pool,
   appointmentId: string,
@@ -720,45 +793,21 @@ async function requestChange(
     const endsAt = new Date(
       input.startsAt.getTime() + input.durationMinutes * 60_000,
     );
-    const overlap = await client.query(
-      `SELECT other.reference_code
-       FROM chime_app.appointments other
-       JOIN chime_app.appointment_staff other_assignment
-         ON other_assignment.organization_id = other.organization_id
-        AND other_assignment.appointment_id = other.id
-        AND other_assignment.role = 'assigned'
-       JOIN chime_app.services other_service
-         ON other_service.organization_id = other.organization_id
-        AND other_service.id = other.service_id
-       WHERE other.organization_id = $1
-         AND other.id <> $2
-         AND other_assignment.staff_member_id = $3
-         AND other.status IN ('pending_approval', 'confirmed', 'change_pending')
-         AND tstzrange(
-           other.starts_at - make_interval(mins => other_service.buffer_before_minutes),
-           other.ends_at + make_interval(mins => other_service.buffer_after_minutes),
-           '[)'
-         ) && tstzrange(
-           $4::timestamptz - make_interval(mins => $6),
-           $5::timestamptz + make_interval(mins => $7),
-           '[)'
-         )
-       LIMIT 1`,
-      [
-        context.organizationId,
-        appointmentId,
-        input.staffMemberId,
-        input.startsAt.toISOString(),
-        endsAt.toISOString(),
-        appointment.buffer_before_minutes,
-        appointment.buffer_after_minutes,
-      ],
-    );
-    if (overlap.rowCount) {
+    const conflicts = await findScheduleConflicts(client, {
+      organizationId: context.organizationId,
+      appointmentId,
+      staffMemberId: input.staffMemberId,
+      startsAt: input.startsAt,
+      endsAt,
+      bufferBeforeMinutes: appointment.buffer_before_minutes,
+      bufferAfterMinutes: appointment.buffer_after_minutes,
+    });
+    if (conflicts.length) {
       throw new AdminApiError(
         409,
         'APPOINTMENT_OVERLAP',
-        `That team member already has ${overlap.rows[0].reference_code} during this time.`,
+        `That team member already has ${conflicts[0].referenceCode} during this time.`,
+        { conflicts },
       );
     }
 
@@ -1060,6 +1109,61 @@ export function createOperationsRouter(pool: Pool) {
       );
       response.setHeader('ETag', `"${appointment.version}"`);
       response.json({ appointment });
+    }),
+  );
+
+  /**
+   * Reports what a proposed time would collide with, without writing anything.
+   *
+   * The same conflicts were already refused on submit, but only after the
+   * administrator had committed to the change. The plan asks to show buffer
+   * conflicts and overlapping assignments *before* saving, so this answers
+   * while they are still choosing. It runs findScheduleConflicts — the same
+   * function the write path uses — so the two cannot disagree.
+   */
+  router.post(
+    '/appointments/:appointmentId/change-requests/check',
+    asyncRoute(async (request, response) => {
+      const session = getAdminSession(request);
+      const appointmentId = parseUuid(request.params.appointmentId, 'appointmentId');
+      const input = parseChangeInput(request.body);
+
+      const found = await pool.query<{
+        buffer_before_minutes: number;
+        buffer_after_minutes: number;
+      }>(
+        `SELECT service.buffer_before_minutes, service.buffer_after_minutes
+           FROM chime_app.appointments appointment
+           JOIN chime_app.services service
+             ON service.organization_id = appointment.organization_id
+            AND service.id = appointment.service_id
+          WHERE appointment.organization_id = $1 AND appointment.id = $2`,
+        [session.organizationId, appointmentId],
+      );
+      const appointment = found.rows[0];
+      if (!appointment) {
+        throw new AdminApiError(404, 'APPOINTMENT_NOT_FOUND', 'Appointment was not found.');
+      }
+
+      const endsAt = new Date(input.startsAt.getTime() + input.durationMinutes * 60_000);
+      const conflicts = await findScheduleConflicts(pool, {
+        organizationId: session.organizationId,
+        appointmentId,
+        staffMemberId: input.staffMemberId,
+        startsAt: input.startsAt,
+        endsAt,
+        bufferBeforeMinutes: appointment.buffer_before_minutes,
+        bufferAfterMinutes: appointment.buffer_after_minutes,
+      });
+
+      response.json({
+        conflicts,
+        buffers: {
+          beforeMinutes: appointment.buffer_before_minutes,
+          afterMinutes: appointment.buffer_after_minutes,
+        },
+        endsAt: endsAt.toISOString(),
+      });
     }),
   );
 
