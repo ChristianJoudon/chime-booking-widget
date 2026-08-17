@@ -566,8 +566,7 @@ this project.** Recorded in `ISOLATION.md`.
 - Session tokens are bearer credentials held by JavaScript, readable by an XSS
   bug. The httpOnly-cookie alternative needs CSRF protection and a same-site
   story for the embed.
-- Phase 2 sections 4 and 5 are done — see [Phase 2](#phase-2-navigation-and-services-2026-08-16).
-  Sections 6-11 remain.
+- Phase 2 sections 4, 5 and most of 6 are done. Sections 7-11 remain.
 
 ---
 
@@ -703,3 +702,61 @@ One measurement note: the first check for this used `LIKE '%\n%'`, which in a
 LIKE pattern means "contains the letter n" because backslash is the escape
 character — it reported 22 affected rows out of 22. `position('\n' in ...)` is
 the correct predicate and reports the real number.
+
+---
+
+## Predictable actions, plan section 6 (2026-08-16)
+
+The survey found the opposite of what the section assumes. Appointment
+adjustment did preview its changes, but **exactly one other action in the whole
+studio confirmed anything**: a browser `confirm()` on payments reading "Are you
+sure you want to refund $145.00 to Maya Kealoha?". Publishing availability,
+processing the message queue, approving or declining an appointment, and opening
+the widget to customers all fired on a single click.
+
+`actionPreview.tsx` renders the six facts the plan lists. They are separate
+fields rather than prose, so an action cannot quietly omit one — a caller that
+says nothing about notification renders "No one is notified", which is a claim
+someone will notice is wrong.
+
+| action | previewed | notable |
+|---|---|---|
+| payment capture / void / refund / sync | yes | replaces the `confirm()`; each described separately because "can this be undone" genuinely differs |
+| message processing | yes | names sandbox vs live, recipient count, and that a sent message cannot be recalled |
+| appointment approve / decline | yes | names the customer emailed; decline requires a reason the customer sees |
+| availability publication | yes | states how much of what customers can book is being replaced |
+| widget publication | yes | also routed from Save changes, which could publish the hosted page |
+
+### Completion criteria
+
+| criterion | state |
+|---|---|
+| consequential actions require an outcome preview | done for the seven the plan lists |
+| duplicate submissions are idempotent | already enforced — `Idempotency-Key` required on every mutation |
+| conflicting edits show a comparison | done for services; other editors still show the server's message only |
+| reversible actions provide Undo or a safe recovery path | **partial** — the preview *states* reversibility accurately, but there is no Undo control |
+| every completed action creates an audit entry | already enforced — audit and outbox writes are transactional |
+
+### Conflict comparison
+
+The server already refused stale writes; the client showed that as an ordinary
+error, which is safe but leaves the administrator choosing blind. A conflict on a
+service now fetches the saved record and lists only the fields that differ, mine
+beside theirs, with "keep editing" and "discard and load" as explicit choices.
+
+Verified by forcing a real conflict: another session changed the short
+description while the studio held an older version and had edited the price. The
+notice listed exactly those two fields with both values.
+
+### Honestly not done
+
+**Undo.** The preview tells the truth about whether something can be taken back,
+and several actions are recoverable through the interface already — a capture can
+be refunded, an approval can be cancelled, a publication can be paused. But there
+is no one-click Undo after the fact. Building it properly means recording the
+prior state per action and a route to restore it, which is its own piece of work
+rather than a tail of this one.
+
+**Conflict comparison beyond services.** Team, availability, business settings,
+launch settings and payments all detect conflicts server-side and return a clear
+message, but do not yet show the comparison.
