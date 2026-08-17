@@ -566,7 +566,7 @@ this project.** Recorded in `ISOLATION.md`.
 - Session tokens are bearer credentials held by JavaScript, readable by an XSS
   bug. The httpOnly-cookie alternative needs CSRF protection and a same-site
   story for the embed.
-- Phase 2 sections 4, 5, most of 6, and 7 are done. Sections 8-11 remain.
+- Phase 2 sections 4, 5, most of 6, 7 and 8 are done. Sections 9-11 remain.
 
 ---
 
@@ -814,3 +814,55 @@ placeholders differently from the real sender is not a test of anything.
 
 Verified: repeat calls with one `Idempotency-Key` create a single delivery, and
 saving a template creates no deliveries at all.
+
+---
+
+## Schedule safety, plan section 8 (2026-08-16)
+
+Two of the five completion criteria were already met by the server, and one no
+longer applies in the form the plan assumed.
+
+| criterion | state |
+|---|---|
+| a staff member cannot be double-booked | already enforced — `tstzrange` overlap on the write path |
+| required buffers cannot be violated silently | already enforced — the same query counts each service's buffers on both sides |
+| resize and drag work with mouse, touch and keyboard | **no drag surface exists** — see below |
+| approval status visible without opening another screen | already met — cards show "Needs approval" |
+| every change traceable to an administrator and timestamp | already met — `audit_events` |
+
+### What was actually missing
+
+Conflicts were only reported **on submit**. An administrator learned the time
+was taken after committing to it. `findScheduleConflicts` is now extracted from
+the write path and answers both questions — the check made while a time is being
+chosen, and the guard that refuses the write.
+
+Sharing one function matters more than it looks: a separate implementation for
+the preview would drift from the one that enforces, and the preview would start
+lying. `POST /appointments/:id/change-requests/check` writes nothing and returns
+the colliding appointments; the studio calls it as the draft changes and lists
+them inline. A failed check does not block the form, since the write path
+enforces the rule regardless.
+
+The change request also goes through the action preview now, showing old beside
+new for **only the fields that differ**, naming the customer who will be
+emailed, and stating whether their approval is required.
+
+### The keyboard criterion no longer applies as written
+
+There is no drag or resize surface to make accessible. That machinery belonged
+to the hardcoded sample calendar deleted in Phase 1; the real studio changes an
+appointment through form controls, which are keyboard-operable by construction.
+
+Verified rather than assumed: every control in the change form is
+keyboard-reachable, the duration control is a range input (arrow-key operable),
+there are zero `draggable` or mouse-only elements, and appointment cards are
+buttons.
+
+### Verified against the seeded schedule
+
+Moving an appointment onto another staff member's booked hour reports the
+conflict by reference code and customer. A time **five minutes after that
+booking ends still conflicts**, because the service requires 5 minute buffers on
+each side — which is exactly the "buffers cannot be violated silently" criterion
+made visible. A clear time reports none.
