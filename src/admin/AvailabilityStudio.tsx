@@ -15,6 +15,7 @@ import {
   type AdminAvailabilitySummary,
 } from './adminApi';
 import './availabilityStudio.css';
+import { useActionPreview } from './actionPreview';
 
 interface AvailabilityStudioProps {
   api: AdminApiClient;
@@ -93,6 +94,7 @@ function AvailabilityStudio({ api, onNotify }: AvailabilityStudioProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dirty, setDirty] = useState(false);
   const [state, setState] = useState<'loading' | 'ready' | 'saving' | 'publishing' | 'error'>('loading');
+  const { confirm: confirmAction, element: previewElement } = useActionPreview();
   const [timeOffStart, setTimeOffStart] = useState(today);
   const [timeOffEnd, setTimeOffEnd] = useState(today);
   const [timeOffReason, setTimeOffReason] = useState('');
@@ -308,6 +310,30 @@ function AvailabilityStudio({ api, onNotify }: AvailabilityStudioProps) {
   };
 
   const publish = async () => {
+    // Publishing replaces what customers can currently book. Previously one
+    // click, with the scale of the change only visible afterwards.
+    const preview = await confirmAction({
+      title: 'Publish customer booking times',
+      summary: 'Replaces the times customers can book for the next 30 days with the schedule shown here.',
+      changes: [
+        {
+          label: 'Bookable times',
+          before: summary ? `${summary.slotCount} published` : 'none published',
+          after: 'recalculated from this schedule',
+        },
+        { label: 'Team members covered', after: String(summary?.staffCount ?? 0) },
+        { label: 'Services covered', after: String(summary?.serviceCount ?? 0) },
+      ],
+      notifies: null,
+      paymentEffect: null,
+      reversible: {
+        kind: 'recoverable',
+        detail: 'Yes — publish again after editing. Existing bookings are unaffected.',
+      },
+      confirmLabel: 'Publish for the next 30 days',
+    });
+    if (!preview.confirmed) return;
+
     if (!await saveSchedule()) return;
     setState('publishing');
     try {
@@ -489,6 +515,7 @@ function AvailabilityStudio({ api, onNotify }: AvailabilityStudioProps) {
           </div>
         </>
       ) : <div className="availability-empty"><strong>No active team schedules yet.</strong><p>Add a team member first, then their week will appear here.</p></div>}
+      {previewElement}
     </section>
   );
 }

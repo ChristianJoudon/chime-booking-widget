@@ -9,6 +9,7 @@ import {
 } from './adminApi';
 import { describeMissingConnection } from './adminConnection';
 import { StudioStateNotice, type StudioStatus } from './studioState';
+import { useActionPreview, type ActionPreviewRequest } from './actionPreview';
 import './paymentsStudio.css';
 
 type PaymentsStudioProps = {
@@ -101,6 +102,90 @@ function providerLabel(payload: AdminPaymentsPayload): string {
   return 'Not connected';
 }
 
+/**
+ * What each payment action actually does, in the terms the plan asks for.
+ * Written per action rather than generated, because the honest answer to
+ * "can this be undone" differs sharply between them and a generic sentence
+ * would be wrong for at least one.
+ */
+function paymentPreview(
+  action: AdminPaymentActionName,
+  payment: AdminPaymentRecord,
+  amountMinor?: number,
+): ActionPreviewRequest {
+  const currency = payment.currency;
+  const held = payment.amountMinor - payment.refundedAmountMinor;
+
+  if (action === 'capture') {
+    return {
+      title: 'Collect this deposit',
+      summary: `Charges the card ${payment.customerName} authorized for ${payment.serviceName}.`,
+      changes: [
+        { label: 'Deposit status', before: statusLabel(payment.status), after: 'Collected' },
+        { label: 'Amount charged', after: money(held, currency) },
+      ],
+      notifies: null,
+      paymentEffect: `${money(held, currency)} moves from authorized to collected.`,
+      reversible: {
+        kind: 'recoverable',
+        detail: 'Yes — it can be refunded afterwards, which returns the money.',
+      },
+      confirmLabel: `Collect ${money(held, currency)}`,
+    };
+  }
+
+  if (action === 'void') {
+    return {
+      title: 'Void this authorization',
+      summary: `Releases the hold on ${payment.customerName}'s card without taking any money.`,
+      changes: [
+        { label: 'Deposit status', before: statusLabel(payment.status), after: 'Voided' },
+        { label: 'Amount charged', before: money(held, currency), after: money(0, currency) },
+      ],
+      notifies: null,
+      paymentEffect: 'Nothing is charged. The hold is released.',
+      reversible: {
+        kind: 'permanent',
+        detail: 'No — the customer would have to pay again from the start.',
+      },
+      confirmLabel: 'Void authorization',
+      tone: 'caution',
+      reasonPrompt: 'Why is this authorization being voided?',
+    };
+  }
+
+  if (action === 'refund') {
+    const amount = amountMinor ?? 0;
+    const remaining = Math.max(payment.capturedAmountMinor - payment.refundedAmountMinor - amount, 0);
+    return {
+      title: 'Return money to the customer',
+      summary: `Refunds ${money(amount, currency)} to ${payment.customerName} for ${payment.serviceName}.`,
+      changes: [
+        { label: 'Refunded so far', before: money(payment.refundedAmountMinor, currency), after: money(payment.refundedAmountMinor + amount, currency) },
+        { label: 'Still held', before: money(payment.capturedAmountMinor - payment.refundedAmountMinor, currency), after: money(remaining, currency) },
+      ],
+      notifies: null,
+      paymentEffect: `${money(amount, currency)} is returned to the original payment method.`,
+      reversible: {
+        kind: 'permanent',
+        detail: 'No — a refund cannot be reversed. The customer would need to pay again.',
+      },
+      confirmLabel: `Refund ${money(amount, currency)}`,
+      tone: 'caution',
+      reasonPrompt: 'Why is this being refunded?',
+    };
+  }
+
+  return {
+    title: 'Sync with the payment provider',
+    summary: `Re-reads this deposit's status from ${payment.provider === 'demo' ? 'the demo provider' : 'Stripe'}.`,
+    notifies: null,
+    paymentEffect: 'No money moves. Only Chime\'s copy of the status is updated.',
+    reversible: { kind: 'undo', detail: 'Nothing to undo — this only reads.' },
+    confirmLabel: 'Sync status',
+  };
+}
+
 export default function PaymentsStudio({ api, onNotify }: PaymentsStudioProps) {
   const [payload, setPayload] = useState<AdminPaymentsPayload>(EMPTY);
   const [filter, setFilter] = useState<PaymentFilter>('all');
@@ -108,6 +193,7 @@ export default function PaymentsStudio({ api, onNotify }: PaymentsStudioProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<StudioStatus>('loading');
+  const { confirm: confirmAction, element: previewElement } = useActionPreview();
   const [busyAction, setBusyAction] = useState<AdminPaymentActionName | null>(null);
   const [refundAmount, setRefundAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -161,19 +247,17 @@ export default function PaymentsStudio({ api, onNotify }: PaymentsStudioProps) {
       setError('Enter a refund amount greater than zero.');
       return;
     }
-    const language = action === 'capture'
-      ? 'collect this authorized deposit'
-      : action === 'void'
-        ? 'void this authorization'
-        : action === 'refund'
-          ? `return ${money(amountMinor ?? 0, selected.currency)} to ${selected.customerName}`
-          : 'sync this deposit with the payment provider';
-    if (!window.confirm(`Are you sure you want to ${language}?`)) return;
+    // Replaces a browser confirm() that named the action but not its
+    // consequences: not the amount left afterwards, not whether the customer
+    // hears about it, not whether it can be taken back.
+    const preview = await confirmAction(paymentPreview(action, selected, amountMinor));
+    if (!preview.confirmed) return;
+    const actionReason = preview.reason ?? reason;
 
     setBusyAction(action);
     setError(null);
     try {
-      const result = await api.performPaymentAction(selected, action, { amountMinor, reason });
+      const result = await api.performPaymentAction(selected, action, { amountMinor, reason: actionReason });
       setPayload((current) => ({
         ...current,
         payments: current.payments.map((payment) => payment.id === result.payment.id ? result.payment : payment),
@@ -346,6 +430,7 @@ export default function PaymentsStudio({ api, onNotify }: PaymentsStudioProps) {
           )}
         </aside>
       </div>
+      {previewElement}
     </section>
   );
 }

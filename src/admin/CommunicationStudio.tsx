@@ -7,6 +7,7 @@ import {
   type AdminCommunicationTemplate,
   type AdminCommunicationsPayload,
 } from './adminApi';
+import { useActionPreview } from './actionPreview';
 import './communicationStudio.css';
 
 type CommunicationFilter = 'all' | 'ready' | 'failed' | 'sent' | 'suppressed';
@@ -124,6 +125,7 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
   const [filter, setFilter] = useState<CommunicationFilter>('all');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
+  const { confirm: confirmAction, element: previewElement } = useActionPreview();
   const [error, setError] = useState<string | null>(null);
   const [editorView, setEditorView] = useState<'compose' | 'html'>('compose');
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -265,6 +267,40 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
   };
 
   const processReady = async () => {
+    const ready = payload?.summary.ready ?? 0;
+    const live = payload?.runtime.mode === 'live';
+    const recipients = [...new Set(
+      (payload?.deliveries ?? [])
+        .filter((delivery) => delivery.status === 'pending' || delivery.status === 'failed')
+        .map((delivery) => delivery.recipient),
+    )];
+
+    // Whether this reaches real people is the whole question, and it was
+    // decided by an environment variable the administrator could not see from
+    // this button.
+    const preview = await confirmAction({
+      title: live ? 'Send queued messages to customers' : 'Process the message queue',
+      summary: live
+        ? `Delivers ${ready} queued message${ready === 1 ? '' : 's'} to real customers now.`
+        : `Processes ${ready} queued message${ready === 1 ? '' : 's'} in the sandbox. Nothing leaves this machine.`,
+      changes: [
+        { label: 'Queued messages', before: String(ready), after: '0' },
+        { label: 'Delivery mode', after: live ? 'Live — real recipients' : 'Sandbox — recorded, not sent' },
+      ],
+      notifies: recipients.length
+        ? live
+          ? `${recipients.length} recipient${recipients.length === 1 ? '' : 's'}, including ${recipients[0]}`
+          : `${recipients.length} recipient${recipients.length === 1 ? '' : 's'} would be contacted in live mode`
+        : null,
+      paymentEffect: null,
+      reversible: live
+        ? { kind: 'permanent', detail: 'No — a sent message cannot be recalled.' }
+        : { kind: 'undo', detail: 'Yes — sandbox deliveries are recorded only and can be retried.' },
+      confirmLabel: live ? `Send ${ready} message${ready === 1 ? '' : 's'}` : `Process ${ready} in sandbox`,
+      tone: live ? 'caution' : 'normal',
+    });
+    if (!preview.confirmed) return;
+
     setWorking('process');
     setError(null);
     try {
@@ -587,6 +623,7 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
           ) : <div className="communication-empty">No editable templates are available yet.</div>}
         </aside>
       </div>
+      {previewElement}
     </section>
   );
 }

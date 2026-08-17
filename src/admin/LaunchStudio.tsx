@@ -7,6 +7,7 @@ import type {
   AdminLaunchSettings,
 } from './adminApi';
 import './launchStudio.css';
+import { useActionPreview } from './actionPreview';
 
 interface LaunchStudioProps {
   api: AdminApiClient;
@@ -37,6 +38,7 @@ export default function LaunchStudio({ api, onNotify }: LaunchStudioProps) {
   const [domainInput, setDomainInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { confirm: confirmAction, element: previewElement } = useActionPreview();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,6 +65,52 @@ export default function LaunchStudio({ api, onNotify }: LaunchStudioProps) {
     () => payload ? snippetFor(payload, selectedMode) : '',
     [payload, selectedMode],
   );
+
+  /**
+   * Publishing changes who can reach the business, so it gets a preview.
+   * Ordinary setting edits still save directly — the plan asks for previews on
+   * consequential actions, not on every field.
+   */
+  async function persistPublication(
+    next: AdminLaunchSettings,
+    message: string,
+    channel: 'website widget' | 'hosted booking page',
+    turningOn: boolean,
+  ) {
+    const preview = await confirmAction({
+      title: turningOn ? `Open the ${channel} to customers` : `Pause the ${channel}`,
+      summary: turningOn
+        ? `Anyone who reaches the ${channel} will be able to book appointments.`
+        : `Customers can no longer book through the ${channel}. Existing appointments are unaffected.`,
+      changes: [
+        {
+          label: channel === 'website widget' ? 'Website widget' : 'Hosted booking page',
+          before: turningOn ? 'Private' : 'Live',
+          after: turningOn ? 'Live to customers' : 'Paused',
+        },
+        ...(turningOn && channel === 'website widget'
+          ? [{
+              label: 'Allowed websites',
+              after: next.allowAnyDomain ? 'Any website' : `${next.allowedDomains.length} approved`,
+            }]
+          : []),
+      ],
+      notifies: null,
+      paymentEffect: turningOn && payload?.readiness.checks.some((check) => check.id === 'services')
+        ? 'Customers can book services that require a deposit.'
+        : null,
+      reversible: {
+        kind: 'undo',
+        detail: turningOn
+          ? `Yes — pause the ${channel} again at any time.`
+          : `Yes — publish the ${channel} again at any time.`,
+      },
+      confirmLabel: turningOn ? `Publish the ${channel}` : `Pause the ${channel}`,
+      tone: turningOn ? 'caution' : 'normal',
+    });
+    if (!preview.confirmed) return;
+    await persist(next, message);
+  }
 
   async function persist(next: AdminLaunchSettings, message: string) {
     setSaving(true);
@@ -136,7 +184,23 @@ export default function LaunchStudio({ api, onNotify }: LaunchStudioProps) {
             className="admin-primary-button"
             type="button"
             disabled={saving}
-            onClick={() => void persist(draft, 'Launch settings saved.')}
+            onClick={() => void (async () => {
+              // Save carries the hosted-page toggle, so it can publish too.
+              // Route it through the preview when that is what it will do,
+              // and save directly when it is only editing settings.
+              const changesPublication = payload
+                && draft.hostedPageEnabled !== payload.settings.hostedPageEnabled;
+              if (changesPublication) {
+                await persistPublication(
+                  draft,
+                  'Launch settings saved.',
+                  'hosted booking page',
+                  draft.hostedPageEnabled,
+                );
+                return;
+              }
+              await persist(draft, 'Launch settings saved.');
+            })()}
           >
             {saving ? 'Saving…' : 'Save changes'}
           </button>
@@ -292,7 +356,12 @@ export default function LaunchStudio({ api, onNotify }: LaunchStudioProps) {
               className={draft.embedEnabled ? 'launch-unpublish-button' : 'launch-publish-button'}
               type="button"
               disabled={saving || (!draft.embedEnabled && !payload.readiness.ready)}
-              onClick={() => void persist({ ...draft, embedEnabled: !draft.embedEnabled }, draft.embedEnabled ? 'Website widget paused.' : 'Website widget is live.')}
+              onClick={() => void persistPublication(
+                { ...draft, embedEnabled: !draft.embedEnabled },
+                draft.embedEnabled ? 'Website widget paused.' : 'Website widget is live.',
+                'website widget',
+                !draft.embedEnabled,
+              )}
             >
               {draft.embedEnabled ? 'Pause website widget' : payload.readiness.ready ? 'Publish website widget' : 'Finish setup to publish'}
             </button>
@@ -310,6 +379,7 @@ export default function LaunchStudio({ api, onNotify }: LaunchStudioProps) {
           </article>
         </aside>
       </div>
+      {previewElement}
     </section>
   );
 }

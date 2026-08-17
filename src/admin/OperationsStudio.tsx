@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import './operationsStudio.css';
+import { useActionPreview } from './actionPreview';
 import { getAdminConnection, describeMissingConnection } from './adminConnection';
 
 type OperationsStudioProps = {
@@ -288,6 +289,7 @@ export default function OperationsStudio({
   const [draftLocationId, setDraftLocationId] = useState('');
   const [changeReason, setChangeReason] = useState('');
   const [decisionNote, setDecisionNote] = useState('');
+  const { confirm: confirmAction, element: previewElement } = useActionPreview();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -391,6 +393,33 @@ export default function OperationsStudio({
 
   const decide = (decision: 'approve' | 'decline') => {
     if (!selected) return;
+    const approving = decision === 'approve';
+    void (async () => {
+    const preview = await confirmAction({
+      title: approving ? 'Approve this appointment' : 'Decline this appointment',
+      summary: approving
+        ? `Confirms ${selected.customer.name}'s ${selected.service.name} and tells them it is booked.`
+        : `Declines ${selected.customer.name}'s ${selected.service.name} and reopens the time for other customers.`,
+      changes: [
+        {
+          label: 'Appointment status',
+          before: statusLabel(selected.status),
+          after: approving ? 'Confirmed' : 'Declined',
+        },
+        { label: 'The time slot', after: approving ? 'Stays reserved' : 'Becomes available again' },
+      ],
+      notifies: `${selected.customer.name} at ${selected.customer.email}`,
+      paymentEffect: null,
+      reversible: approving
+        ? { kind: 'recoverable', detail: 'Yes — the appointment can be cancelled afterwards.' }
+        : { kind: 'permanent', detail: 'No — the customer would have to book again.' },
+      confirmLabel: approving ? 'Approve and notify' : 'Decline and reopen',
+      tone: approving ? 'normal' : 'caution',
+      reasonPrompt: approving ? undefined : 'Why is this being declined? The customer sees this.',
+    });
+    if (!preview.confirmed) return;
+    if (preview.reason) setDecisionNote(preview.reason);
+
     void runMutation(
       () => operationsRequest(
         `/appointments/${selected.id}/decision`,
@@ -399,7 +428,7 @@ export default function OperationsStudio({
           headers: operationHeaders(selected.version),
           body: JSON.stringify({
             decision,
-            note: decisionNote.trim() || null,
+            note: preview.reason ?? (decisionNote.trim() || null),
           }),
         },
       ),
@@ -407,6 +436,7 @@ export default function OperationsStudio({
         ? 'Appointment approved and customer notification queued.'
         : 'Appointment declined and the time was reopened.',
     );
+    })();
   };
 
   const submitChange = (event: FormEvent) => {
@@ -1008,6 +1038,7 @@ export default function OperationsStudio({
           </section>
         </div>
       )}
+      {previewElement}
     </section>
   );
 }
