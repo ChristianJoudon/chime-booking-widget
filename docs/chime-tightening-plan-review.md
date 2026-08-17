@@ -1423,3 +1423,72 @@ durable fix is Shadow DOM, where host CSS cannot cross the boundary at all.
 All of that is widget work. It is recorded in ISOLATION.md beside the existing
 known widget issue, and nothing in `dist-embed/` or the widget source was
 touched — confirmed against the file list in that document.
+
+## Text size, both applications (2026-08-17)
+
+Two separate problems that were flagged in earlier sections and left as the
+owner's decision. Both were approved, including lifting the widget boundary for
+this change specifically.
+
+### The studio had no type scale
+
+Not "text a bit small" — **516 font-size declarations smeared continuously from
+6.4px to 36px**, with the bulk of body text at 7–11px. Sixty-odd distinct
+values, no steps, no system.
+
+511 of them were raised on a curve rather than a flat multiplier: a flat one
+would have pushed headings to absurd sizes, and a flat floor would have erased
+the difference between a label and its value. The curve raises 7px by 71% and
+15px by 4%, and stops entirely at 16px. Nothing renders below 12px now.
+
+### What that broke, and what it did not
+
+Bigger text in a dense interface should break layout, so I measured before and
+after rather than eyeballing it. The overflow check found problems on all
+eleven screens — and **the same problems on all eleven screens before the
+change**. Heading descenders clipped by tight line-heights, stat digits, the
+widget preview: all pre-existing.
+
+Exactly one regression was mine: the sidebar email overflowed by 44px instead of
+19px. It now truncates with an ellipsis, the way the workspace switcher above it
+already did — which also fixes the pre-existing 19px.
+
+One finding looked real and was not: `.service-toggle-row` appeared to overflow
+by 27px, and `checkVisibility()` reported it visible. It sits in the Advanced
+rules tab, in a panel collapsed to zero width. Opening the tab and measuring
+again returned nothing. The probe was reporting laid-out-but-unseen content.
+
+The accessibility check then surfaced three colours failing contrast in the Team
+editor and the Messages row. Those were **never measured before** — the contrast
+sweep predated the fix that makes the harness open a record on each screen, so
+those editors were invisible to it. Pre-existing, now fixed.
+
+### The widget was sized by whatever page it landed on
+
+Every size in the widget was in `rem`, which resolves against the **host page's**
+root element. A site with `html { font-size: 32px }` doubled the widget: 850px
+tall became 1454px. Sizes now derive from `--chime-root` declared on
+`.chime-widget`, using `calc()` rather than `em` so nesting does not compound.
+
+That fixed the root-font case but not a host forcing `font-size: 22px !important`
+on `button` and `div`, because `!important` beats any specificity. The widget's
+own font-size and font-family declarations now carry `!important` too, which
+puts specificity back in charge — `.chime-widget button` then beats a bare
+`button`.
+
+Even that was not enough on its own. `font-size: inherit` on the controls
+faithfully passed down the host's size, because the host was also styling the
+`div`s between them and the widget root. A catch-all makes every descendant
+inherit from its own parent, chaining back to the widget's base.
+
+That catch-all ties in specificity with any single-class selector, so **where it
+sits in the file decides who wins**. Placed after the widget's own rules it beat
+`.chime-powered-by` and pushed the footer from 11.5px to 16px. Moved ahead of
+them, it is a floor that every real rule overrides. Verified by fingerprinting
+all 80 rendered elements before and after: one decorative orb differs by a
+pixel.
+
+Two host conditions now pass that did not: `large-root-font` and
+`global-typography`. Three still fail — `box-sizing`, a hard reset, and
+`line-height` — none of which are text size. Recorded in ISOLATION.md with the
+measurement of what a further defensive block would and would not clear.

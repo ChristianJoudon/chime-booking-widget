@@ -10,12 +10,12 @@
   border: 1px solid var(--admin-line);
   background: var(--admin-paper);
   color: var(--admin-ink);
-  font-size: 0.9rem;
+  font-size: 0.9537rem;
   line-height: 1.45;
 }
 
 .studio-state strong {
-  font-size: 0.95rem;
+  font-size: 0.9772rem;
   font-weight: 620;
 }
 

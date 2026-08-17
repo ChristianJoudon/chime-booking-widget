@@ -11,13 +11,13 @@
 
 .conflict-notice > strong {
   display: block;
-  font-size: 0.95rem;
+  font-size: 0.9772rem;
   font-weight: 640;
 }
 
 .conflict-notice > p {
   margin: 0.3rem 0 0.75rem;
-  font-size: 0.85rem;
+  font-size: 0.9295rem;
   line-height: 1.5;
   color: var(--admin-ink-soft);
 }
@@ -26,7 +26,7 @@
   width: 100%;
   margin-bottom: 0.85rem;
   border-collapse: collapse;
-  font-size: 0.82rem;
+  font-size: 0.9146rem;
 }
 
 .conflict-notice__table th,
@@ -38,7 +38,7 @@
 }
 
 .conflict-notice__table thead th {
-  font-size: 0.72rem;
+  font-size: 0.8626rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--admin-ink-soft);
@@ -52,7 +52,7 @@
 
 .conflict-notice__identical {
   margin: 0 0 0.85rem;
-  font-size: 0.82rem;
+  font-size: 0.9146rem;
   color: var(--admin-ink-soft);
 }
 
@@ -69,7 +69,7 @@
   background: var(--admin-paper);
   color: var(--admin-ink);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.9146rem;
   font-weight: 580;
   cursor: pointer;
 }

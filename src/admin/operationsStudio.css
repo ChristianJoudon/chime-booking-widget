@@ -51,7 +51,7 @@
 .operations-section-label {
   color: #5e8d80;
   display: block;
-  font-size: 11px;
+  font-size: 0.8448rem;
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -68,7 +68,7 @@
 
 .operations-header p {
   color: var(--ops-muted);
-  font-size: 14px;
+  font-size: 0.9417rem;
   margin: 0;
 }
 
@@ -89,7 +89,7 @@
 
 .operations-today-button {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.9108rem;
   font-weight: 750;
   padding: 11px 16px;
 }
@@ -115,7 +115,7 @@
 }
 
 .operations-week-switcher strong {
-  font-size: 13px;
+  font-size: 0.9108rem;
   min-width: 130px;
   text-align: center;
 }
@@ -174,7 +174,7 @@
 
 .operations-summary article span:last-child {
   color: var(--ops-muted);
-  font-size: 11px;
+  font-size: 0.8448rem;
   margin-top: 4px;
 }
 
@@ -193,7 +193,7 @@
   border-bottom: 3px solid transparent;
   cursor: pointer;
   display: inline-flex;
-  font-size: 13px;
+  font-size: 0.9108rem;
   font-weight: 750;
   gap: 8px;
   margin-bottom: -1px;
@@ -211,7 +211,7 @@
   border-radius: 999px;
   color: #fff;
   display: inline-flex;
-  font-size: 10px;
+  font-size: 0.8094rem;
   height: 20px;
   justify-content: center;
   min-width: 20px;
@@ -225,7 +225,7 @@
   border-radius: 14px;
   color: #804632;
   display: flex;
-  font-size: 12px;
+  font-size: 0.8786rem;
   gap: 10px;
   margin-bottom: 16px;
   padding: 11px 14px;
@@ -240,7 +240,7 @@
   border: 1px solid #e6b6a3;
   border-radius: 9px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 0.8448rem;
   font-weight: 750;
   padding: 7px 10px;
 }
@@ -278,7 +278,7 @@
 
 .operations-filter-row > span {
   color: var(--ops-muted);
-  font-size: 11px;
+  font-size: 0.8448rem;
   font-weight: 700;
   margin-right: 3px;
 }
@@ -291,7 +291,7 @@
   cursor: pointer;
   display: inline-flex;
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: 0.8448rem;
   font-weight: 700;
   gap: 6px;
   padding: 7px 10px;
@@ -333,7 +333,7 @@
 
 .operations-day-head span {
   color: var(--ops-muted);
-  font-size: 10px;
+  font-size: 0.8094rem;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -362,7 +362,7 @@
 
 .operations-time-axis span {
   color: #879692;
-  font-size: 9px;
+  font-size: 0.7719rem;
   position: absolute;
   right: 10px;
   transform: translateY(-50%);
@@ -426,11 +426,11 @@
      team palette so initials chips are readable also darkened these tints and
      pushed this text from just-passing to 4.40:1. */
   color: #5e6f6b;
-  font-size: 9px;
+  font-size: 0.7719rem;
 }
 
 .operations-appointment > strong {
-  font-size: 11px;
+  font-size: 0.8448rem;
   line-height: 1.25;
   margin: 2px 0;
   overflow: hidden;
@@ -442,7 +442,7 @@
   background: rgba(255, 255, 255, 0.74);
   border-radius: 999px;
   color: var(--ops-coral);
-  font-size: 8px;
+  font-size: 0.75rem;
   font-style: normal;
   font-weight: 800;
   margin-top: 4px;
@@ -504,7 +504,7 @@
 
 .operations-empty-calendar p {
   color: var(--ops-muted);
-  font-size: 12px;
+  font-size: 0.8786rem;
   line-height: 1.6;
   margin: 7px 0 0;
   max-width: 330px;
@@ -512,7 +512,7 @@
 
 .operations-loading {
   color: var(--ops-muted);
-  font-size: 12px;
+  font-size: 0.8786rem;
 }
 
 .operations-inspector {
@@ -534,7 +534,7 @@
 
 .operations-inspector-heading > div > span {
   color: var(--ops-muted);
-  font-size: 9px;
+  font-size: 0.7719rem;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
@@ -548,14 +548,14 @@
 
 .operations-inspector-heading p {
   color: var(--ops-muted);
-  font-size: 11px;
+  font-size: 0.8448rem;
   margin: 0;
 }
 
 .operations-status {
   border-radius: 999px;
   flex: 0 0 auto;
-  font-size: 8px;
+  font-size: 0.75rem;
   font-weight: 850;
   padding: 6px 8px;
   text-transform: uppercase;
@@ -605,7 +605,7 @@
 .operations-details dt,
 .operations-pending-change dt {
   color: var(--ops-muted);
-  font-size: 9px;
+  font-size: 0.7719rem;
   font-weight: 750;
   margin-bottom: 3px;
   text-transform: uppercase;
@@ -613,7 +613,7 @@
 
 .operations-details dd,
 .operations-pending-change dd {
-  font-size: 11px;
+  font-size: 0.8448rem;
   font-weight: 650;
   margin: 0;
   overflow: hidden;
@@ -633,13 +633,13 @@
 
 .operations-customer-note span {
   color: var(--ops-muted);
-  font-size: 9px;
+  font-size: 0.7719rem;
   font-weight: 750;
   text-transform: uppercase;
 }
 
 .operations-customer-note p {
-  font-size: 11px;
+  font-size: 0.8448rem;
   line-height: 1.5;
   margin: 5px 0 0;
 }
@@ -655,7 +655,7 @@
 .operations-form-heading p,
 .operations-pending-change > p {
   color: var(--ops-muted);
-  font-size: 11px;
+  font-size: 0.8448rem;
   line-height: 1.55;
   margin: 7px 0 12px;
 }
@@ -668,7 +668,7 @@
   border: 1px solid #cedbd6;
   border-radius: 10px;
   color: var(--ops-ink);
-  font-size: 11px;
+  font-size: 0.8448rem;
   outline: none;
   padding: 10px 11px;
   width: 100%;
@@ -702,7 +702,7 @@
   border-radius: 10px;
   cursor: pointer;
   display: inline-flex;
-  font-size: 11px;
+  font-size: 0.8448rem;
   font-weight: 800;
   gap: 6px;
   justify-content: center;
@@ -741,7 +741,7 @@
 .operations-change-form label {
   color: #556a64;
   display: grid;
-  font-size: 10px;
+  font-size: 0.8094rem;
   font-weight: 750;
   gap: 6px;
 }
@@ -760,7 +760,7 @@
 
 .operations-duration-control strong {
   color: var(--ops-green);
-  font-size: 12px;
+  font-size: 0.8786rem;
 }
 
 .operations-duration-control input {
@@ -771,7 +771,7 @@
 
 .operations-duration-control small {
   color: var(--ops-muted);
-  font-size: 9px;
+  font-size: 0.7719rem;
   font-weight: 500;
   line-height: 1.4;
 }
@@ -798,7 +798,7 @@
   border-left: 3px solid #c49b4e;
   border-radius: 0 9px 9px 0;
   color: #715925;
-  font-size: 10px;
+  font-size: 0.8094rem;
   line-height: 1.5;
   margin: 13px 0;
   padding: 9px 10px;
@@ -825,12 +825,12 @@
 }
 
 .operations-empty-inspector strong {
-  font-size: 14px;
+  font-size: 0.9417rem;
 }
 
 .operations-empty-inspector p {
   color: var(--ops-muted);
-  font-size: 11px;
+  font-size: 0.8448rem;
   margin: 6px 0;
 }
 
@@ -866,7 +866,7 @@
   border-radius: 999px;
   color: var(--ops-green);
   display: inline-flex;
-  font-size: 11px;
+  font-size: 0.8448rem;
   min-height: 28px;
   padding: 0 10px;
 }
@@ -917,20 +917,20 @@
 
 .operations-request-list button strong,
 .operations-notification-list button strong {
-  font-size: 12px;
+  font-size: 0.8786rem;
 }
 
 .operations-request-list button small,
 .operations-notification-list button small {
   color: var(--ops-muted);
-  font-size: 10px;
+  font-size: 0.8094rem;
   line-height: 1.45;
   margin-top: 4px;
 }
 
 .operations-request-list button em {
   color: var(--ops-coral);
-  font-size: 9px;
+  font-size: 0.7719rem;
   font-style: normal;
   font-weight: 800;
 }
@@ -976,7 +976,7 @@
 
 .operations-notification-list time {
   color: #97a5a1;
-  font-size: 9px;
+  font-size: 0.7719rem;
   margin-top: 7px;
 }
 
@@ -1000,11 +1000,11 @@
 
 .operations-list-empty strong {
   color: var(--ops-ink);
-  font-size: 13px;
+  font-size: 0.9108rem;
 }
 
 .operations-list-empty p {
-  font-size: 10px;
+  font-size: 0.8094rem;
   line-height: 1.5;
   margin: 6px 0 0;
   max-width: 270px;
@@ -1096,14 +1096,14 @@
 
 .operations-conflict > strong {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.9295rem;
   color: var(--admin-coral);
 }
 
 .operations-conflict ul {
   margin: 0.35rem 0 0.3rem;
   padding-left: 1.1rem;
-  font-size: 0.8rem;
+  font-size: 0.9045rem;
   color: var(--admin-ink);
 }
 
@@ -1111,7 +1111,7 @@
 
 .operations-conflict small {
   display: block;
-  font-size: 0.74rem;
+  font-size: 0.8733rem;
   line-height: 1.45;
   color: var(--admin-ink-soft);
 }

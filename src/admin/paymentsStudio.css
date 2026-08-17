@@ -14,7 +14,7 @@
 
 .payments-header > div:first-child > p {
   color: #5d927f;
-  font-size: .7rem;
+  font-size: 0.8517rem;
   font-weight: 800;
   letter-spacing: .14em;
   margin: 0 0 7px;
@@ -33,7 +33,7 @@
 .payments-header > div:first-child > span {
   color: #6c7d77;
   display: block;
-  font-size: .86rem;
+  font-size: 0.9344rem;
   margin-top: 10px;
 }
 
@@ -60,11 +60,11 @@
 .payments-provider.is-test > i,
 .payments-provider.is-demo > i { background: #4db58c; border-color: #daf2e8; }
 .payments-provider > span { display: grid; margin-right: auto; }
-.payments-provider small { color: #80908a; font-size: .61rem; font-weight: 700; text-transform: uppercase; }
-.payments-provider strong { font-size: .78rem; margin-top: 2px; }
+.payments-provider small { color: #80908a; font-size: 0.8006rem; font-weight: 700; text-transform: uppercase; }
+.payments-provider strong { font-size: 0.8942rem; margin-top: 2px; }
 /* Was bare text at 17px tall. Padding to the 24px minimum makes it a target
    rather than a word that happens to be clickable. */
-.payments-provider button { background: transparent; border: 0; color: #4a7d6d; cursor: pointer; font: inherit; font-size: .7rem; font-weight: 750; min-height: 24px; padding: 0 6px; }
+.payments-provider button { background: transparent; border: 0; color: #4a7d6d; cursor: pointer; font: inherit; font-size: 0.8517rem; font-weight: 750; min-height: 24px; padding: 0 6px; }
 
 .payments-summary {
   display: grid;
@@ -98,9 +98,9 @@
 .payments-summary-card.is-sky::after { background: #d9e9f2; }
 .payments-summary-card.is-lemon::after { background: #f6e8b9; }
 .payments-summary-card.is-peach::after { background: #f4ddd2; }
-.payments-summary-card > span { color: #72847d; display: block; font-size: .68rem; font-weight: 720; }
+.payments-summary-card > span { color: #72847d; display: block; font-size: 0.8407rem; font-weight: 720; }
 .payments-summary-card > strong { display: block; font-size: 1.5rem; letter-spacing: -.04em; margin: 14px 0 5px; }
-.payments-summary-card > small { color: #8a9893; font-size: .66rem; }
+.payments-summary-card > small { color: #8a9893; font-size: 0.8295rem; }
 
 .payments-toolbar {
   align-items: center;
@@ -124,7 +124,7 @@
   color: #62736d;
   cursor: pointer;
   font: inherit;
-  font-size: .68rem;
+  font-size: 0.8407rem;
   font-weight: 720;
   min-height: 34px;
   padding: 0 13px;
@@ -139,7 +139,7 @@
   border: 1px solid #efc9bb;
   border-radius: 12px;
   color: #9a4f39;
-  font-size: .73rem;
+  font-size: 0.868rem;
   margin-bottom: 12px;
   padding: 11px 14px;
 }
@@ -168,7 +168,7 @@
 
 .payments-ledger__head {
   color: #84938e;
-  font-size: .6rem;
+  font-size: 0.7946rem;
   font-weight: 800;
   letter-spacing: .08em;
   padding: 15px 18px 11px;
@@ -192,8 +192,8 @@
 .payments-row.is-selected { background: #edf7f3; box-shadow: inset 3px 0 #53a688; }
 .payments-row > span:not(.payments-status),
 .payments-customer > span { display: grid; gap: 4px; min-width: 0; }
-.payments-row strong { font-size: .73rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.payments-row small { color: #84918d; font-size: .62rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.payments-row strong { font-size: 0.868rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.payments-row small { color: #84918d; font-size: 0.8064rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .payments-customer { align-items: center; display: flex !important; gap: 10px !important; }
 .payments-customer > i {
@@ -203,7 +203,7 @@
   color: #346c5d;
   display: flex;
   flex: 0 0 38px;
-  font-size: .67rem;
+  font-size: 0.8351rem;
   font-style: normal;
   font-weight: 850;
   height: 38px;
@@ -214,7 +214,7 @@
   align-items: center;
   border-radius: 999px;
   display: inline-flex;
-  font-size: .61rem;
+  font-size: 0.8006rem;
   font-weight: 780;
   gap: 6px;
   justify-self: start;
@@ -243,32 +243,32 @@
   padding: 30px;
   text-align: center;
 }
-.payments-empty strong { color: #36584f; font-size: .88rem; }
-.payments-empty span { font-size: .7rem; }
+.payments-empty strong { color: #36584f; font-size: 0.9441rem; }
+.payments-empty span { font-size: 0.8517rem; }
 
 .payments-detail { align-self: start; padding: 21px; }
-.payments-detail__top > small { color: #8a9893; display: block; font-size: .61rem; margin: 13px 0 4px; }
+.payments-detail__top > small { color: #8a9893; display: block; font-size: 0.8006rem; margin: 13px 0 4px; }
 .payments-detail__top h2 { font-size: 1.18rem; letter-spacing: -.035em; margin: 0; }
-.payments-detail__top p { color: #687671; font-size: .68rem; line-height: 1.5; margin: 5px 0 0; }
+.payments-detail__top p { color: #687671; font-size: 0.8407rem; line-height: 1.5; margin: 5px 0 0; }
 
 .payments-breakdown { background: #f1f7f4; border-radius: 14px; margin: 18px 0 14px; padding: 8px 13px; }
 .payments-breakdown > div { align-items: center; display: flex; justify-content: space-between; padding: 7px 0; }
-.payments-breakdown dt { color: #74837e; font-size: .66rem; }
-.payments-breakdown dd { font-size: .7rem; font-weight: 760; margin: 0; }
+.payments-breakdown dt { color: #74837e; font-size: 0.8295rem; }
+.payments-breakdown dd { font-size: 0.8517rem; font-weight: 760; margin: 0; }
 .payments-breakdown .is-total { border-top: 1px solid rgba(30, 77, 66, .12); margin-top: 4px; padding-top: 10px; }
 .payments-breakdown .is-total dt,
-.payments-breakdown .is-total dd { color: #214f44; font-size: .78rem; font-weight: 820; }
+.payments-breakdown .is-total dd { color: #214f44; font-size: 0.8942rem; font-weight: 820; }
 
 .payments-provider-reference { border: 1px solid rgba(30, 77, 66, .1); border-radius: 12px; display: grid; gap: 5px; padding: 11px 12px; }
-.payments-provider-reference > span { color: #87948f; font-size: .58rem; font-weight: 760; text-transform: uppercase; }
-.payments-provider-reference code { color: #36584f; font-family: 'SFMono-Regular', Consolas, monospace; font-size: .62rem; overflow-wrap: anywhere; }
-.payments-provider-reference small { color: #8a9893; font-size: .59rem; }
-.payments-detail__warning { background: #fff1eb; border-radius: 10px; color: #9a4f39; font-size: .65rem; line-height: 1.45; margin-top: 11px; padding: 9px 11px; }
+.payments-provider-reference > span { color: #87948f; font-size: 0.7826rem; font-weight: 760; text-transform: uppercase; }
+.payments-provider-reference code { color: #36584f; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.8064rem; overflow-wrap: anywhere; }
+.payments-provider-reference small { color: #8a9893; font-size: 0.7886rem; }
+.payments-detail__warning { background: #fff1eb; border-radius: 10px; color: #9a4f39; font-size: 0.8238rem; line-height: 1.45; margin-top: 11px; padding: 9px 11px; }
 
 .payments-actions { border-top: 1px solid rgba(30, 77, 66, .1); margin-top: 18px; padding-top: 16px; }
 .payments-actions h3,
-.payments-history h3 { font-size: .76rem; margin: 0; }
-.payments-actions p { color: #6b7773; font-size: .61rem; line-height: 1.4; margin: 4px 0 12px; }
+.payments-history h3 { font-size: 0.8838rem; margin: 0; }
+.payments-actions p { color: #6b7773; font-size: 0.8006rem; line-height: 1.4; margin: 4px 0 12px; }
 /* One action per line. The second column used to be a fixed 85px, which fit
    the word "Void" and nothing else — "Release the hold" broke across two lines
    inside a 38px button. This panel is only ~286px wide, so stacking is the
@@ -281,7 +281,7 @@
   color: #fff;
   cursor: pointer;
   font: inherit;
-  font-size: .67rem;
+  font-size: 0.8351rem;
   font-weight: 760;
   min-height: 38px;
   padding: 0 12px;
@@ -293,13 +293,13 @@
 .payments-actions button.payments-sync { background: transparent; border-color: rgba(30, 77, 66, .18); color: #42675d; }
 .payments-actions button.payments-sync { margin-top: 8px; width: 100%; }
 .payments-actions button:disabled { cursor: not-allowed; opacity: .45; }
-.payments-actions__locked { color: #9a684e; display: block; font-size: .6rem; line-height: 1.4; margin-top: 8px; }
+.payments-actions__locked { color: #9a684e; display: block; font-size: 0.7946rem; line-height: 1.4; margin-top: 8px; }
 
 .payments-refund-form { display: grid; gap: 9px; }
-.payments-refund-form label { color: #65736e; display: grid; font-size: .61rem; font-weight: 720; gap: 5px; }
-.payments-refund-form input { background: #fff; border: 1px solid rgba(30, 77, 66, .16); border-radius: 9px; color: #294e44; font: inherit; font-size: .69rem; min-height: 38px; padding: 0 10px; width: 100%; }
+.payments-refund-form label { color: #65736e; display: grid; font-size: 0.8006rem; font-weight: 720; gap: 5px; }
+.payments-refund-form input { background: #fff; border: 1px solid rgba(30, 77, 66, .16); border-radius: 9px; color: #294e44; font: inherit; font-size: 0.8462rem; min-height: 38px; padding: 0 10px; width: 100%; }
 .payments-refund-form label > div { display: flex; }
-.payments-refund-form label > div b { align-items: center; background: #edf3f0; border: 1px solid rgba(30, 77, 66, .16); border-radius: 9px 0 0 9px; color: #6b7b75; display: flex; font-size: .6rem; padding: 0 9px; }
+.payments-refund-form label > div b { align-items: center; background: #edf3f0; border: 1px solid rgba(30, 77, 66, .16); border-radius: 9px 0 0 9px; color: #6b7b75; display: flex; font-size: 0.7946rem; padding: 0 9px; }
 .payments-refund-form label > div input { border-left: 0; border-radius: 0 9px 9px 0; }
 
 .payments-history { border-top: 1px solid rgba(30, 77, 66, .1); margin-top: 18px; padding-top: 15px; }
@@ -308,13 +308,13 @@
 .payments-history__item > i.is-succeeded { background: #54a98b; }
 .payments-history__item > i.is-failed { background: #ce6e56; }
 .payments-history__item > span { display: grid; gap: 3px; }
-.payments-history__item strong { font-size: .64rem; }
-.payments-history__item small { color: #8a9893; font-size: .56rem; }
-.payments-history__item > b { font-size: .61rem; }
-.payments-history__empty { color: #89958f; font-size: .62rem; margin: 12px 0 0; }
+.payments-history__item strong { font-size: 0.8181rem; }
+.payments-history__item small { color: #8a9893; font-size: 0.7703rem; }
+.payments-history__item > b { font-size: 0.8006rem; }
+.payments-history__empty { color: #89958f; font-size: 0.8064rem; margin: 12px 0 0; }
 .payments-detail__empty { align-items: center; color: #65736e; display: flex; flex-direction: column; gap: 6px; justify-content: center; min-height: 350px; text-align: center; }
-.payments-detail__empty strong { color: #36584f; font-size: .82rem; }
-.payments-detail__empty span { font-size: .64rem; line-height: 1.45; max-width: 210px; }
+.payments-detail__empty strong { color: #36584f; font-size: 0.9146rem; }
+.payments-detail__empty span { font-size: 0.8181rem; line-height: 1.45; max-width: 210px; }
 
 @media (max-width: 1180px) {
   .payments-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -100,6 +100,17 @@ typecheck:widget` runs the widget one.
 Run `npm run build:embed` **only when producing a portable embed release**. It
 sets `emptyOutDir`, so it deletes everything already in `dist-embed/`.
 
+### One authorized exception, 2026-08-17
+
+`src/index.css` was changed with the owner's explicit approval, to stop the
+widget inheriting the host page's text size. Sizes now derive from
+`--chime-root` on `.chime-widget` instead of `rem`, and its font-size and
+font-family declarations carry `!important`. `dist-embed/` was rebuilt from it.
+
+Nothing else in widget territory was touched, and nothing outside this folder
+was touched — the other Chime checkouts on this machine are unaffected. The
+boundary above still stands for everything else.
+
 ### Known widget issue, deliberately not fixed here
 
 `npm run typecheck:widget` reports one error:
@@ -112,30 +123,32 @@ src/embed.tsx(59,37): error TS2345: 'string | Element' is not assignable to 'str
 `Element`, while `mount` accepts `HTMLElement`. This is in-progress widget work.
 Resolving it is a widget decision, not a standalone one.
 
-### Host-page style leakage, found from the standalone side
+### Host-page style leakage
 
 `npm run test:embed-host-styles` renders the built widget under stylesheets real
-small-business sites carry, and compares its layout against a neutral page. It
-only reads `dist-embed/`, so it stays inside standalone territory.
+small-business sites carry, and compares its layout against a neutral page.
 
-Five of eight host conditions change the widget's layout:
+Two conditions used to break the widget through **text size**, and both are now
+fixed. It sized everything in `rem`, which resolves against the *host* page's
+root element, so a site with `html { font-size: 32px }` doubled it — 850px tall
+became 1454px. Sizes now derive from `--chime-root` on `.chime-widget`, a base
+the widget carries wherever it is embedded. Its own font-size and font-family
+declarations also carry `!important`, so a host styling bare `button` or `div`
+that way no longer wins; without that, `font-size: inherit` on the controls
+faithfully passed the host's size straight down.
 
-| host does this | effect on the widget |
+The widget leaks **nothing** outward — the host page is identical with and
+without it.
+
+Three conditions still change the layout, none of them text size:
+
+| host does this | effect |
 |---|---|
-| `* { box-sizing: content-box !important }` | every box grows; widget 850px → 933px tall |
-| `* { margin: 0 !important; padding: 0 !important }` | spacing collapses; 850px → 546px |
-| `html { font-size: 32px }` | everything sized in `rem` doubles; 850px → 1454px |
-| `!important` font on `div, button, input…` | Manrope → the host's font, 16px → 22px |
-| `* { line-height: 3 !important }` | 850px → 1283px |
+| `* { box-sizing: content-box !important }` | every box grows |
+| `* { margin: 0 !important; padding: 0 !important }` | spacing collapses |
+| `* { line-height: 3 !important }` | the widget stretches |
 
-Right-to-left hosts and responsive-image rules are fine, and the widget leaks
-**nothing** outward — the host page is byte-identical with and without it, so
-the `.chime-widget` scoping works in that direction.
-
-Fixing this is widget work and is not done here. For whoever picks it up: a
-defensive stylesheet setting `box-sizing`, `line-height` and `font-family` with
-`!important` under `.chime-widget` clears the first and last rows, and was
-measured doing so. It does not clear the others — a host's `* { margin: 0
-!important }` cannot be answered without enumerating every element, and internal
-`rem` sizing follows the host's root regardless. The durable fix is Shadow DOM,
-where host CSS cannot cross the boundary at all.
+Measured rather than assumed: adding `box-sizing` and `line-height` to the same
+defensive block clears the first and third. The middle one cannot be answered
+without enumerating every element the widget renders. The durable fix for all
+three is Shadow DOM, where host CSS cannot cross the boundary at all.

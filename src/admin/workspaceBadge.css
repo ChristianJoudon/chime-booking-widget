@@ -28,14 +28,14 @@
 }
 
 .workspace-badge strong {
-  font-size: 0.76rem;
+  font-size: 0.8838rem;
   font-weight: 640;
   letter-spacing: 0.01em;
   color: var(--admin-ink);
 }
 
 .workspace-badge small {
-  font-size: 0.68rem;
+  font-size: 0.8407rem;
   color: var(--admin-ink-soft);
   white-space: nowrap;
   overflow: hidden;
