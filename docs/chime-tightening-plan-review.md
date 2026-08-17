@@ -1620,3 +1620,42 @@ there.
 Fingerprinting all 80 rendered elements before any of this work and after all of
 it: one decorative element differs by a pixel. Modal mode verified end to end —
 launcher styled, dialog opens, widget mounts inside, close button present.
+
+## The widget typecheck error (2026-08-17)
+
+`npm run typecheck:widget` had reported one error since before this work began,
+recorded in ISOLATION.md as in-progress widget work:
+
+```
+MountWidget declares (target: string | Element)
+mount accepts    (target: string | HTMLElement)
+```
+
+### The type was the wrong half
+
+The obvious fix is to widen `mount`. That would have been wrong. `mount` renders
+HTML into a shadow root, and only HTML elements can host one — it genuinely
+cannot accept any `Element`. The declaration was a promise the implementation
+could not keep, and `strictFunctionTypes` was right to reject it.
+
+`MountWidget` now says `HTMLElement`, and `mountConfiguredElement` declines
+anything else by returning the `null` its signature had always allowed and
+nothing had ever reached. That null was a designed-for case left unwired.
+
+### It was hiding a real bug
+
+`[data-chime-widget]` can match an `<svg>` — an `Element` but not an
+`HTMLElement`. Before this, that element went to `mount`, which called
+`attachShadow` on it, which throws for SVG, and the fallback added during the
+Shadow DOM work would then have put a `<div>` inside the SVG. The widget would
+have rendered somewhere invisible.
+
+Verified on a page carrying both a normal `<div>` and an `<svg data-chime-widget>`:
+one widget mounts, the SVG is left untouched with no children added, and no page
+errors. Modal mode still opens correctly after the control-flow change.
+
+`autoMount` documents itself as returning "how many widgets were mounted". That
+was true only while nothing could decline. It now counts what actually mounted
+rather than what matched the selector.
+
+All four typechecks pass — admin, server, widget — with no errors.

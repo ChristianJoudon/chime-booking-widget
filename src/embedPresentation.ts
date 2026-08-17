@@ -6,7 +6,13 @@ interface MountHandle {
   unmount: () => void;
 }
 
-type MountWidget = (target: string | Element) => MountHandle;
+/**
+ * `mount` genuinely cannot take any `Element`: it renders HTML into a shadow
+ * root, and only HTML elements can host one. This type used to say `Element`,
+ * which was a promise the implementation could not keep and the reason
+ * `typecheck:widget` failed.
+ */
+type MountWidget = (target: string | HTMLElement) => MountHandle;
 
 /** Attaches a shadow root to an element and returns a container inside it. */
 type Isolate = (host: HTMLElement) => HTMLElement;
@@ -26,9 +32,13 @@ export function mountConfiguredElement(
   mount: MountWidget,
   isolate: Isolate,
 ): MountHandle | null {
-  if (!(element instanceof HTMLElement) || displayMode(element) === 'inline') {
-    return mount(element);
-  }
+  // An SVG or MathML node can match the mount selector, and cannot carry the
+  // widget — it has no dataset to read a display mode from, and cannot host a
+  // shadow root. Declining is better than mounting into something that cannot
+  // work. This signature has always allowed null; nothing reached it before.
+  if (!(element instanceof HTMLElement)) return null;
+
+  if (displayMode(element) === 'inline') return mount(element);
 
   const mode = displayMode(element);
   const label = element.dataset.chimeButtonLabel?.trim() || 'Book an appointment';

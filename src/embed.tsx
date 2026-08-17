@@ -64,11 +64,16 @@ export function autoMount(): number {
     '#chime-widget-root:not([data-chime-mounted]), [data-chime-widget]:not([data-chime-mounted])',
   );
 
+  // Counts what actually mounted rather than what matched. Those were the same
+  // number while mountConfiguredElement could not decline; it can now, for an
+  // element that cannot host the widget, and "returns how many widgets were
+  // mounted" should stay true.
+  let mounted = 0;
   targets.forEach((element) => {
-    mountConfiguredElement(element, mount, isolate);
+    if (mountConfiguredElement(element, mount, isolate)) mounted += 1;
   });
 
-  return targets.length;
+  return mounted;
 }
 
 window.ChimeWidget = { mount, autoMount };

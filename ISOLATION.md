@@ -113,17 +113,23 @@ Nothing else in widget territory was touched, and nothing outside this folder
 was touched — the other Chime checkouts on this machine are unaffected. The
 boundary above still stands for everything else.
 
-### Known widget issue, deliberately not fixed here
+### The widget typecheck error, fixed 2026-08-17
 
-`npm run typecheck:widget` reports one error:
+`npm run typecheck:widget` used to report one error: `MountWidget` declared
+`(target: string | Element)` while `mount` accepts `string | HTMLElement`.
 
-```
-src/embed.tsx(68,37): error TS2345: 'string | Element' is not assignable to 'string | HTMLElement'
-```
+The type was the wrong half. `mount` renders HTML into a shadow root and only
+HTML elements can host one, so it genuinely cannot take any `Element` — the
+declaration was a promise the implementation could not keep. `MountWidget` now
+says `HTMLElement`, and `mountConfiguredElement` declines anything else by
+returning the `null` its signature always allowed and nothing ever reached.
 
-`autoMount` calls `mountConfiguredElement`, whose `MountWidget` type accepts
-`Element`, while `mount` accepts `HTMLElement`. This is in-progress widget work.
-Resolving it is a widget decision, not a standalone one.
+That matters more than a clean typecheck. `[data-chime-widget]` can match an
+`<svg>`, which would previously have been passed to `mount`, thrown inside
+`attachShadow`, and fallen back to putting a `<div>` inside the SVG. It is now
+skipped, and `autoMount` counts what mounted rather than what matched.
+
+`npm run typecheck:widget` reports no errors.
 
 ### Host-page style leakage
 
