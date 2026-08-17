@@ -384,7 +384,6 @@ function AdminApp() {
           </span>
           <div>
             <img className="admin-brand__wordmark" src={chimeWordmarkLogo} alt="Chime" />
-            <small>business studio</small>
           </div>
         </button>
 

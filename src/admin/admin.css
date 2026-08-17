@@ -148,15 +148,6 @@ select:focus-visible,
   line-height: 1;
 }
 
-.admin-brand small {
-  color: rgba(255, 255, 255, 0.54);
-  display: block;
-  font-size: 0.8064rem;
-  letter-spacing: 0.14em;
-  margin-top: 4px;
-  text-transform: uppercase;
-}
-
 .admin-workspace-switcher {
   align-items: center;
   background: rgba(255, 255, 255, 0.08);
@@ -1548,8 +1539,29 @@ select:focus-visible,
   cursor: pointer;
 }
 
+/* The area header is one of `.admin-nav button`, whose three-column grid wins
+   over the `display: flex` below it on specificity. It has four children when
+   an area carries a count badge — icon, label, badge, chevron — so the chevron
+   wrapped onto a second row. Only Appointments showed it, because it is the
+   only area with a non-zero count.
+
+   A fourth track fixes both shapes: with no badge the last track has no items
+   and collapses to zero, leaving the chevron against the right edge. */
+.admin-nav button.admin-nav__area-header {
+  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+}
+
+/* Pinned to the last track so every chevron lines up down the list. Left to
+   auto-placement it lands in track three when an area has no badge, and the
+   empty fourth track still contributes its gap — putting those chevrons 11px
+   further from the edge than the one beside a badge. */
+.admin-nav__area-header > i {
+  grid-column: 4;
+}
+
 .admin-nav__area-header:hover {
-  background: var(--admin-canvas);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
 }
 
 .admin-nav__area-header:focus-visible {
@@ -1560,7 +1572,7 @@ select:focus-visible,
 /* The area holding the open screen stays visually anchored even when the
    highlight belongs to a child. */
 .admin-nav__area-header.holds-active {
-  color: var(--admin-forest);
+  color: #ffffff;
   font-weight: 640;
 }
 
@@ -1584,7 +1596,7 @@ select:focus-visible,
 
 .admin-nav__area-header > i {
   display: inline-flex;
-  color: var(--admin-ink-soft);
+  color: rgba(255, 255, 255, 0.5);
   transition: transform 140ms ease;
 }
 
@@ -1615,7 +1627,7 @@ select:focus-visible,
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--admin-ink-soft);
+  color: rgba(255, 255, 255, 0.72);
   font: inherit;
   font-size: 0.9146rem;
   text-align: left;
@@ -1623,8 +1635,8 @@ select:focus-visible,
 }
 
 .admin-nav__screens button:hover {
-  background: var(--admin-canvas);
-  color: var(--admin-ink);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
 }
 
 .admin-nav__screens button:focus-visible {
