@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type {
   AdminApiClient,
+  AdminDuplicateGroup,
+  AdminDuplicateMember,
   CustomerAppointment,
   CustomerChangeRequest,
   CustomerCommunication,
@@ -10,10 +12,12 @@ import type {
   CustomerProfileResponse,
   CustomerTag,
 } from './adminApi';
+import { useActionPreview } from './actionPreview';
 import './customerStudio.css';
 
 type CustomerStudioProps = {
   api: AdminApiClient;
+  onNotify: (message: string) => void;
 };
 
 type CustomerDraft = {
@@ -124,10 +128,12 @@ const changeEntry = (change: CustomerChangeRequest): TimelineEntry => ({
   status: change.status,
 });
 
-export function CustomerStudio({ api }: CustomerStudioProps) {
+export function CustomerStudio({ api, onNotify }: CustomerStudioProps) {
   const [customers, setCustomers] = useState<CustomerDirectoryEntry[]>([]);
   const [tags, setTags] = useState<CustomerTag[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [duplicates, setDuplicates] = useState<AdminDuplicateGroup[]>([]);
+  const { confirm: confirmAction, element: previewElement } = useActionPreview();
   const [profile, setProfile] = useState<CustomerProfileResponse | null>(null);
   const [draft, setDraft] = useState<CustomerDraft>(emptyDraft);
   const [search, setSearch] = useState('');
@@ -142,6 +148,58 @@ export function CustomerStudio({ api }: CustomerStudioProps) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const loadDuplicates = useCallback(async () => {
+    if (!api.configured) return;
+    try {
+      const { groups } = await api.getCustomerDuplicates();
+      setDuplicates(groups);
+    } catch {
+      // A failed duplicate scan must not take the directory down with it: the
+      // customer book is still usable without the suggestion.
+      setDuplicates([]);
+    }
+  }, [api]);
+
+  /** Merges `loser` into `keeper`, after showing what will move. */
+  const mergeInto = useCallback(async (
+    keeper: AdminDuplicateMember,
+    loser: AdminDuplicateMember,
+  ) => {
+    const preview = await confirmAction({
+      title: `Keep ${keeper.displayName.trim() || 'this profile'}`,
+      summary: `Everything belonging to ${loser.displayName.trim() || 'the other profile'} moves onto this one, and the other profile stops existing.`,
+      changes: [
+        {
+          label: 'Appointments on the kept profile',
+          before: String(keeper.appointmentCount),
+          after: String(keeper.appointmentCount + loser.appointmentCount),
+        },
+        { label: 'Profile removed', after: loser.displayName.trim() || loser.email || loser.id },
+      ],
+      notifies: null,
+      paymentEffect: null,
+      reversible: {
+        kind: 'permanent',
+        detail: 'No — the duplicate record cannot be brought back. Its history is preserved on the profile you keep.',
+      },
+      confirmLabel: 'Merge the profiles',
+      tone: 'caution',
+    });
+    if (!preview.confirmed) return;
+
+    try {
+      await api.mergeCustomer(keeper.id, loser.id);
+      onNotify(`Merged into ${keeper.displayName.trim() || 'the kept profile'}.`);
+      await loadDirectory(keeper.id);
+      await loadDuplicates();
+    } catch (mergeError) {
+      setError(mergeError instanceof Error ? mergeError.message : 'The profiles could not be merged.');
+    }
+    // loadDirectory is defined below; referencing it here is safe because this
+    // callback only runs from a click, long after both exist.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, confirmAction, loadDuplicates, onNotify]);
 
   const loadDirectory = useCallback(async (preferredId?: string) => {
     setLoading(true);
@@ -189,6 +247,13 @@ export function CustomerStudio({ api }: CustomerStudioProps) {
     if (selectedId) void loadProfile(selectedId);
     else setProfile(null);
   }, [loadProfile, selectedId]);
+
+  // Scanned once when the workspace opens, and again after a merge. It is a
+  // suggestion rather than something the directory depends on, so it does not
+  // participate in the search-debounced reload above.
+  useEffect(() => {
+    void loadDuplicates();
+  }, [loadDuplicates]);
 
   const totals = useMemo(() => ({
     all: customers.length,
@@ -316,6 +381,47 @@ export function CustomerStudio({ api }: CustomerStudioProps) {
       ) : null}
 
       {error ? <div className="customer-studio__error" role="alert">{error}</div> : null}
+
+      {duplicates.length ? (
+        <div className="customer-duplicates" role="status">
+          <strong>
+            {duplicates.length === 1
+              ? 'One person may have two profiles'
+              : `${duplicates.length} people may have more than one profile`}
+          </strong>
+          <p>
+            These records share an email address or phone number. Merging moves all
+            appointments, notes and tags onto the profile you keep, and takes the more
+            restrictive consent of the two.
+          </p>
+          {duplicates.map((group) => (
+            <div className="customer-duplicates__group" key={`${group.matchKind}:${group.matchValue}`}>
+              <span>Same {group.matchKind}: <code>{group.matchValue}</code></span>
+              <ul>
+                {group.members.map((member) => (
+                  <li key={member.id}>
+                    <span>
+                      <strong>{member.displayName.trim() || '(no name)'}</strong>
+                      <small>
+                        {member.appointmentCount} appointment{member.appointmentCount === 1 ? '' : 's'}
+                        {member.email ? ` · ${member.email}` : ''}
+                      </small>
+                    </span>
+                    {group.members.length === 2 ? (
+                      <button
+                        onClick={() => void mergeInto(member, group.members.find((other) => other.id !== member.id)!)}
+                        type="button"
+                      >
+                        Keep this one
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="customer-metrics" aria-label="Customer summary">
         <article><span>Directory</span><strong>{totals.all}</strong><small>customer profiles</small></article>
@@ -481,6 +587,7 @@ export function CustomerStudio({ api }: CustomerStudioProps) {
           ) : null}
         </section>
       </div>
+      {previewElement}
     </section>
   );
 }

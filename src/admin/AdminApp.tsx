@@ -471,7 +471,7 @@ function AdminApp() {
         ) : activeWorkspace === 'Availability' ? (
           <AvailabilityStudio api={adminApi} onNotify={setToast} />
         ) : activeWorkspace === 'Customers' ? (
-          <CustomerStudio api={adminApi} />
+          <CustomerStudio api={adminApi} onNotify={setToast} />
         ) : activeWorkspace === 'Payments' ? (
           <PaymentsStudio api={adminApi} onNotify={setToast} />
         ) : activeWorkspace === 'Insights' ? (

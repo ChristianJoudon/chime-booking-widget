@@ -389,6 +389,21 @@ export interface AdminTemplateTestResult {
   rendered: { subject: string | null; body: string; html: string | null };
 }
 
+export interface AdminDuplicateMember {
+  id: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  appointmentCount: number;
+  createdAt: string;
+}
+
+export interface AdminDuplicateGroup {
+  matchKind: 'email' | 'phone';
+  matchValue: string;
+  members: AdminDuplicateMember[];
+}
+
 export interface AdminNavigationCounts {
   pendingRequests: number;
   failedMessages: number;
@@ -722,6 +737,13 @@ export class AdminApiClient {
         Accept: 'application/json',
         Authorization: `Bearer ${this.token}`,
         'X-Request-Id': requestKey(),
+        // Defaulted here rather than left to each caller. Without it
+        // express.json does not parse the body, the server sees an empty
+        // request, and the failure surfaces as a 500 far from its cause.
+        // Six calls were missing it: creating a customer note, creating and
+        // updating a customer, creating a tag, assigning tags, and saving an
+        // availability schedule. A caller may still override it.
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
         ...options.headers,
       },
     });
@@ -956,6 +978,18 @@ export class AdminApiClient {
       `/communications/templates/${encodeURIComponent(templateKey)}/${encodeURIComponent(channel)}/test`,
       { method: 'POST', headers: { 'Idempotency-Key': requestKey() } },
     );
+  }
+
+  getCustomerDuplicates(): Promise<{ groups: AdminDuplicateGroup[] }> {
+    return this.request<{ groups: AdminDuplicateGroup[] }>('/customers/duplicates');
+  }
+
+  mergeCustomer(keepId: string, duplicateId: string): Promise<{ merged: Record<string, unknown> }> {
+    return this.request<{ merged: Record<string, unknown> }>(`/customers/${keepId}/merge`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': requestKey() },
+      body: JSON.stringify({ duplicateId }),
+    });
   }
 
   getNavigationCounts(): Promise<AdminNavigationCounts> {

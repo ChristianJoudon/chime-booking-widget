@@ -153,3 +153,77 @@
   .customer-timeline { margin-left: 11px; margin-right: 11px; }
   .customer-timeline article > em { display: none; }
 }
+
+/* Profiles that may be the same person. A suggestion, not an action taken. */
+.customer-duplicates {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1.05rem;
+  border-radius: 14px;
+  border: 1px solid var(--admin-yellow);
+  background: var(--admin-yellow-soft);
+}
+
+.customer-duplicates > strong { display: block; font-size: 0.92rem; }
+
+.customer-duplicates > p {
+  margin: 0.3rem 0 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--admin-ink-soft);
+}
+
+.customer-duplicates__group {
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: var(--admin-paper);
+  margin-bottom: 0.45rem;
+}
+
+.customer-duplicates__group > span {
+  font-size: 0.76rem;
+  color: var(--admin-ink-soft);
+}
+
+.customer-duplicates__group code {
+  padding: 0.05rem 0.3rem;
+  border-radius: 5px;
+  background: var(--admin-canvas);
+  font-size: 0.74rem;
+}
+
+.customer-duplicates__group ul {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.customer-duplicates__group li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--admin-line);
+}
+
+.customer-duplicates__group li > span { display: flex; flex-direction: column; min-width: 0; }
+.customer-duplicates__group li strong { font-size: 0.85rem; }
+.customer-duplicates__group li small { font-size: 0.74rem; color: var(--admin-ink-soft); }
+
+.customer-duplicates__group li button {
+  flex: none;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-forest);
+  background: var(--admin-paper);
+  color: var(--admin-forest);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.customer-duplicates__group li button:hover {
+  background: var(--admin-forest);
+  color: var(--admin-paper);
+}
