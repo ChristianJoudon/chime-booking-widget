@@ -10,6 +10,7 @@ import {
 } from './adminApi';
 import './teamStudio.css';
 import { describeMissingConnection } from './adminConnection';
+import type { Notify } from './undo';
 
 const DAYS = [
   ['monday', 'Mon'],
@@ -37,7 +38,7 @@ interface TeamSettings {
 
 interface TeamStudioProps {
   api: AdminApiClient;
-  onNotify: (message: string) => void;
+  onNotify: Notify;
 }
 
 function defaultHours(): Record<string, WorkingDay> {

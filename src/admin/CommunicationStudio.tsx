@@ -9,13 +9,14 @@ import {
   type AdminCommunicationsPayload,
 } from './adminApi';
 import { useActionPreview } from './actionPreview';
+import type { Notify } from './undo';
 import './communicationStudio.css';
 
 type CommunicationFilter = 'all' | 'ready' | 'failed' | 'sent' | 'suppressed';
 
 interface CommunicationStudioProps {
   api: AdminApiClient;
-  onNotify: (message: string) => void;
+  onNotify: Notify;
 }
 
 function MessageIcon({ children }: { children: ReactNode }) {
@@ -306,7 +307,11 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
       paymentEffect: null,
       reversible: live
         ? { kind: 'permanent', detail: 'No — a sent message cannot be recalled.' }
-        : { kind: 'undo', detail: 'Yes — sandbox deliveries are recorded only and can be retried.' },
+        // Was "can be retried", which is not true of a sandbox delivery: it
+        // finishes as sent, and Send again only appears on a message that
+        // failed or was stopped. Nothing needs undoing because nothing left
+        // Chime, which is the honest and more reassuring answer.
+        : { kind: 'undo', detail: 'Nothing to undo — sandbox deliveries are recorded and never reach a customer.' },
       confirmLabel: live ? `Send ${ready} message${ready === 1 ? '' : 's'}` : `Process ${ready} in sandbox`,
       tone: live ? 'caution' : 'normal',
     });
@@ -367,7 +372,16 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
     setError(null);
     try {
       await api.suppressCommunication(delivery.id, preview.reason ?? '');
-      onNotify('Message stopped. No provider will receive it.');
+      // "Send again" on the row is the same reversal; this reaches the
+      // administrator where they already are rather than making them find it.
+      onNotify('Message stopped. No provider will receive it.', {
+        label: 'Put it back',
+        confirmation: 'Message returned to the ready queue.',
+        run: async () => {
+          await api.retryCommunication(delivery.id);
+          await load();
+        },
+      });
       await load();
     } catch (suppressError) {
       setError(errorMessage(suppressError));

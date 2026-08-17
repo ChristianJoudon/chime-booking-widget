@@ -13,11 +13,12 @@ import type {
   CustomerTag,
 } from './adminApi';
 import { useActionPreview } from './actionPreview';
+import type { Notify } from './undo';
 import './customerStudio.css';
 
 type CustomerStudioProps = {
   api: AdminApiClient;
-  onNotify: (message: string) => void;
+  onNotify: Notify;
 };
 
 type CustomerDraft = {

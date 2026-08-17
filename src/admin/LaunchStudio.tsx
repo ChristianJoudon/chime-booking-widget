@@ -8,10 +8,11 @@ import type {
 } from './adminApi';
 import './launchStudio.css';
 import { useActionPreview } from './actionPreview';
+import type { Notify, UndoOffer } from './undo';
 
 interface LaunchStudioProps {
   api: AdminApiClient;
-  onNotify: (message: string) => void;
+  onNotify: Notify;
 }
 
 const MODES: Array<{ id: AdminLaunchDisplayMode; label: string; detail: string }> = [
@@ -109,18 +110,33 @@ export default function LaunchStudio({ api, onNotify }: LaunchStudioProps) {
       tone: turningOn ? 'caution' : 'normal',
     });
     if (!preview.confirmed) return;
-    await persist(next, message);
+
+    // Captured before the save, so the undo restores exactly what was there
+    // rather than inferring the opposite of what was just set.
+    const previous = payload?.settings;
+    await persist(next, message, previous && {
+      label: turningOn ? 'Pause it again' : 'Publish it again',
+      confirmation: turningOn
+        ? `The ${channel} is paused again. Customers cannot book through it.`
+        : `The ${channel} is live again.`,
+      // Calls the API directly rather than going back through persist, which
+      // would report its own message over the top of the confirmation.
+      run: async () => { applySettings(await api.saveLaunchSettings(previous)); },
+    });
   }
 
-  async function persist(next: AdminLaunchSettings, message: string) {
+  function applySettings(result: AdminLaunchPayload) {
+    setPayload(result);
+    setDraft(result.settings);
+    setSelectedMode(result.settings.displayMode);
+  }
+
+  async function persist(next: AdminLaunchSettings, message: string, undo?: UndoOffer) {
     setSaving(true);
     setError(null);
     try {
-      const result = await api.saveLaunchSettings(next);
-      setPayload(result);
-      setDraft(result.settings);
-      setSelectedMode(result.settings.displayMode);
-      onNotify(message);
+      applySettings(await api.saveLaunchSettings(next));
+      onNotify(message, undo);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Chime could not save launch settings.');
     } finally {

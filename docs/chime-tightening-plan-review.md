@@ -1083,3 +1083,77 @@ clipped.
 Worth noting because it is the predictable cost of this section — a fixed width
 chosen for a one-word label is a constraint on the vocabulary, and changing the
 words means checking the space they were given.
+
+## Undo and recovery paths, plan Phase 3 item 4 (2026-08-16)
+
+I reported earlier that no undo controls existed. That was wrong, and worth
+recording because of how it went wrong: I searched for `onUndo`, `restoreFrom`
+and `revertTo` — names from no particular codebase — got zero hits, and reported
+absence. The controls were there under the names this product actually uses:
+`withdrawChange`, `retryCommunication`, and the Launch toggle. Searching for a
+name you invented and finding nothing is not evidence.
+
+### What each reversibility claim is actually backed by
+
+| action | claim | control |
+|---|---|---|
+| Send an appointment change | withdrawable until the customer answers | "Withdraw request", with a server route |
+| Stop a message | can return to the queue | "Send again" on the row |
+| Publish or pause a channel | can be reversed at any time | the same toggle |
+| Collect a deposit | refundable afterwards | the refund form |
+| Publish availability | publish again after editing | the publish button |
+| Void, refund, merge | permanent | honest — nothing claimed |
+
+Ten of the eleven claims were already true. **One was not**: processing the queue
+in sandbox said deliveries "can be retried", but a sandbox delivery finishes as
+`sent`, and Send again only appears on a message that failed or was stopped. It
+now says nothing left Chime, which is both accurate and more reassuring than the
+retry it was offering.
+
+### The real gap was reach, not existence
+
+Every one of those controls lives on the object's own screen. Undoing meant
+knowing the control existed, remembering where it was, and getting back there —
+and for a change request, before the customer answers.
+
+The message reporting what just happened now carries the reversal. Three actions
+offer it: sending an appointment change offers **Withdraw it**, stopping a
+message offers **Put it back**, publishing or pausing a channel offers **Pause it
+again** / **Publish it again**.
+
+It is an accelerator, not the only path. Every on-screen control stays exactly
+where it was, so missing the message costs a few clicks rather than the option.
+
+Three details that matter more than they look:
+
+- The undo is built from the **server's response**, not from component state.
+  By the time anyone clicks, state has reloaded; the captured ids and version
+  are what the server just returned. A stale version means the record moved on
+  and the undo fails loudly, which is correct.
+- Launch captures the **previous settings before saving** rather than inferring
+  the opposite of what was set.
+- Messages carrying an undo stay **15 seconds** instead of 3.2, and the clock
+  does not start while an undo is running. Realising an action was wrong takes
+  longer than reading that it happened.
+
+### Verified end to end
+
+Drove a real change request through the studio: the message appeared with
+**Withdraw it**, and clicking it left `appointment_change_requests.status =
+'withdrawn'` with the appointment back to `confirmed` — confirmed in the
+database, not from the message text.
+
+Layout measured at 1280×800: the message is 560×51, centred, fully on screen,
+with the undo on one line, unclipped, and the dismiss control after it.
+
+An earlier measurement of this same element reported 24×138 at negative
+coordinates. That was the browser pane collapsed to a 0×0 viewport, not a CSS
+fault — worth writing down, because the numbers looked exactly like a real
+layout bug and would have sent me rewriting working CSS.
+
+### Still not offered
+
+Capture, availability publish, void, refund and merge get no one-click undo.
+Capture and publish are reversible but not in one step — a refund needs a reason
+under section 10, and republishing availability needs edits first. The other
+three are genuinely permanent and say so.

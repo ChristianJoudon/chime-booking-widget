@@ -10,11 +10,12 @@ import {
 import { describeMissingConnection } from './adminConnection';
 import { StudioStateNotice, type StudioStatus } from './studioState';
 import { useActionPreview, type ActionPreviewRequest } from './actionPreview';
+import type { Notify } from './undo';
 import './paymentsStudio.css';
 
 type PaymentsStudioProps = {
   api: AdminApiClient;
-  onNotify: (message: string) => void;
+  onNotify: Notify;
 };
 
 type PaymentFilter = 'all' | 'attention' | 'authorized' | 'collected' | 'refunded' | 'cancelled';

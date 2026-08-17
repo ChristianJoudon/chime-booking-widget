@@ -10,10 +10,11 @@ import {
 import './operationsStudio.css';
 import { useActionPreview } from './actionPreview';
 import { getAdminConnection, describeMissingConnection } from './adminConnection';
+import type { Notify, UndoOffer } from './undo';
 
 type OperationsStudioProps = {
   initialWorkspace?: 'schedule' | 'requests';
-  onNotify: (message: string) => void;
+  onNotify: Notify;
 };
 
 type StaffMember = {
@@ -379,12 +380,19 @@ export default function OperationsStudio({
   const activeStaffCount = payload.staff.filter((staff) => staff.isActive).length;
 
   const runMutation = useCallback(
-    async (operation: () => Promise<unknown>, successMessage: string) => {
+    async <T,>(
+      operation: () => Promise<T>,
+      successMessage: string,
+      // Built from the result rather than from component state, so the undo
+      // holds the ids and version the server just returned. State has already
+      // moved on by the time anyone clicks it.
+      buildUndo?: (result: T) => UndoOffer | undefined,
+    ) => {
       setSaving(true);
       setError(null);
       try {
-        await operation();
-        onNotify(successMessage);
+        const result = await operation();
+        onNotify(successMessage, buildUndo?.(result));
         await load();
       } catch (mutationError) {
         const message = mutationError instanceof Error
@@ -529,9 +537,10 @@ export default function OperationsStudio({
     if (!preview.confirmed) return;
     const submittedReason = preview.reason ?? changeReason;
 
+    const appointmentId = selected.id;
     void runMutation(
-      () => operationsRequest(
-        `/appointments/${selected.id}/change-requests`,
+      () => operationsRequest<{ appointment: Appointment }>(
+        `/appointments/${appointmentId}/change-requests`,
         {
           method: 'POST',
           headers: operationHeaders(selected.version),
@@ -545,6 +554,24 @@ export default function OperationsStudio({
         },
       ),
       'Change request sent. The original appointment remains in place until approval.',
+      // The preview promises this can be withdrawn until the customer answers.
+      // "Withdraw request" on the appointment keeps that promise; this saves
+      // finding it again in the seconds when it is most likely to be wanted.
+      (result) => {
+        const request = result.appointment.pendingChange;
+        if (!request) return undefined;
+        return {
+          label: 'Withdraw it',
+          confirmation: 'Change request withdrawn. The customer will not be asked.',
+          run: async () => {
+            await operationsRequest(
+              `/appointments/${appointmentId}/change-requests/${request.id}/withdraw`,
+              { method: 'POST', headers: operationHeaders(result.appointment.version) },
+            );
+            await load();
+          },
+        };
+      },
     );
     })();
   };

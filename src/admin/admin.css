@@ -1334,6 +1334,47 @@ select:focus-visible,
   padding: 4px;
 }
 
+/* A message carrying an undo holds a sentence and a named action, so it needs
+   more room than one that only reports something. */
+.admin-toast[data-undoable='yes'] {
+  max-width: min(560px, calc(100vw - 28px));
+}
+
+/* Reads as the offer it is, rather than as quiet as the dismiss control beside
+   it. Only this button takes the free space; the dismiss follows it. */
+.admin-toast__undo {
+  align-items: center;
+  background: rgba(145, 223, 191, 0.16);
+  border: 1px solid rgba(145, 223, 191, 0.42) !important;
+  border-radius: 999px;
+  color: #bff0d9 !important;
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-weight: 700;
+  gap: 5px;
+  padding: 5px 11px !important;
+  white-space: nowrap;
+}
+
+.admin-toast__undo + button {
+  margin-left: 0;
+}
+
+.admin-toast__undo:hover:not(:disabled) {
+  background: rgba(145, 223, 191, 0.28);
+}
+
+.admin-toast__undo:focus-visible {
+  outline: 2px solid #bff0d9;
+  outline-offset: 2px;
+}
+
+.admin-toast__undo:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
 .chime-admin-is-dragging,
 .chime-admin-is-dragging * {
   cursor: grabbing !important;

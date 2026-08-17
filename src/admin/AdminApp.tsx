@@ -28,6 +28,7 @@ import LaunchStudio from './LaunchStudio';
 import WorkspaceBadge from './WorkspaceBadge';
 import LoginScreen from './LoginScreen';
 import { clearSession, onSessionEnded, readSession } from './adminSession';
+import type { Notify, UndoOffer } from './undo';
 import chimeBellLogo from '@/assets/brand/chime-bell.png';
 import chimeWordmarkLogo from '@/assets/brand/chime-wordmark.png';
 import type { AdminServiceDefinition } from './serviceTypes';
@@ -181,13 +182,30 @@ function areaContaining(screen: Workspace): NavArea | undefined {
   return NAV_AREAS.find((area) => area.screens.includes(screen));
 }
 
+interface ToastState {
+  message: string;
+  undo?: UndoOffer;
+}
+
+/**
+ * How long a message stays on screen.
+ *
+ * A message that only reports something can go as soon as it has been read.
+ * One offering to undo has to outlast the pause between finishing an action and
+ * realising it was wrong, which is longer than reading takes. Fifteen seconds
+ * is short enough not to pile up and long enough to change your mind.
+ */
+const TOAST_MS = 3200;
+const TOAST_WITH_UNDO_MS = 15000;
+
 function AdminApp() {
   // sessionStorage is external to React, so the session is mirrored into state
   // and updated explicitly at sign-in, sign-out, and on a 401. Keying a useMemo
   // off a counter would work at runtime but reads as an unnecessary dependency,
   // because nothing in the memo body references it.
   const [session, setSession] = useState(() => readSession());
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [undoing, setUndoing] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('Schedule');
   // Exactly one area is open at a time, so at most five headers plus one area's
   // screens are visible — the plan's "no more than five primary choices".
@@ -230,11 +248,42 @@ function AdminApp() {
     return () => { cancelled = true; };
   }, [adminApi, activeWorkspace]);
 
+  const notify = useCallback<Notify>((message, undo) => {
+    setToast({ message, undo });
+  }, []);
+
   useEffect(() => {
     if (!toast) return;
-    const timeout = window.setTimeout(() => setToast(null), 3200);
+    // Do not start the clock while an undo is running: dismissing the message
+    // mid-reversal would leave the administrator with no idea whether it worked.
+    if (undoing) return;
+    const timeout = window.setTimeout(
+      () => setToast(null),
+      toast.undo ? TOAST_WITH_UNDO_MS : TOAST_MS,
+    );
     return () => window.clearTimeout(timeout);
-  }, [toast]);
+  }, [toast, undoing]);
+
+  const runUndo = useCallback(async (offer: UndoOffer) => {
+    setUndoing(true);
+    try {
+      await offer.run();
+      // Reported as an ordinary message, with no further undo. Undoing an undo
+      // is the original action again, and the control for that is on screen.
+      setToast({ message: offer.confirmation });
+    } catch (undoError) {
+      // The usual reason is that the record moved on — the customer answered,
+      // or another session changed it. Saying so is more useful than a generic
+      // failure, and the on-screen control is still there to try again.
+      setToast({
+        message: undoError instanceof Error
+          ? undoError.message
+          : 'That could not be undone.',
+      });
+    } finally {
+      setUndoing(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!adminApi.configured) return;
@@ -256,12 +305,12 @@ function AdminApp() {
         const message = error instanceof Error ? error.message : 'Could not load saved services.';
         setAdminServices([]);
         setAdminPersistence({ mode: 'error', label: 'Not connected' });
-        setToast(message);
+        notify(message);
       });
     return () => {
       cancelled = true;
     };
-  }, [adminApi]);
+  }, [adminApi, notify]);
 
   const signOut = useCallback(() => {
     clearSession();
@@ -274,7 +323,7 @@ function AdminApp() {
     if (!adminApi.configured) {
       // Saying "saved for this session" reads as success. Nothing is stored.
       setAdminPersistence({ mode: 'error', label: 'Not connected' });
-      setToast(
+      notify(
         describeMissingConnection()
           ?? `${service.name} was not saved: Chime is not connected.`,
       );
@@ -288,7 +337,7 @@ function AdminApp() {
         item.id === service.id ? saved : item,
       ));
       setAdminPersistence({ mode: 'connected', label: 'Saved to Chime' });
-      setToast(`${saved.name} was saved with version ${saved.version}.`);
+      notify(`${saved.name} was saved with version ${saved.version}.`);
       return saved;
     } catch (error) {
       // A version conflict is not an ordinary failure: nothing was overwritten,
@@ -306,10 +355,10 @@ function AdminApp() {
         ? error.message
         : 'The service could not be saved.';
       setAdminPersistence({ mode: 'error', label: 'Save needs attention' });
-      setToast(message);
+      notify(message);
       return service;
     }
-  }, [adminApi]);
+  }, [adminApi, notify]);
 
   // No session means no studio. Previously the shell rendered regardless and
   // each workspace failed on its own, which read as a broken product rather
@@ -431,10 +480,10 @@ function AdminApp() {
           {activeWorkspace === 'Schedule' || activeWorkspace === 'Requests' ? (
             <OperationsStudio
               initialWorkspace={activeWorkspace === 'Requests' ? 'requests' : 'schedule'}
-              onNotify={setToast}
+              onNotify={notify}
             />
           ) : activeWorkspace === 'Messages' ? (
-          <CommunicationStudio api={adminApi} onNotify={setToast} />
+          <CommunicationStudio api={adminApi} onNotify={notify} />
           ) : activeWorkspace === 'Services' ? (
           <>
           {conflict ? (
@@ -455,7 +504,7 @@ function AdminApp() {
                 ));
                 setConflict(null);
                 setAdminPersistence({ mode: 'connected', label: 'Saved to Chime' });
-                setToast('Loaded the version saved in the other session.');
+                notify('Loaded the version saved in the other session.');
               }}
               title={`${conflict.mine.name} changed in another session`}
             />
@@ -463,34 +512,45 @@ function AdminApp() {
           <ServiceStudio
             services={adminServices}
             onServicesChange={setAdminServices}
-            onNotify={setToast}
+            onNotify={notify}
             onSaveService={saveAdminService}
             persistence={adminPersistence}
           />
           </>
         ) : activeWorkspace === 'Availability' ? (
-          <AvailabilityStudio api={adminApi} onNotify={setToast} />
+          <AvailabilityStudio api={adminApi} onNotify={notify} />
         ) : activeWorkspace === 'Customers' ? (
-          <CustomerStudio api={adminApi} onNotify={setToast} />
+          <CustomerStudio api={adminApi} onNotify={notify} />
         ) : activeWorkspace === 'Payments' ? (
-          <PaymentsStudio api={adminApi} onNotify={setToast} />
+          <PaymentsStudio api={adminApi} onNotify={notify} />
         ) : activeWorkspace === 'Insights' ? (
           <InsightsStudio api={adminApi} />
         ) : activeWorkspace === 'Settings' ? (
-          <SettingsStudio api={adminApi} onNotify={setToast} />
+          <SettingsStudio api={adminApi} onNotify={notify} />
         ) : activeWorkspace === 'Launch' ? (
-          <LaunchStudio api={adminApi} onNotify={setToast} />
+          <LaunchStudio api={adminApi} onNotify={notify} />
         ) : activeWorkspace === 'Widget designer' ? (
-          <WidgetStudio api={adminApi} onNotify={setToast} />
+          <WidgetStudio api={adminApi} onNotify={notify} />
         ) : (
-          <TeamStudio api={adminApi} onNotify={setToast} />
+          <TeamStudio api={adminApi} onNotify={notify} />
         )}
       </main>
 
       {toast ? (
-        <div className="admin-toast" role="status">
+        <div className="admin-toast" data-undoable={toast.undo ? 'yes' : 'no'} role="status">
           <span><Icon name="sparkle" size={17} /></span>
-          {toast}
+          {toast.message}
+          {toast.undo ? (
+            <button
+              className="admin-toast__undo"
+              disabled={undoing}
+              onClick={() => { const offer = toast.undo; if (offer) void runUndo(offer); }}
+              type="button"
+            >
+              <Icon name="undo" size={14} />
+              {undoing ? 'Undoing...' : toast.undo.label}
+            </button>
+          ) : null}
           <button type="button" aria-label="Dismiss notification" onClick={() => setToast(null)}><Icon name="x" size={15} /></button>
         </div>
       ) : null}

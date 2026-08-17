@@ -8,8 +8,9 @@ import {
 } from './adminApi';
 import './settingsStudio.css';
 import { describeMissingConnection } from './adminConnection';
+import type { Notify } from './undo';
 
-type SettingsStudioProps = { api: AdminApiClient; onNotify: (message: string) => void };
+type SettingsStudioProps = { api: AdminApiClient; onNotify: Notify };
 type SettingsTab = 'business' | 'booking' | 'customers' | 'readiness';
 
 const TIME_ZONES = [

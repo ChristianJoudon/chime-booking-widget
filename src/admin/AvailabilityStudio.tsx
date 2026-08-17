@@ -16,10 +16,11 @@ import {
 } from './adminApi';
 import './availabilityStudio.css';
 import { useActionPreview } from './actionPreview';
+import type { Notify } from './undo';
 
 interface AvailabilityStudioProps {
   api: AdminApiClient;
-  onNotify: (message: string) => void;
+  onNotify: Notify;
 }
 
 interface DragState {

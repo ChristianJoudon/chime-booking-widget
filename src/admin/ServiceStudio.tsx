@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import type { DepositMode, StaffId } from '../../packages/contracts/src';
 import type { AdminPersistenceState } from './adminApi';
 import { ServiceLocationPicker, useServiceStudioDirectory } from './serviceStudioDirectory';
+import type { Notify } from './undo';
 import type {
   AdminServiceDefinition,
   ServiceGlyph,
@@ -12,7 +13,7 @@ import './serviceStudio.css';
 interface ServiceStudioProps {
   services: readonly AdminServiceDefinition[];
   onServicesChange: (services: AdminServiceDefinition[]) => void;
-  onNotify: (message: string) => void;
+  onNotify: Notify;
   onSaveService: (service: AdminServiceDefinition) => Promise<AdminServiceDefinition>;
   persistence: AdminPersistenceState;
 }
