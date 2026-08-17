@@ -566,7 +566,7 @@ this project.** Recorded in `ISOLATION.md`.
 - Session tokens are bearer credentials held by JavaScript, readable by an XSS
   bug. The httpOnly-cookie alternative needs CSRF protection and a same-site
   story for the embed.
-- Phase 2 sections 4, 5, most of 6, 7 and 8 are done. Sections 9-11 remain.
+- Phase 2 sections 4, 5, most of 6, 7, 8 and 9 are done. Sections 10-11 remain.
 
 ---
 
@@ -866,3 +866,61 @@ conflict by reference code and customer. A time **five minutes after that
 booking ends still conflicts**, because the service requires 5 minute buffers on
 each side — which is exactly the "buffers cannot be violated silently" criterion
 made visible. A clear time reports none.
+
+---
+
+## Customer relationships, plan section 9 (2026-08-16)
+
+| criterion | state |
+|---|---|
+| customers created by bookings appear automatically | already met — verified in Phase 0 via the widget projection |
+| duplicate profiles can be safely merged | done — detection, merge, and a studio banner |
+| communication consent is visible before outreach | already met — the profile carries all four consent fields |
+| sensitive notes are permission-controlled and audited | permission-controlled already; **auditing added** |
+| customer history links to appointments and payments | appointments already; **payments added** |
+
+### Duplicates and merge
+
+Migration 017 adds generated, indexed `normalized_email` and `normalized_phone`.
+Generated rather than maintained in application code, so they cannot drift from
+the values they normalize.
+
+Phone reduces to the **last ten digits**, so `+1 (808) 555-0123` and
+`808-555-0123` produce one key rather than differing by a country code. That is
+a deliberate tradeoff recorded in the migration: two international numbers could
+in principle share their last ten, which is acceptable because this only
+*suggests* a duplicate. Merging is always an explicit human decision.
+
+`chime_app.merge_customers()` moves every referencing row before deleting the
+duplicate. All **eleven** tables with a foreign key to customers are handled
+explicitly — relying on `ON DELETE CASCADE` would destroy the duplicate's notes,
+tags and action tokens rather than preserve them, which is the opposite of
+merging. Consent takes the **more restrictive** of the two records, since
+someone who opted out on one has not agreed on the other.
+
+Verified on a throwaway database that a duplicate carrying an appointment, a
+note, a tag and opposite consent merged leaving **zero orphaned references
+across all eleven tables**, and again end to end through the studio.
+
+### A pre-existing bug this uncovered
+
+`AdminApiClient.request` did not set `Content-Type`, leaving every caller to
+remember it. **Six did not**: creating a customer note, creating a customer,
+updating a customer, creating a tag, assigning tags, and saving an availability
+schedule. Without the header `express.json` never parses the body, the server
+sees an empty request, and it surfaces as a 500 far from the cause. Confirmed
+directly — the same note request returns **500 without the header and 201 with
+it**.
+
+Fixed centrally: `request` now defaults the header whenever a body is present.
+
+This only came to light because my own merge call had the identical flaw and I
+audited for others after fixing it. It is a good argument for defaults living in
+one place rather than being a convention each caller is trusted to follow.
+
+### Also worth noting
+
+A duplicate-scan effect was written and referenced but **never wired to run on
+mount**, so the banner never appeared on first load. The insertion script had
+reported a "fallback" path that silently matched nothing — a reminder that a
+script reporting success is not evidence the change landed.
