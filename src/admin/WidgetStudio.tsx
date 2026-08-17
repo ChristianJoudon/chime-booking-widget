@@ -198,9 +198,9 @@ export default function WidgetStudio({ api, onNotify }: WidgetStudioProps) {
     <section className="widget-studio">
       <header className="widget-studio__header">
         <div>
-          <p className="widget-studio__eyebrow">Widget designer</p>
-          <h1>Make booking feel like your business.</h1>
-          <p>Change the real customer widget by sight. The booking order and payment protections stay locked underneath.</p>
+          <p className="widget-studio__eyebrow">Booking widget</p>
+          <h1>Widget designer</h1>
+          <p>Make booking feel like your business. Change the real customer widget by sight — the booking order and payment protections stay locked underneath.</p>
         </div>
         <div className="widget-studio__header-actions">
           <span className={dirty ? 'is-dirty' : 'is-saved'}>{dirty ? 'Unsaved changes' : 'Saved'}</span>

@@ -289,7 +289,7 @@ export default function PaymentsStudio({ api, onNotify }: PaymentsStudioProps) {
     <section className="payments-studio" aria-labelledby="payments-title">
       <header className="payments-header">
         <div>
-          <p>Customer deposits</p>
+          <p>Money</p>
           <h1 id="payments-title">Payments</h1>
           <span>Know what was authorized, collected, returned, or needs attention.</span>
         </div>
@@ -400,7 +400,7 @@ export default function PaymentsStudio({ api, onNotify }: PaymentsStudioProps) {
                     <button type="button" onClick={() => void act('capture')} disabled={!payload.runtime.actionsEnabled || busyAction !== null}>
                       {busyAction === 'capture' ? 'Collecting...' : 'Collect deposit'}
                     </button>
-                    <button className="is-secondary" type="button" onClick={() => void act('void')} disabled={!payload.runtime.actionsEnabled || busyAction !== null}>Void</button>
+                    <button className="is-secondary" type="button" onClick={() => void act('void')} disabled={!payload.runtime.actionsEnabled || busyAction !== null}>Release the hold</button>
                   </div>
                 ) : null}
                 {['succeeded', 'partially_refunded'].includes(selected.status) && selected.capturedAmountMinor > selected.refundedAmountMinor ? (

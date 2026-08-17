@@ -172,9 +172,9 @@ export default function LaunchStudio({ api, onNotify }: LaunchStudioProps) {
     <section className="launch-studio">
       <header className="launch-header">
         <div>
-          <p className="launch-eyebrow">Portable booking</p>
-          <h1>Launch Chime anywhere</h1>
-          <p>Share one booking link or place the widget on any small-business website without rewriting Chime.</p>
+          <p className="launch-eyebrow">Booking widget</p>
+          <h1>Launch</h1>
+          <p>Launch Chime anywhere. Share one booking link or place the widget on any small-business website without rewriting Chime.</p>
         </div>
         <div className="launch-header__actions">
           <span className="launch-state" data-state={live ? 'live' : payload.readiness.ready ? 'ready' : 'setup'}>

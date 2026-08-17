@@ -222,8 +222,8 @@ function ServiceStudio({
     <section className="service-studio">
       <header className="admin-topbar service-studio__topbar">
         <div className="admin-topbar__title">
-          <p>No-code setup</p>
-          <h1>Services studio</h1>
+          <p>Business setup</p>
+          <h1>Services</h1>
         </div>
         <div className="service-studio__top-actions">
           <span className="service-studio__saved" data-mode={persistence.mode} aria-live="polite"><i /><span>{persistence.label}</span></span>

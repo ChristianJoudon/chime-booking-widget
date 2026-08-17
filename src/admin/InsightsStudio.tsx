@@ -102,7 +102,7 @@ export default function InsightsStudio({ api }: InsightsStudioProps) {
     <section className="insights-studio" aria-labelledby="insights-title">
       <header className="insights-header">
         <div>
-          <p>Business pulse</p>
+          <p>Money</p>
           <h1 id="insights-title">Insights</h1>
           <span>See how appointments, customers, and deposits are moving together.</span>
         </div>

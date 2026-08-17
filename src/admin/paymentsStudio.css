@@ -267,7 +267,11 @@
 .payments-actions h3,
 .payments-history h3 { font-size: .76rem; margin: 0; }
 .payments-actions p { color: #85928e; font-size: .61rem; line-height: 1.4; margin: 4px 0 12px; }
-.payments-action-row { display: grid; gap: 7px; grid-template-columns: 1fr 85px; }
+/* One action per line. The second column used to be a fixed 85px, which fit
+   the word "Void" and nothing else — "Release the hold" broke across two lines
+   inside a 38px button. This panel is only ~286px wide, so stacking is the
+   only way a phrase-length label stays on one line. */
+.payments-action-row { display: grid; gap: 7px; grid-template-columns: 1fr; }
 .payments-actions button {
   background: #214f44;
   border: 1px solid #214f44;
@@ -279,6 +283,9 @@
   font-weight: 760;
   min-height: 38px;
   padding: 0 12px;
+  /* A label naming an outcome is a phrase, not a word. Breaking it mid-phrase
+     is worse than a wider button. */
+  white-space: nowrap;
 }
 .payments-actions button.is-secondary,
 .payments-actions button.payments-sync { background: transparent; border-color: rgba(30, 77, 66, .18); color: #42675d; }

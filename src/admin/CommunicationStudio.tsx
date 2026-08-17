@@ -38,12 +38,20 @@ function friendlyTime(value: string | null): string {
   }).format(date);
 }
 
+const FILTER_LABELS: Record<CommunicationFilter, string> = {
+  all: 'All',
+  ready: 'Ready',
+  failed: 'Attention',
+  sent: 'Sent',
+  suppressed: 'Stopped',
+};
+
 function statusLabel(status: AdminCommunicationDelivery['status']): string {
   if (status === 'pending') return 'Ready';
   if (status === 'processing') return 'Sending';
   if (status === 'sent' || status === 'delivered') return 'Sent';
   if (status === 'failed') return 'Needs attention';
-  return 'Suppressed';
+  return 'Stopped';
 }
 
 function templatePreview(value: string | null): string {
@@ -340,18 +348,18 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
       title: 'Stop this message being sent',
       summary: `${delivery.recipient} will not receive the ${delivery.templateKey.replaceAll('_', ' ')} message.`,
       changes: [
-        { label: 'Delivery status', before: delivery.status, after: 'Suppressed' },
+        { label: 'Delivery status', before: statusLabel(delivery.status), after: 'Stopped' },
         { label: 'Recipient', after: delivery.recipient },
       ],
       notifies: null,
       paymentEffect: null,
       reversible: {
         kind: 'undo',
-        detail: 'Yes — a suppressed message can be returned to the queue with Retry.',
+        detail: 'Yes — a stopped message can be returned to the queue with Send again.',
       },
-      confirmLabel: 'Suppress this message',
+      confirmLabel: 'Stop this message',
       tone: 'caution',
-      reasonPrompt: 'Why is this being suppressed? Recorded with your name and the time.',
+      reasonPrompt: 'Why is this being stopped? Recorded with your name and the time.',
     });
     if (!preview.confirmed) return;
 
@@ -359,7 +367,7 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
     setError(null);
     try {
       await api.suppressCommunication(delivery.id, preview.reason ?? '');
-      onNotify('Message suppressed. No provider will receive it.');
+      onNotify('Message stopped. No provider will receive it.');
       await load();
     } catch (suppressError) {
       setError(errorMessage(suppressError));
@@ -425,9 +433,9 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
     <section className="communication-studio">
       <header className="communication-hero">
         <div>
-          <p>Customer communications</p>
-          <h1>Every message, visible and under control.</h1>
-          <span>Review what is ready, retry what failed, and shape the language customers receive without touching code.</span>
+          <p>Customers</p>
+          <h1>Messages</h1>
+          <span>Every message, visible and under control. Review what is ready, send again what failed, and shape the language customers receive without touching code.</span>
         </div>
         <div className="communication-hero__actions">
           <span className={`communication-mode is-${payload?.runtime.mode ?? 'sandbox'}`}>
@@ -511,7 +519,7 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
           <div className="communication-filters" aria-label="Message filters">
             {(['all', 'ready', 'failed', 'sent', 'suppressed'] as const).map((item) => (
               <button className={filter === item ? 'is-active' : ''} type="button" key={item} onClick={() => setFilter(item)}>
-                {item === 'all' ? 'All' : item === 'failed' ? 'Attention' : item[0].toUpperCase() + item.slice(1)}
+                {FILTER_LABELS[item]}
               </button>
             ))}
           </div>
@@ -538,10 +546,10 @@ export default function CommunicationStudio({ api, onNotify }: CommunicationStud
                 </div>
                 <div className="communication-row__actions">
                   {(delivery.status === 'failed' || delivery.status === 'suppressed') ? (
-                    <button type="button" onClick={() => void retry(delivery)} disabled={working === delivery.id}>Retry</button>
+                    <button type="button" onClick={() => void retry(delivery)} disabled={working === delivery.id}>Send again</button>
                   ) : null}
                   {(delivery.status === 'pending' || delivery.status === 'failed') ? (
-                    <button className="is-quiet" type="button" onClick={() => void suppress(delivery)} disabled={working === delivery.id}>Suppress</button>
+                    <button className="is-quiet" type="button" onClick={() => void suppress(delivery)} disabled={working === delivery.id}>Stop this message</button>
                   ) : null}
                 </div>
               </article>

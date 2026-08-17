@@ -357,9 +357,11 @@ export function CustomerStudio({ api, onNotify }: CustomerStudioProps) {
     <section className="customer-studio" aria-labelledby="customer-studio-title">
       <header className="customer-studio__header">
         <div>
-          <p>Customer relationships</p>
-          <h1 id="customer-studio-title">Know the person, not just the appointment.</h1>
-          <span>Keep preferences, context, visits, and conversations together so every interaction feels familiar.</span>
+          {/* No kicker above the title here: this screen and the navigation
+              area it lives in are both called Customers, and repeating it
+              reads as a mistake rather than as a location. */}
+          <h1 id="customer-studio-title">Customers</h1>
+          <span>Know the person, not just the appointment. Preferences, visits, and conversations stay together so every interaction feels familiar.</span>
         </div>
         <button className="customer-primary-action" type="button" onClick={() => setShowNewCustomer((visible) => !visible)}>
           <Icon><path d="M12 5v14M5 12h14" /></Icon>
@@ -522,7 +524,7 @@ export function CustomerStudio({ api, onNotify }: CustomerStudioProps) {
                     <label><input checked={draft.smsNotificationsEnabled} type="checkbox" onChange={(event) => setDraft((current) => ({ ...current, smsNotificationsEnabled: event.target.checked }))} /><span><i />Text appointment updates</span></label>
                     <label><input checked={draft.marketingConsent} type="checkbox" onChange={(event) => setDraft((current) => ({ ...current, marketingConsent: event.target.checked }))} /><span><i />Marketing permission</span></label>
                   </div>
-                  <small className="customer-preference-note">Turning off appointment updates suppresses queued messages for that channel. Blocking or archiving pauses both.</small>
+                  <small className="customer-preference-note">Turning off appointment updates stops queued messages for that channel. Blocking or archiving pauses both.</small>
                 </section>
 
                 <section className="customer-panel customer-panel--visits">
@@ -552,7 +554,7 @@ export function CustomerStudio({ api, onNotify }: CustomerStudioProps) {
                   <div className="customer-new-tag">
                     <input aria-label="New tag color" type="color" value={newTagColor} onChange={(event) => setNewTagColor(event.target.value)} />
                     <input aria-label="New tag name" placeholder="Create a tag" value={newTagName} onChange={(event) => setNewTagName(event.target.value)} />
-                    <button disabled={!newTagName.trim() || saving} type="button" onClick={() => void createTag()}>Add</button>
+                    <button disabled={!newTagName.trim() || saving} type="button" onClick={() => void createTag()}>Add tag</button>
                   </div>
                 </section>
 

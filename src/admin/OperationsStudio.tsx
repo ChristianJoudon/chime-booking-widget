@@ -621,7 +621,9 @@ export default function OperationsStudio({
     <section className="operations-studio">
       <header className="operations-header">
         <div>
-          <span className="operations-eyebrow">Live operations</span>
+          {/* No kicker above the title: this screen and its navigation area
+              are both called Appointments, and repeating it reads as a
+              mistake rather than as a location. */}
           <h1>Appointments</h1>
           <p>Move, resize, approve, and follow every customer request from one place.</p>
         </div>

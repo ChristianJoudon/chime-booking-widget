@@ -386,9 +386,9 @@ function AvailabilityStudio({ api, onNotify }: AvailabilityStudioProps) {
     <section className="availability-studio" aria-labelledby="availability-title">
       <header className="availability-studio__header">
         <div>
-          <p>Availability designer</p>
-          <h1 id="availability-title">Shape the week by sight.</h1>
-          <span>Drag shifts, pull their edges, split in a break, and preview the exact customer calendar before anything goes live.</span>
+          <p>Business setup</p>
+          <h1 id="availability-title">Availability</h1>
+          <span>Shape the week by sight. Drag shifts, pull their edges, split in a break, and preview the exact customer calendar before anything goes live.</span>
         </div>
         <div className="availability-studio__actions">
           <span data-state={state}><i />{state === 'loading' ? 'Calculating' : state === 'saving' ? 'Saving' : state === 'publishing' ? 'Publishing' : state === 'error' ? 'Needs attention' : dirty ? 'Unsaved changes' : 'Saved'}</span>

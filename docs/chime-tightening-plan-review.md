@@ -1004,3 +1004,82 @@ constraints, and zero errors**.
 
 This is the failure mode the migration ledger exists to catch and did not: the
 runner tracks what has been applied, not what a new machine would get.
+
+## Literal language, plan section 11 (2026-08-16)
+
+The plan asks for direct primary headings, with the warmer brand language kept
+as supporting copy underneath. It names eleven: Appointments, Requests,
+Messages, Services, Team, Availability, Customers, Payments, Insights, Widget
+Designer, Launch.
+
+The sidebar was already literal. The page headings were not.
+
+| screen | heading before | heading now |
+|---|---|---|
+| Customers | Know the person, not just the appointment. | Customers |
+| Messages | Every message, visible and under control. | Messages |
+| Availability | Shape the week by sight. | Availability |
+| Widget designer | Make booking feel like your business. | Widget designer |
+| Launch | Launch Chime anywhere | Launch |
+| Services | Services studio | Services |
+| Team | Team studio | Team |
+
+Nothing was deleted. Every stylized headline moved down one level and now opens
+the sentence beneath the title — "Availability / Shape the week by sight. Drag
+shifts, pull their edges…". The warmth survives; it just stops being the only
+thing a first-time user has to work from.
+
+Verified in the running studio rather than by reading source: all eleven
+headings render as the plan's words, and each matches the sidebar entry that
+leads to it.
+
+### The kicker above each title now says where you are
+
+It used to be decoration — "No-code setup", "Business pulse", "Portable
+booking", "Customer deposits". It now names the navigation area the screen
+lives in, so the header reads as a location: **Business setup / Services**,
+**Money / Payments**, **Booking widget / Launch**.
+
+Two screens dropped it entirely. Appointments and Customers are both the area
+*and* the screen, and printing the same word twice reads as a bug rather than
+as a breadcrumb.
+
+### Buttons that named a mechanism now name an outcome
+
+| before | now | why |
+|---|---|---|
+| Suppress | Stop this message | "Suppress" is a delivery-system word |
+| Retry | Send again | says what the customer receives |
+| Void | Release the hold | says what happens to the card |
+| Add | Add tag | "Add" alone did not say what |
+
+The delivery status filter read **Suppressed**; it now reads **Stopped**. The
+filter keys are still the statuses the database stores — only the labels
+changed, and they are now written out explicitly rather than derived by
+capitalising the status value, which is what put database vocabulary on screen
+in the first place.
+
+The confirmation dialog was already literal — "Stop this message being sent" —
+so the old **Suppress** button disagreed with its own dialog. It also described
+the undo path as "with Retry", naming a button that no longer exists under that
+name. Both now match.
+
+One more inconsistency fixed while checking this: the dialog showed the raw
+status, so it read "failed → Suppressed" while the row beside it said "Needs
+attention". It now reads **Needs attention → Stopped**.
+
+### A layout bug this caused
+
+`.payments-action-row` was `grid-template-columns: 1fr 85px`. Eighty-five pixels
+fit the word "Void" and nothing longer, so "Release the hold" broke across two
+lines inside a 38px-tall button. The panel is only ~286px wide, so no phrase
+would have fit beside the primary action.
+
+The row now stacks, giving each action the full width, and the buttons carry
+`white-space: nowrap` so a label naming an outcome can never break mid-phrase.
+Measured in the browser afterwards: both buttons 286px, one line each, nothing
+clipped.
+
+Worth noting because it is the predictable cost of this section — a fixed width
+chosen for a one-word label is a constraint on the vocabulary, and changing the
+words means checking the space they were given.

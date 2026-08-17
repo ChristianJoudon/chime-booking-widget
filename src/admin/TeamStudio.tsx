@@ -280,8 +280,8 @@ function TeamStudio({ api, onNotify }: TeamStudioProps) {
     <section className="team-studio" aria-label="Team studio">
       <header className="team-studio__topbar">
         <div>
-          <p>People & availability</p>
-          <h1>Team studio</h1>
+          <p>Business setup</p>
+          <h1>Team</h1>
           <span>Set who can be booked, where they work, and when they are available.</span>
         </div>
         <div className="team-studio__actions">
