@@ -111,3 +111,31 @@ src/embed.tsx(59,37): error TS2345: 'string | Element' is not assignable to 'str
 `autoMount` calls `mountConfiguredElement`, whose `MountWidget` type accepts
 `Element`, while `mount` accepts `HTMLElement`. This is in-progress widget work.
 Resolving it is a widget decision, not a standalone one.
+
+### Host-page style leakage, found from the standalone side
+
+`npm run test:embed-host-styles` renders the built widget under stylesheets real
+small-business sites carry, and compares its layout against a neutral page. It
+only reads `dist-embed/`, so it stays inside standalone territory.
+
+Five of eight host conditions change the widget's layout:
+
+| host does this | effect on the widget |
+|---|---|
+| `* { box-sizing: content-box !important }` | every box grows; widget 850px → 933px tall |
+| `* { margin: 0 !important; padding: 0 !important }` | spacing collapses; 850px → 546px |
+| `html { font-size: 32px }` | everything sized in `rem` doubles; 850px → 1454px |
+| `!important` font on `div, button, input…` | Manrope → the host's font, 16px → 22px |
+| `* { line-height: 3 !important }` | 850px → 1283px |
+
+Right-to-left hosts and responsive-image rules are fine, and the widget leaks
+**nothing** outward — the host page is byte-identical with and without it, so
+the `.chime-widget` scoping works in that direction.
+
+Fixing this is widget work and is not done here. For whoever picks it up: a
+defensive stylesheet setting `box-sizing`, `line-height` and `font-family` with
+`!important` under `.chime-widget` clears the first and last rows, and was
+measured doing so. It does not clear the others — a host's `* { margin: 0
+!important }` cannot be answered without enumerating every element, and internal
+`rem` sizing follows the host's root regardless. The durable fix is Shadow DOM,
+where host CSS cannot cross the boundary at all.

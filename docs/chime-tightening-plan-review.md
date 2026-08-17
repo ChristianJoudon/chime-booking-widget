@@ -1361,3 +1361,65 @@ through the API and would have gone permanently unexercised.
 Verified on a throwaway container built from the compose mounts alone: 26
 mounts, zero init errors, and an admin edit reaching `public.chime_services`
 immediately.
+
+## Embed against host-site styles, plan Phase 5 item 5 (2026-08-16)
+
+The last item, and the one that sits closest to the line you drew: the embed is
+widget territory (ISOLATION.md), so this **verifies** without changing it.
+
+`npm run test:embed-host-styles` reads `dist-embed/`, serves synthesised host
+pages, and never runs `npm run build:embed` — which would empty `dist-embed/`,
+as it did once earlier in this work.
+
+Method: render the widget on a neutral page and record a layout fingerprint —
+box sizes plus the computed styles that reveal inherited CSS — then render it
+again under each hostile stylesheet and compare. The host page's own elements
+are fingerprinted the same way against a copy of the page with no widget on it,
+so leakage is measured in both directions.
+
+The eight host conditions are things real sites do for their own reasons, not
+contrived attacks: a global `box-sizing`, an aggressive reset, a 32px root font,
+a forced font family, full-width form controls, a generous line height, the
+near-universal responsive-image rule, and a right-to-left page.
+
+### Outward: clean
+
+The host page is identical with and without the widget. `.chime-widget`
+scoping holds, and nothing escapes. Worth stating plainly, because it is the
+half that would be harder to fix.
+
+### Inward: five of eight conditions change the widget
+
+| host does this | effect |
+|---|---|
+| `* { box-sizing: content-box !important }` | 850px → 933px tall |
+| `* { margin: 0 !important; padding: 0 !important }` | 850px → 546px |
+| `html { font-size: 32px }` | 850px → 1454px |
+| `!important` font on `div, button, input…` | Manrope → Georgia, 16px → 22px |
+| `* { line-height: 3 !important }` | 850px → 1283px |
+
+Right-to-left and responsive-image rules are fine.
+
+### One finding that was mine, not the widget's
+
+The first run also failed the right-to-left host, on the grounds that
+`direction` changed from `ltr` to `rtl`. That is the page working correctly — a
+widget on an Arabic or Hebrew site *should* inherit right-to-left. Its geometry
+was unchanged. The check now compares layout and ignores `direction`, and the
+condition passes.
+
+### What would fix it, measured rather than asserted
+
+Rather than recommend from theory, I measured: a defensive stylesheet setting
+`box-sizing`, `line-height` and `font-family` with `!important` under
+`.chime-widget` clears **two** of the five — `content-box` and
+`tall-line-height` — and leaves three.
+
+It cannot clear the rest. A host's `* { margin: 0 !important }` cannot be
+answered without enumerating every element the widget renders, and internal
+`rem` sizing follows the host's root font whatever the widget declares. The
+durable fix is Shadow DOM, where host CSS cannot cross the boundary at all.
+
+All of that is widget work. It is recorded in ISOLATION.md beside the existing
+known widget issue, and nothing in `dist-embed/` or the widget source was
+touched — confirmed against the file list in that document.
