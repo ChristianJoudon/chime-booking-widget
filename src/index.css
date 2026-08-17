@@ -49,7 +49,7 @@
   font: 750 15px/1.2 'Manrope', 'Avenir Next', sans-serif;
   justify-content: center;
   min-height: 48px;
-  padding: 0 20px;
+  padding: 0 20px !important;
 }
 
 .chime-embed-launcher--floating_button {
@@ -66,7 +66,7 @@
   max-height: none;
   max-width: none;
   overflow: visible;
-  padding: 0;
+  padding: 0 !important;
   width: min(720px, calc(100vw - 32px));
 }
 
@@ -99,7 +99,7 @@
   display: flex;
   height: 42px;
   justify-content: flex-start;
-  padding: 5px 9px;
+  padding: 5px 9px !important;
   width: clamp(112px, 17vw, 150px);
 }
 
@@ -116,11 +116,28 @@
   border-radius: 0;
   box-shadow: none;
   flex: 0 0 42px;
-  padding: 0;
+  padding: 0 !important;
   width: 42px;
 }
 
 .chime-widget .chime-logo--icon img { object-position: center; }
+
+/* The same floor idea as the font-size one below: a host setting
+   `line-height: 3` on everything stretched the widget to 1283px. Descendants
+   take their line-height from their own parent, chaining back to the widget,
+   and the widget's own thirteen declarations override this because they come
+   later in the file. */
+.chime-widget {
+  /* The root of that chain. A host's `*` selector matches .chime-widget too, so
+     without this the widget itself took the host's line-height and every
+     descendant dutifully inherited it. `normal` is what the widget computed
+     before any of this was added. */
+  line-height: normal !important;
+}
+
+.chime-widget * {
+  line-height: inherit !important;
+}
 
 /* A floor, not a rule: every descendant takes its size from its own parent,
    which chains back to the base on .chime-widget. Without it a host rule on
@@ -144,7 +161,7 @@
   gap: 7px;
   justify-content: center;
   letter-spacing: 0.02em;
-  padding: 0 20px 28px;
+  padding: 0 20px 28px !important;
 }
 
 .chime-powered-by img {
@@ -179,7 +196,7 @@
    win by source order, and single-class rules are never accidentally beaten.
    It must stay ahead of every component rule in source order. */
 .chime-widget :where(h1, h2, h3, h4, h5, h6, p, dl, dd, figure, blockquote, fieldset) {
-  margin: 0;
+  margin: 0 !important;
 }
 
 /* Inward defense: neutralize decorative host styles on text elements. */
@@ -193,8 +210,8 @@
 
 .chime-widget :where(ol, ul) {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .chime-widget :where(button) {
@@ -202,7 +219,7 @@
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  padding: 0;
+  padding: 0 !important;
   color: inherit;
   font: inherit;
   letter-spacing: normal;
@@ -223,11 +240,15 @@
   max-width: 100%;
 }
 
+/* The !important here is what stops a host declaring `content-box` globally
+   from growing every padded element — it took the widget from 850px tall to
+   933px. The rule itself was already correct and already covered the
+   pseudo-elements; it just was not authoritative. */
 .chime-widget,
 .chime-widget *,
 .chime-widget *::before,
 .chime-widget *::after {
-  box-sizing: border-box;
+  box-sizing: border-box !important;
 }
 
 /* Scoped replacements for the two Tailwind utilities still referenced in
@@ -390,9 +411,9 @@
   align-items: center;
   display: flex;
   gap: 12px;
-  margin: 0 auto;
+  margin: 0 auto !important;
   max-width: 1180px;
-  padding: calc(15px + env(safe-area-inset-top, 0px)) 20px 15px;
+  padding: calc(15px + env(safe-area-inset-top, 0px)) 20px 15px !important;
 }
 
 .chime-header__text {
@@ -426,7 +447,7 @@
   font-size: calc(0.72 * var(--chime-root)) !important;
   font-weight: 800;
   letter-spacing: 0.12em;
-  margin: 0 0 calc(0.18 * var(--chime-root));
+  margin: 0 0 calc(0.18 * var(--chime-root)) !important;
   text-transform: uppercase;
 }
 
@@ -435,18 +456,18 @@
   font-size: clamp(calc(1.08 * var(--chime-root)), 2vw, calc(1.34 * var(--chime-root))) !important;
   font-weight: 800;
   letter-spacing: -0.03em;
-  line-height: 1;
-  margin: 0;
+  line-height: 1 !important;
+  margin: 0 !important;
 }
 
 .chime-main {
-  padding: 26px 0 64px;
+  padding: 26px 0 64px !important;
 }
 
 .chime-main__inner {
-  margin: 0 auto;
+  margin: 0 auto !important;
   max-width: 1180px;
-  padding: 0 20px;
+  padding: 0 20px !important;
   width: 100%;
 }
 
@@ -482,7 +503,7 @@
   display: grid;
   gap: 10px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0 auto 22px;
+  margin: 0 auto 22px !important;
 }
 
 .chime-progress__item {
@@ -496,7 +517,7 @@
   gap: 12px;
   min-height: 76px;
   overflow: hidden;
-  padding: 14px;
+  padding: 14px !important;
   position: relative;
 }
 
@@ -531,7 +552,7 @@
   font-size: calc(0.7 * var(--chime-root)) !important;
   font-weight: 800;
   letter-spacing: 0.1em;
-  margin: 0;
+  margin: 0 !important;
   text-transform: uppercase;
 }
 
@@ -539,7 +560,7 @@
   color: var(--ink);
   font-size: calc(1 * var(--chime-root)) !important;
   font-weight: 800;
-  margin: 0;
+  margin: 0 !important;
 }
 
 .chime-progress__line {
@@ -552,16 +573,16 @@
 }
 
 .chime-stage {
-  margin: 0 auto;
+  margin: 0 auto !important;
   overflow: hidden;
-  padding: clamp(20px, 3vw, 34px);
+  padding: clamp(20px, 3vw, 34px) !important;
 }
 
 .chime-stage__header {
   display: flex;
   gap: 18px;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 24px !important;
   position: relative;
   z-index: 1;
 }
@@ -575,8 +596,8 @@
   font-size: clamp(calc(1.8 * var(--chime-root)), 4vw, calc(3 * var(--chime-root))) !important;
   font-weight: 800;
   letter-spacing: -0.06em;
-  line-height: 0.96;
-  margin: 0 0 calc(0.55 * var(--chime-root));
+  line-height: 0.96 !important;
+  margin: 0 0 calc(0.55 * var(--chime-root)) !important;
 }
 
 .chime-stage__header p,
@@ -588,8 +609,8 @@
 .confirmation-page__header p {
   color: var(--ink-soft);
   font-size: calc(1 * var(--chime-root)) !important;
-  line-height: 1.6;
-  margin: 0;
+  line-height: 1.6 !important;
+  margin: 0 !important;
   max-width: 680px;
 }
 
@@ -605,7 +626,7 @@
   font-weight: 800;
   justify-content: center;
   min-height: 52px;
-  padding: 0 24px;
+  padding: 0 24px !important;
   position: relative;
   transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, opacity 180ms ease;
   user-select: none;
@@ -635,7 +656,7 @@
 
 .chime-button--compact {
   min-height: 42px;
-  padding: 0 18px;
+  padding: 0 18px !important;
   width: auto;
 }
 
@@ -680,7 +701,7 @@
   flex-direction: column;
   min-height: 240px;
   overflow: hidden;
-  padding: 20px;
+  padding: 20px !important;
   position: relative;
   text-align: left;
 }
@@ -732,7 +753,7 @@
   font-size: calc(1.18 * var(--chime-root)) !important;
   font-weight: 800;
   letter-spacing: -0.03em;
-  margin: 0;
+  margin: 0 !important;
 }
 
 .service-card__meta {
@@ -742,7 +763,7 @@
   flex-wrap: wrap;
   font-size: calc(0.88 * var(--chime-root)) !important;
   gap: 7px;
-  margin-top: 4px;
+  margin-top: 4px !important;
 }
 
 .service-card__check {
@@ -768,8 +789,8 @@
   color: var(--ink-soft);
   flex: 1 1 auto;
   font-size: calc(0.96 * var(--chime-root)) !important;
-  line-height: 1.62;
-  margin: 22px 0 26px;
+  line-height: 1.62 !important;
+  margin: 22px 0 26px !important;
 }
 
 .service-card__footer {
@@ -778,7 +799,7 @@
   flex-wrap: wrap;
   gap: 10px;
   justify-content: space-between;
-  margin-top: auto;
+  margin-top: auto !important;
   position: static;
 }
 
@@ -789,7 +810,7 @@
   color: var(--mint-800);
   font-size: calc(0.78 * var(--chime-root)) !important;
   font-weight: 800;
-  padding: 8px 10px;
+  padding: 8px 10px !important;
 }
 
 .service-card__select-text {
@@ -807,8 +828,8 @@
   display: grid;
   gap: 18px;
   grid-template-columns: 1fr minmax(210px, 290px);
-  margin-top: 24px;
-  padding: 16px;
+  margin-top: 24px !important;
+  padding: 16px !important;
   position: relative;
   z-index: 1;
 }
@@ -826,22 +847,22 @@
   color: var(--ink);
   font-size: calc(1.02 * var(--chime-root)) !important;
   font-weight: 800;
-  margin: 0;
+  margin: 0 !important;
 }
 
 .stage-footer__copy span,
 .selection-summary p {
   color: var(--ink-soft);
   font-size: calc(0.92 * var(--chime-root)) !important;
-  margin: 0;
+  margin: 0 !important;
 }
 
 .selection-summary {
   background: linear-gradient(135deg, rgba(232, 251, 244, 0.76), rgba(255, 255, 255, 0.62));
   border: 1px solid rgba(77, 189, 152, 0.2);
   border-radius: 22px;
-  margin-bottom: 18px;
-  padding: 16px 18px;
+  margin-bottom: 18px !important;
+  padding: 16px 18px !important;
 }
 
 .calendar-shell {
@@ -860,7 +881,7 @@
 
 .calendar-title {
   font-size: clamp(calc(1.45 * var(--chime-root)), 3vw, calc(2.3 * var(--chime-root))) !important;
-  margin-bottom: calc(0.28 * var(--chime-root));
+  margin-bottom: calc(0.28 * var(--chime-root)) !important;
 }
 
 .calendar-toolbar__actions,
@@ -881,7 +902,7 @@
   font-size: calc(2 * var(--chime-root)) !important;
   font-weight: 600;
   height: 46px;
-  line-height: 1;
+  line-height: 1 !important;
   place-items: center;
   transition: transform 170ms ease, background 170ms ease;
   width: 46px;
@@ -904,7 +925,7 @@
   border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 28px;
   box-shadow: 0 18px 45px rgba(32, 90, 63, 0.09);
-  padding: clamp(16px, 2vw, 24px);
+  padding: clamp(16px, 2vw, 24px) !important;
 }
 
 .calendar-month-card {
@@ -917,7 +938,7 @@
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 18px !important;
 }
 
 .calendar-month-card__header h3,
@@ -930,7 +951,7 @@
   font-size: clamp(calc(1.35 * var(--chime-root)), 2vw, calc(1.8 * var(--chime-root))) !important;
   font-weight: 800;
   letter-spacing: -0.04em;
-  margin: calc(0.1 * var(--chime-root)) 0 0;
+  margin: calc(0.1 * var(--chime-root)) 0 0 !important;
 }
 
 .calendar-stat-strip {
@@ -944,7 +965,7 @@
   font-size: calc(0.8 * var(--chime-root)) !important;
   font-weight: 800;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 8px 12px !important;
   white-space: nowrap;
 }
 
@@ -960,7 +981,7 @@
   font-size: calc(0.78 * var(--chime-root)) !important;
   font-weight: 800;
   letter-spacing: 0.06em;
-  margin-bottom: 8px;
+  margin-bottom: 8px !important;
   text-align: center;
   text-transform: uppercase;
 }
@@ -978,7 +999,7 @@
   justify-content: space-between;
   min-height: 64px;
   overflow: hidden;
-  padding: 10px;
+  padding: 10px !important;
   position: relative;
   text-align: left;
   transition: opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
@@ -988,7 +1009,7 @@
   display: block;
   font-size: clamp(calc(1 * var(--chime-root)), 2vw, calc(1.34 * var(--chime-root))) !important;
   font-weight: 900;
-  line-height: 1;
+  line-height: 1 !important;
   position: relative;
   z-index: 1;
 }
@@ -998,8 +1019,8 @@
   color: var(--ink-soft);
   font-size: calc(0.68 * var(--chime-root)) !important;
   font-weight: 800;
-  line-height: 1.05;
-  margin-top: auto;
+  line-height: 1.05 !important;
+  margin-top: auto !important;
   max-width: 100%;
   overflow: hidden;
   position: relative;
@@ -1044,7 +1065,7 @@
   content: "";
   display: inline-block;
   height: 6px;
-  margin-left: 6px;
+  margin-left: 6px !important;
   vertical-align: middle;
   width: 6px;
 }
@@ -1065,7 +1086,7 @@
   font-size: calc(0.82 * var(--chime-root)) !important;
   font-weight: 750;
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 18px !important;
 }
 
 .calendar-legend span {
@@ -1097,8 +1118,8 @@
 
 .time-panel__header p {
   color: var(--ink-soft);
-  line-height: 1.55;
-  margin: calc(0.35 * var(--chime-root)) 0 0;
+  line-height: 1.55 !important;
+  margin: calc(0.35 * var(--chime-root)) 0 0 !important;
 }
 
 .time-groups {
@@ -1111,7 +1132,7 @@
   font-size: calc(0.78 * var(--chime-root)) !important;
   font-weight: 900;
   letter-spacing: 0.1em;
-  margin: 0 0 8px;
+  margin: 0 0 8px !important;
   text-transform: uppercase;
 }
 
@@ -1131,7 +1152,7 @@
   gap: 6px;
   justify-content: space-between;
   min-height: 52px;
-  padding: 10px 12px;
+  padding: 10px 12px !important;
   text-align: left;
 }
 
@@ -1166,11 +1187,11 @@
 }
 
 .time-panel__empty {
-  margin-top: auto;
+  margin-top: auto !important;
 }
 
 .booking-stage {
-  padding: clamp(18px, 2.5vw, 28px);
+  padding: clamp(18px, 2.5vw, 28px) !important;
 }
 
 .booking-flow-grid {
@@ -1187,7 +1208,7 @@
   border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 26px;
   box-shadow: 0 18px 45px rgba(32, 90, 63, 0.09);
-  padding: clamp(18px, 2vw, 24px);
+  padding: clamp(18px, 2vw, 24px) !important;
 }
 
 .booking-summary-card {
@@ -1205,7 +1226,7 @@
 .terms-receipt {
   display: grid;
   gap: 12px;
-  margin: 18px 0 0;
+  margin: 18px 0 0 !important;
 }
 
 .booking-summary-card dl div,
@@ -1214,7 +1235,7 @@
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(77, 189, 152, 0.14);
   border-radius: 18px;
-  padding: 12px 14px;
+  padding: 12px 14px !important;
 }
 
 .booking-summary-card dt,
@@ -1235,7 +1256,7 @@
   display: block;
   font-size: calc(0.98 * var(--chime-root)) !important;
   font-weight: 800;
-  margin: 4px 0 0;
+  margin: 4px 0 0 !important;
 }
 
 .booking-flow-panel__header {
@@ -1243,7 +1264,7 @@
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 18px !important;
 }
 
 .booking-flow-panel__header h2 {
@@ -1263,7 +1284,7 @@
      is; a hardcoded repeat(4) left an empty fourth column in the 3-step case. */
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
-  margin-bottom: 18px;
+  margin-bottom: 18px !important;
 }
 
 .booking-mini-stepper span {
@@ -1276,7 +1297,7 @@
   font-size: calc(0.82 * var(--chime-root)) !important;
   font-weight: 800;
   gap: 8px;
-  padding: 9px;
+  padding: 9px !important;
 }
 
 .booking-mini-stepper i {
@@ -1336,7 +1357,7 @@
 .chime-field em {
   color: var(--mint-700);
   font-style: normal;
-  margin-left: 4px;
+  margin-left: 4px !important;
 }
 
 .chime-field small,
@@ -1352,7 +1373,7 @@
   border-radius: 18px;
   color: var(--ink);
   min-height: 54px;
-  padding: 0 16px;
+  padding: 0 16px !important;
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
   width: 100%;
 }
@@ -1368,7 +1389,7 @@
 
 .chime-input--textarea {
   min-height: 132px;
-  padding: 14px 16px;
+  padding: 14px 16px !important;
   resize: vertical;
 }
 
@@ -1418,7 +1439,7 @@
      scroll-to-unlock gate meaningful regardless of terms length. */
   height: clamp(360px, 52vh, 620px);
   overflow: hidden auto;
-  padding: 12px;
+  padding: 12px !important;
   scroll-behavior: smooth;
 }
 
@@ -1430,20 +1451,20 @@
   /* Fill the reading window so the document looks like a single sheet even when
      the terms are short, instead of a small card floating on the glass. */
   min-height: 100%;
-  padding: clamp(18px, 2vw, 24px);
+  padding: clamp(18px, 2vw, 24px) !important;
 }
 
 .terms-document__paper h4 {
   color: var(--ink);
   font-size: calc(1.2 * var(--chime-root)) !important;
   font-weight: 800;
-  margin: 0 0 12px;
+  margin: 0 0 12px !important;
 }
 
 .terms-document__paper p {
   color: var(--ink-soft);
-  line-height: 1.75;
-  margin: 0 0 calc(1 * var(--chime-root));
+  line-height: 1.75 !important;
+  margin: 0 0 calc(1 * var(--chime-root)) !important;
 }
 
 .terms-acceptance {
@@ -1454,8 +1475,8 @@
   color: var(--ink-soft);
   display: flex;
   gap: 12px;
-  line-height: 1.45;
-  padding: 14px;
+  line-height: 1.45 !important;
+  padding: 14px !important;
 }
 
 .terms-acceptance[data-unlocked="true"] {
@@ -1468,7 +1489,7 @@
   accent-color: var(--mint-600);
   flex: 0 0 auto;
   height: 20px;
-  margin-top: 2px;
+  margin-top: 2px !important;
   width: 20px;
 }
 
@@ -1491,13 +1512,13 @@
   border-radius: 24px;
   display: grid;
   justify-items: center;
-  padding: 40px 20px;
+  padding: 40px 20px !important;
   text-align: center;
 }
 
 .chime-saving-card p {
   color: var(--ink-soft);
-  margin: 0;
+  margin: 0 !important;
 }
 
 .chime-spinner {
@@ -1542,8 +1563,8 @@
 
 .confirmation-page__message {
   color: var(--ink-soft);
-  line-height: 1.6;
-  margin: 0;
+  line-height: 1.6 !important;
+  margin: 0 !important;
   max-width: 620px;
 }
 
@@ -1558,7 +1579,7 @@
   border: 1px solid rgba(77, 189, 152, 0.18);
   border-radius: 22px;
   color: var(--ink-soft);
-  padding: 16px 18px;
+  padding: 16px 18px !important;
   position: relative;
   z-index: 1;
 }
@@ -1567,34 +1588,34 @@
 .chime-empty-state__title {
   color: var(--ink);
   font-weight: 800;
-  margin: 0 0 calc(0.35 * var(--chime-root));
+  margin: 0 0 calc(0.35 * var(--chime-root)) !important;
 }
 
 .chime-empty-state__copy {
   color: var(--ink-soft);
   font-size: calc(0.92 * var(--chime-root)) !important;
-  line-height: 1.55;
-  margin: 0;
+  line-height: 1.55 !important;
+  margin: 0 !important;
 }
 
 .chime-alert--error {
   background: rgba(255, 238, 238, 0.78);
   border-color: rgba(200, 76, 80, 0.25);
   color: #994044;
-  margin-bottom: 16px;
+  margin-bottom: 16px !important;
 }
 
 .chime-alert--warning {
   background: rgba(255, 250, 231, 0.82);
   border-color: rgba(196, 153, 62, 0.28);
   color: #7d6228;
-  margin-bottom: 16px;
+  margin-bottom: 16px !important;
 }
 
 .chime-alert code {
   background: rgba(255, 255, 255, 0.74);
   border-radius: 8px;
-  padding: 2px 5px;
+  padding: 2px 5px !important;
 }
 
 .chime-loading-card {
@@ -1633,11 +1654,11 @@
 
 @media (max-width: 720px) {
   .chime-main {
-    padding-top: 18px;
+    padding-top: 18px !important;
   }
 
   .chime-main__inner {
-    padding: 0 12px;
+    padding: 0 12px !important;
   }
 
   .chime-progress {
@@ -1683,7 +1704,7 @@
     aspect-ratio: auto;
     min-height: 44px;
     border-radius: 14px;
-    padding: 7px;
+    padding: 7px !important;
   }
 
   .calendar-day__number {
@@ -1814,7 +1835,7 @@
 }
 
 .chime-main {
-  padding-top: 22px;
+  padding-top: 22px !important;
 }
 
 .liquid-card,
@@ -1844,7 +1865,7 @@
 }
 
 .chime-stage {
-  padding: clamp(18px, 3vw, 30px);
+  padding: clamp(18px, 3vw, 30px) !important;
 }
 
 .chime-stage__header h2,
@@ -1855,7 +1876,7 @@
   color: #14241f;
   font-weight: 800;
   letter-spacing: -0.035em;
-  line-height: 1.05;
+  line-height: 1.05 !important;
 }
 
 .chime-kicker,
@@ -2106,7 +2127,7 @@
 
   .calendar-day {
     min-height: 64px;
-    padding: 7px 6px;
+    padding: 7px 6px !important;
   }
 
   .calendar-day__number {
@@ -2137,8 +2158,8 @@
   position: absolute;
   width: 1px;
   height: 1px;
-  padding: 0;
-  margin: -1px;
+  padding: 0 !important;
+  margin: -1px !important;
   overflow: hidden;
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
@@ -2167,7 +2188,7 @@
   z-index: 60;
   background: var(--mint-800);
   color: #fff;
-  padding: 10px 16px;
+  padding: 10px 16px !important;
   border-radius: 12px;
   font-weight: 800;
 }
@@ -2194,6 +2215,6 @@
 .chime-payment-note {
   color: var(--ink-soft);
   font-size: calc(0.85 * var(--chime-root)) !important;
-  margin: 0;
+  margin: 0 !important;
   text-align: center;
 }

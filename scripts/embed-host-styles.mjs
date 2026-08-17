@@ -149,6 +149,15 @@ function hostPage({ hostCss = '', withWidget = true }) {
   p.host-copy { color: #4a3728; font-size: 18px; line-height: 1.6; margin: 0 0 16px; }
   button.host-button { background: #fff; border: 2px dashed #5a3e2b; color: #5a3e2b;
                        font-family: Georgia, serif; font-size: 16px; padding: 10px 18px; }
+
+  /* The mount point is pinned so every host renders the widget in the same box.
+     Without this the comparison measured the host's layout as much as the
+     widget's: an aggressive reset removes this page's own body padding, the
+     container grows 48px, and the widget correctly fills it. That is an
+     embedded component behaving properly, and it was being reported as
+     leakage. Holding the container constant isolates the widget's own
+     rendering, which is what this check is for. */
+  #chime-widget-root { width: 1000px; }
 </style>
 <style>${hostCss}</style>
 <link rel="stylesheet" href="/dist-embed/chime-widget.css">

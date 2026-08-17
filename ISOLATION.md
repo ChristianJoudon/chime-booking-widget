@@ -102,10 +102,10 @@ sets `emptyOutDir`, so it deletes everything already in `dist-embed/`.
 
 ### One authorized exception, 2026-08-17
 
-`src/index.css` was changed with the owner's explicit approval, to stop the
-widget inheriting the host page's text size. Sizes now derive from
-`--chime-root` on `.chime-widget` instead of `rem`, and its font-size and
-font-family declarations carry `!important`. `dist-embed/` was rebuilt from it.
+`src/index.css` was changed with the owner's explicit approval — first to stop
+the widget inheriting the host page's text size, then to close the remaining
+host-style conditions. See "Host-page style leakage" below for what it does and
+why. `dist-embed/` was rebuilt from it.
 
 Nothing else in widget territory was touched, and nothing outside this folder
 was touched — the other Chime checkouts on this machine are unaffected. The
@@ -126,29 +126,46 @@ Resolving it is a widget decision, not a standalone one.
 ### Host-page style leakage
 
 `npm run test:embed-host-styles` renders the built widget under stylesheets real
-small-business sites carry, and compares its layout against a neutral page.
+small-business sites carry, and compares its layout against a neutral page. All
+ten conditions pass, in both directions: no host CSS reaches into the widget,
+and the host page is identical with and without it.
 
-Two conditions used to break the widget through **text size**, and both are now
-fixed. It sized everything in `rem`, which resolves against the *host* page's
-root element, so a site with `html { font-size: 32px }` doubled it — 850px tall
-became 1454px. Sizes now derive from `--chime-root` on `.chime-widget`, a base
-the widget carries wherever it is embedded. Its own font-size and font-family
-declarations also carry `!important`, so a host styling bare `button` or `div`
-that way no longer wins; without that, `font-size: inherit` on the controls
-faithfully passed the host's size straight down.
+What makes that true:
 
-The widget leaks **nothing** outward — the host page is identical with and
-without it.
+- Sizes derive from `--chime-root` on `.chime-widget`, not `rem`, which resolves
+  against the *host's* root element. A site with `html { font-size: 32px }` used
+  to double the widget.
+- The widget's own `font-size`, `font-family`, `line-height`, `box-sizing`,
+  `margin` and `padding` declarations carry `!important` — applied to **every**
+  declaration of those properties, not a chosen few. Uniformity is the point:
+  precedence among the widget's own rules is then decided by specificity and
+  order exactly as before, so its appearance does not move. Marking only some
+  would reshuffle them.
+- `.chime-widget *` carries `font-size: inherit` and `line-height: inherit`
+  floors, anchored by a base on `.chime-widget` itself. Without the anchor a
+  host's `*` selector matches `.chime-widget` too and every descendant dutifully
+  inherits the host's value.
 
-Three conditions still change the layout, none of them text size:
+The floors tie in specificity with any single-class selector, so **their
+position in the file decides who wins**. They sit ahead of the widget's own
+rules, which all override them. Placed after, the font-size floor beat
+`.chime-powered-by` and pushed the footer from 11.5px to 16px.
 
-| host does this | effect |
-|---|---|
-| `* { box-sizing: content-box !important }` | every box grows |
-| `* { margin: 0 !important; padding: 0 !important }` | spacing collapses |
-| `* { line-height: 3 !important }` | the widget stretches |
+Verified by fingerprinting all 80 rendered elements before and after the whole
+effort: **zero differences**. The isolation is free.
 
-Measured rather than assumed: adding `box-sizing` and `line-height` to the same
-defensive block clears the first and third. The middle one cannot be answered
-without enumerating every element the widget renders. The durable fix for all
-three is Shadow DOM, where host CSS cannot cross the boundary at all.
+Two things worth knowing if this is revisited:
+
+- The `box-sizing` rule was already correct and already covered `::before` and
+  `::after`. It was simply not authoritative. A floor added alongside it was
+  redundant, less complete, and was the one thing that moved a decorative
+  element by a pixel — removing it fixed that.
+- The check pins the mount point at a fixed width. Without that it measured the
+  host's layout as much as the widget's: an aggressive reset removes the test
+  page's own body padding, the container grows 48px, and the widget correctly
+  fills it. That is an embedded component behaving properly and was being
+  reported as leakage.
+
+Shadow DOM remains the stronger guarantee — it makes isolation structural rather
+than a cascade the next edit could undo — but it is no longer needed to pass
+these conditions.

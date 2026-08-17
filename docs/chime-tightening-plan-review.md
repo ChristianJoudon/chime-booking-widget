@@ -1492,3 +1492,60 @@ Two host conditions now pass that did not: `large-root-font` and
 `global-typography`. Three still fail — `box-sizing`, a hard reset, and
 `line-height` — none of which are text size. Recorded in ISOLATION.md with the
 measurement of what a further defensive block would and would not clear.
+
+## Complete host-style isolation for the embed (2026-08-17)
+
+The three conditions left open in the previous section — a global `box-sizing`,
+an aggressive margin/padding reset, and a global `line-height` — are closed. All
+ten host conditions now pass, in both directions.
+
+### The approach that made it safe
+
+Every declaration of `box-sizing`, `line-height`, `margin` and `padding` in the
+widget's stylesheet was given `!important` — 103 of them, uniformly. Uniformity
+is the whole trick. Once they all carry it, precedence among the widget's own
+rules is decided by specificity and source order exactly as it was before, so
+the widget's appearance cannot move. Marking a chosen few would have reshuffled
+the cascade and produced a different-looking widget.
+
+Then two floors, `font-size: inherit` and `line-height: inherit` on
+`.chime-widget *`, each anchored by a base on `.chime-widget` itself. The anchor
+turned out to be essential and non-obvious: a host's `*` selector matches
+`.chime-widget` too, so without it the widget took the host's line-height and
+every descendant dutifully inherited it. The floor alone left the failure
+looking untouched.
+
+### Measured, not assumed
+
+Fingerprinting all 80 rendered elements before any of this and after all of it:
+**zero differences**. The widget survives every host condition and looks
+precisely as it did. Complete isolation at no visual cost.
+
+Getting to zero required removing something I had added. A `box-sizing` floor I
+wrote alongside the existing rule was redundant — the widget already had
+`.chime-widget, .chime-widget *, ::before, ::after { box-sizing: border-box }`,
+correct and more complete than mine, and simply not authoritative. My version
+omitted the pseudo-elements and was the one thing moving a decorative element by
+a pixel. I found it by removing each defence in turn to confirm which failure it
+actually prevented; the `box-sizing` condition kept passing without mine, which
+is what exposed it.
+
+### The last failure was the test, not the widget
+
+`hard-reset` continued to fail after the widget was fully defended, on width
+alone — heights had become identical. The widget measured 1052px on a neutral
+page and 1100px under the reset.
+
+The reset removes the *test page's own* `body { padding: 24px }`. The mount
+container grew by exactly 48px, and the widget filled it — as an embedded
+component should. Confirmed directly: the widget's width equals its container's
+width in both cases, and its height is unchanged.
+
+The check now pins the mount point to a fixed width, so it measures the widget's
+rendering rather than the host's layout. That is an experimental control, not a
+relaxed assertion — the check still fails when any defence is removed, verified
+by removing three of them and watching two conditions go red.
+
+Shadow DOM is still the stronger answer, because it makes isolation structural
+rather than a cascade a future edit could quietly undo. It is no longer required
+to pass these conditions, and that tradeoff is recorded in ISOLATION.md.
