@@ -76,6 +76,38 @@
 .chime-embed-dialog__close { align-items: center; appearance: none; background: rgba(255,255,255,.94); border: 1px solid #dce7e1; border-radius: 99px; color: #35564a; cursor: pointer; display: flex; font: 500 25px/1 sans-serif; height: 38px; justify-content: center; padding: 0 0 3px; position: absolute; right: 12px; top: 12px; width: 38px; z-index: 20; }
 
 @media (max-width: 620px) {
+  /* One step, four headings. On a wide screen "Calendar / Choose a date and
+     time", then "Full calendar / Pick the best day and time", then "Available
+     times" read as a hierarchy. On a phone they stack into a column of near
+     identical sentences the customer has to scroll past to reach the calendar
+     itself.
+
+     The stage heading stays, because it names the step. The rest go: the
+     duplicate calendar title, its kicker, and the descriptions that repeat what
+     the heading already says. Nothing here carries information found nowhere
+     else — the day panel keeps its date and its count of openings, which do. */
+  .chime-stage__header > div > p:not(.chime-kicker),
+  .calendar-toolbar .chime-kicker,
+  .calendar-toolbar .calendar-title,
+  .time-panel__header .chime-kicker {
+    display: none;
+  }
+
+  /* The empty state explains why unavailable days are still shown. That is
+     reassurance for someone browsing a wide calendar, not instruction, and it
+     costs a screenful on a phone. */
+  .chime-empty-state__title ~ p {
+    display: none;
+  }
+
+  /* Four steps across a 390px screen gave each about 70px, so the labels ran
+     into each other — "2 Cor3 Dep4 Done". Wrapping to two rows keeps every
+     label readable, and the stepper is orientation, not a control. */
+  .booking-mini-stepper {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .chime-embed-launcher--floating_button { bottom: 14px; left: 14px; right: 14px; width: calc(100% - 28px); }
   .chime-embed-dialog { height: 100dvh; width: 100vw; }
   .chime-embed-dialog__surface { border-radius: 0; }
@@ -92,18 +124,27 @@
 }
 
 .chime-widget .chime-logo {
-  background: color-mix(in srgb, var(--chime-surface) 94%, white);
-  border: 1px solid color-mix(in srgb, var(--mint-700) 12%, transparent);
-  border-radius: 12px;
-  box-shadow: 0 7px 18px color-mix(in srgb, var(--mint-800) 10%, transparent);
+  /* No pill behind the wordmark: the header is already a solid band and the
+     white card sitting on it read as a separate control. Padding, border,
+     background and shadow all removed together — leaving any one of them
+     behind is what makes a removed container still look like one. */
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   display: flex;
   height: 42px;
   justify-content: flex-start;
-  padding: 5px 9px !important;
+  padding: 0 !important;
   width: clamp(112px, 17vw, 150px);
 }
 
 .chime-widget .chime-logo img {
+  /* The wordmark artwork is green, drawn for a light background. The white pill
+     it used to sit on was what made it legible; with that gone it was green on
+     the green header and effectively invisible. Knocking it out to white keeps
+     the letterforms and drops the colour, which is the usual treatment for a
+     logo on a solid brand band. */
+  filter: brightness(0) invert(1);
   height: 100%;
   object-fit: contain;
   object-position: left center;
@@ -1197,7 +1238,13 @@
 .booking-flow-grid {
   display: grid;
   gap: 22px;
-  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  /* Summary beside the form on a wide screen; the max-width: 980px block below
+     collapses it to one column. That collapse used to be dead: an identical
+     rule appeared later in this file, outside any media query, so it won at
+     every width. On a phone the form sat off the right edge of the viewport
+     with no horizontal scroll — the reserve step could be seen but not
+     completed. Keep this the only unconditional definition. */
+  grid-template-columns: minmax(240px, 0.38fr) minmax(0, 1fr);
   position: relative;
   z-index: 1;
 }
@@ -2066,10 +2113,6 @@
   border-color: rgba(255, 255, 255, 0.82);
   box-shadow: 0 12px 24px rgba(77, 189, 152, 0.25);
   color: #ffffff;
-}
-
-.booking-flow-grid {
-  grid-template-columns: minmax(240px, 0.38fr) minmax(0, 1fr);
 }
 
 .booking-mini-stepper {
