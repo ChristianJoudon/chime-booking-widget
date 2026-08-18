@@ -62,7 +62,22 @@ select:focus-visible,
   color: var(--admin-ink);
   display: grid;
   font-family: 'Manrope', 'Avenir Next', sans-serif;
-  grid-template-columns: 228px minmax(0, 1fr);
+  /*
+   * 252px, not 228.
+   *
+   * "Appointments" is the longest label in this navigation and the only one
+   * carrying a count, and at 228px it did not fit: 99px of text in an 81px
+   * track, clipped under its own badge. Nothing in the CSS said so — the label
+   * track is minmax(0, 1fr), which is permission to shrink below the content
+   * and let it overflow rather than push anything.
+   *
+   * Tried first and rejected: a margin on the badge, which made it worse, since
+   * a 1fr track surrenders whatever is asked for beside it; and trimming gaps
+   * and badge padding, which bought about twelve pixels and would have been
+   * spent again by a three-digit count or a longer label. The room has to come
+   * from somewhere that is not the words.
+   */
+  grid-template-columns: 252px minmax(0, 1fr);
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -285,7 +300,7 @@ select:focus-visible,
 .admin-profile strong,
 .admin-profile small {
   display: block;
-  /* An email address has no natural break and the sidebar is a fixed 228px, so
+  /* An email address has no natural break and the sidebar is a fixed 252px, so
      it ran past the edge — by 19px at the old type size and 44px once the text
      was raised. The workspace switcher above already truncates for the same
      reason; this makes the two agree. */

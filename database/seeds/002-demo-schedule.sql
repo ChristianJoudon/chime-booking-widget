@@ -39,7 +39,28 @@ SELECT
   schedule.reference_code,
   schedule.service_id,
   schedule.customer_id,
-  schedule.location_id,
+  /*
+   * Only a location the service actually permits.
+   *
+   * The list above pairs services with studios by hand, and four of those
+   * pairings were not in chime_app.service_locations. Nothing complained at
+   * insert time — there is no foreign key expressing "this service can be given
+   * here" — but every attempt to reschedule one of those appointments failed
+   * with "That location is not available for this service", from the form and
+   * from the calendar alike. Practice data that cannot be practised on.
+   *
+   * A pairing that is not permitted falls back to no location rather than being
+   * silently corrected to a different studio, so the seed never invents a fact
+   * about where someone is being seen.
+   */
+  CASE
+    WHEN EXISTS (
+      SELECT 1 FROM chime_app.service_locations permitted
+       WHERE permitted.service_id = schedule.service_id
+         AND permitted.location_id = schedule.location_id
+    ) THEN schedule.location_id
+    ELSE NULL
+  END,
   schedule.starts_at,
   schedule.ends_at,
   'Pacific/Honolulu',
@@ -59,6 +80,11 @@ ON CONFLICT (id) DO UPDATE SET
   starts_at = EXCLUDED.starts_at,
   ends_at = EXCLUDED.ends_at,
   status = EXCLUDED.status,
+  -- Included so re-seeding actually repairs an existing row. Without it the
+  -- four appointments sitting in a studio their service does not permit stayed
+  -- exactly where they were, and the fix above looked as though it had done
+  -- nothing.
+  location_id = EXCLUDED.location_id,
   updated_at = now()
 -- Guards against ever rewriting a real appointment that shares an id.
 WHERE chime_app.appointments.origin = 'demo';

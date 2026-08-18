@@ -486,16 +486,37 @@
   opacity: 0.52;
 }
 
+/*
+ * The grip at the bottom of an appointment.
+ *
+ * It was a 3px decorative bar until now, drawn only on the selected card and
+ * doing nothing. It is the same bar, on every changeable card, and it drags.
+ *
+ * The hit area is taller than the mark. Three pixels is a fine thing to look
+ * at and an unreasonable thing to ask a finger to find, so the padding below
+ * gives it 14px of grab while the visible bar stays where it was.
+ */
 .operations-resize-preview {
   background: var(--appointment-color);
+  background-clip: content-box;
   border-radius: 999px;
-  bottom: 3px;
+  bottom: 0;
+  box-sizing: content-box;
+  cursor: ns-resize;
   height: 3px;
-  left: 38%;
+  left: 34%;
   opacity: 0.6;
+  padding: 6px 0 3px;
   position: absolute;
-  right: 38%;
+  right: 34%;
+  touch-action: none;
 }
+
+.operations-appointment:hover .operations-resize-preview,
+.operations-appointment.is-selected .operations-resize-preview {
+  opacity: 1;
+}
+
 
 .operations-empty-calendar,
 .operations-loading {
@@ -1280,4 +1301,54 @@
 .operations-add-form__submit:disabled {
   cursor: progress;
   opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Dragging an appointment
+ *
+ * The card was already absolutely positioned from two custom properties, and
+ * the draft state that drives them already existed for the form on the right —
+ * so a drag writes the same two values and the card follows the pointer with no
+ * new rendering path. What it needed from CSS is the affordance, the hit
+ * targets, and getting the transitions out of the way.
+ * ------------------------------------------------------------------------- */
+
+.operations-appointment.is-draggable {
+  cursor: grab;
+  /* Or a touch drag scrolls the page under the finger instead of moving the
+   * appointment. Scoped to the card rather than set on the body during a drag,
+   * so nothing has to be cleaned up if a pointer is lost. */
+  touch-action: none;
+  user-select: none;
+}
+
+.operations-appointment.is-draggable:active {
+  cursor: grabbing;
+}
+
+/*
+ * No easing while a finger is on it.
+ *
+ * The card animates top and height over 160ms, which is right when the form
+ * moves it and wrong when a pointer does: the card lags behind the cursor by a
+ * sixth of a second and the whole thing feels like it is on elastic.
+ */
+.operations-appointment.is-dragging {
+  box-shadow: 0 14px 30px rgba(31, 71, 61, 0.22);
+  cursor: grabbing;
+  transition: none;
+  z-index: 6;
+}
+
+/*
+ * The text inside the card does not take the pointer.
+ *
+ * Without this, a drag that starts on the customer's name begins on a child
+ * element and the browser's own text selection competes with it.
+ */
+.operations-appointment > span,
+.operations-appointment > strong,
+.operations-appointment > small,
+.operations-appointment > em {
+  pointer-events: none;
 }

@@ -2,9 +2,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
 import './operationsStudio.css';
@@ -136,6 +139,32 @@ type OperationsPayload = {
 };
 
 class OperationsApiError extends Error {}
+
+/*
+ * Dragging a card on the calendar.
+ *
+ * MINUTES_PER_PIXEL is the inverse of the arithmetic positionFor uses to place
+ * a card, and it has to stay that way — the two are the same relationship read
+ * in opposite directions, and if they ever disagree a card will not sit where
+ * the pointer left it.
+ *
+ * The snap is fifteen minutes because that is what the availability grid uses
+ * and what the times customers are offered land on. Nothing enforces the pair;
+ * a comment is what there is.
+ */
+const DRAG_SNAP_MINUTES = 15;
+
+/*
+ * How far a pointer travels before this counts as a drag rather than a click.
+ *
+ * Without it every click on a card is a zero-distance drag: the existing
+ * gesture code elsewhere in the studio has no threshold and gets away with it
+ * only because its snap rounds tiny movements back to nothing. Here a
+ * zero-distance drag would still fall through to "did anything change", and a
+ * hand that shakes four pixels while clicking would put a confirmation dialog
+ * in front of someone who meant to select.
+ */
+const DRAG_THRESHOLD_PX = 5;
 
 const HOUR_HEIGHT = 76;
 const DAY_START_MINUTES = 8 * 60;
@@ -329,6 +358,44 @@ export default function OperationsStudio({
   const [addCustomerEmail, setAddCustomerEmail] = useState('');
   const [addNotes, setAddNotes] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
+
+  /*
+   * What a drag is doing, or null when nothing is being dragged.
+   *
+   * `moved` is set once the pointer has passed the threshold. Until then the
+   * gesture is still a click, and releasing does nothing but select — which is
+   * what tapping a card has always done.
+   *
+   * The preview costs no extra state: positionFor already renders the selected
+   * confirmed appointment from draftStartsAt and draftDuration rather than its
+   * saved times, so writing those two during a drag makes the card follow the
+   * pointer, and the form on the right updates in step because it reads the
+   * same values.
+   */
+  /*
+   * The current drafts and the current commit, readable from a stale closure.
+   *
+   * The drag's pointer handlers are installed once per drag, so they close over
+   * whatever the drafts were at that moment. Dropping a card two hours down
+   * therefore asked to confirm a fifteen-minute move — the value from the one
+   * render where the effect last re-ran — while the card itself sat correctly
+   * two hours later. The card was right and the confirmation was wrong, which
+   * is the worse way round.
+   *
+   * Adding the drafts to the effect's dependencies would fix it by tearing down
+   * and reinstalling window listeners on every pixel of movement. A ref updated
+   * each render costs nothing and reads the truth at the moment of the drop.
+   */
+  const latest = useRef({ draftStartsAt: '', draftDuration: 60, commit: () => {} });
+
+  const [drag, setDrag] = useState<{
+    appointmentId: string;
+    mode: 'move' | 'resize';
+    originY: number;
+    originalStartsAt: string;
+    originalDuration: number;
+    moved: boolean;
+  } | null>(null);
   const { confirm: confirmAction, element: previewElement } = useActionPreview();
 
   const chosenAddService = payload.services.find((service) => service.id === addServiceId) ?? null;
@@ -617,8 +684,16 @@ export default function OperationsStudio({
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [selected, draftStartsAt, draftDuration, draftStaffId, draftLocationId]);
 
-  const submitChange = (event: FormEvent) => {
-    event.preventDefault();
+  /*
+   * One path to a change, whether the drafts were typed or dragged.
+   *
+   * The form and the calendar write the same four pieces of state, so they
+   * share the same commit — which is the point. A dragged change goes through
+   * the identical confirmation, the identical endpoint and therefore the
+   * identical notification to the customer. Two paths would eventually send two
+   * different messages for the same act.
+   */
+  const commitChange = () => {
     if (!selected || !draftStaffId) return;
     const nextStart = new Date(draftStartsAt);
     const nextEnd = new Date(nextStart.getTime() + draftDuration * 60_000);
@@ -705,6 +780,152 @@ export default function OperationsStudio({
       },
     );
     })();
+  };
+
+  const submitChange = (event: FormEvent) => {
+    event.preventDefault();
+    commitChange();
+  };
+
+  latest.current = { draftStartsAt, draftDuration, commit: commitChange };
+
+  /*
+   * Turning pixels into a time, and back into the drafts the rest of the
+   * screen already reads.
+   *
+   * positionFor places a card at ((minutes - DAY_START) / 60) * HOUR_HEIGHT.
+   * This is that read backwards, so a card lands where the pointer left it.
+   * If either side is ever changed alone they will disagree and a dragged
+   * appointment will settle somewhere other than where it was dropped.
+   */
+  useEffect(() => {
+    if (!drag) return undefined;
+
+    const minutesPerPixel = 60 / HOUR_HEIGHT;
+
+    const move = (event: PointerEvent) => {
+      const rawPixels = event.clientY - drag.originY;
+      if (!drag.moved && Math.abs(rawPixels) < DRAG_THRESHOLD_PX) return;
+      if (event.cancelable) event.preventDefault();
+      if (!drag.moved) setDrag((current) => (current ? { ...current, moved: true } : current));
+
+      const deltaMinutes =
+        Math.round((rawPixels * minutesPerPixel) / DRAG_SNAP_MINUTES) * DRAG_SNAP_MINUTES;
+
+      if (drag.mode === 'move') {
+        const origin = new Date(drag.originalStartsAt);
+        const next = new Date(origin.getTime() + deltaMinutes * 60_000);
+        // Kept inside the hours the grid actually draws. Dragged past the top
+        // the card would be clamped to zero by positionFor and stop tracking
+        // the pointer, which reads as the drag having broken.
+        const minutesIntoDay = next.getHours() * 60 + next.getMinutes();
+        if (minutesIntoDay < DAY_START_MINUTES || minutesIntoDay + draftDuration > DAY_END_MINUTES) return;
+        setDraftStartsAt(inputDateTime(next));
+      } else {
+        const bounds = selected?.service;
+        const floor = bounds?.minimumDurationMinutes ?? DRAG_SNAP_MINUTES;
+        const ceiling = bounds?.maximumDurationMinutes ?? 8 * 60;
+        const proposed = Math.min(ceiling, Math.max(floor, drag.originalDuration + deltaMinutes));
+        const startMinutes = new Date(drag.originalStartsAt).getHours() * 60
+          + new Date(drag.originalStartsAt).getMinutes();
+        if (startMinutes + proposed > DAY_END_MINUTES) return;
+        setDraftDuration(proposed);
+      }
+    };
+
+    const finish = () => {
+      const wasDragged = drag.moved;
+      const startedAt = drag.originalStartsAt;
+      const startedDuration = drag.originalDuration;
+      setDrag(null);
+      if (!wasDragged) return;
+
+      /*
+       * Only ask when something actually moved.
+       *
+       * Picking a card up and putting it back where it came from is a common
+       * way to change your mind mid-gesture, and a confirmation dialog for a
+       * change of nothing would train people to dismiss the one that matters.
+       */
+      const { draftStartsAt: finalStart, draftDuration: finalDuration, commit } = latest.current;
+      if (finalStart === startedAt && finalDuration === startedDuration) return;
+      commit();
+    };
+
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag, draftDuration, selected]);
+
+  /*
+   * Start a drag, but only on an appointment that can be changed.
+   *
+   * The live preview works by rendering the selected confirmed appointment from
+   * the drafts, so a card that is neither selected nor confirmed has nothing to
+   * preview with. Selecting on pointer-down means one gesture does both: the
+   * card you grab is the card you are editing.
+   */
+  const beginDrag = (event: ReactPointerEvent, appointment: Appointment, mode: 'move' | 'resize') => {
+    if (appointment.status !== 'confirmed') return;
+    if (event.button !== 0 && event.pointerType === 'mouse') return;
+    event.stopPropagation();
+    setSelectedId(appointment.id);
+    const startsAt = new Date(appointment.startsAt);
+    const duration = Math.round(
+      (new Date(appointment.endsAt).getTime() - startsAt.getTime()) / 60_000,
+    );
+    // Seeded here rather than waiting for the selection effect, which runs a
+    // render later — by which time the pointer has already moved.
+    setDraftStartsAt(inputDateTime(startsAt));
+    setDraftDuration(duration);
+    setDrag({
+      appointmentId: appointment.id,
+      mode,
+      originY: event.clientY,
+      originalStartsAt: inputDateTime(startsAt),
+      originalDuration: duration,
+      moved: false,
+    });
+  };
+
+  /*
+   * The same two moves from the keyboard.
+   *
+   * Arrow keys shift the appointment; holding Shift changes its length instead.
+   * The studio's other drag has no keyboard path for resizing at all, which
+   * makes that half of it unreachable without a pointer. Enter commits, which
+   * is the same confirmation the pointer gets.
+   */
+  const nudgeSelected = (event: ReactKeyboardEvent, appointment: Appointment) => {
+    if (appointment.status !== 'confirmed') return;
+    if (!['ArrowUp', 'ArrowDown', 'Enter'].includes(event.key)) return;
+    event.preventDefault();
+
+    if (event.key === 'Enter') {
+      commitChange();
+      return;
+    }
+    const step = event.key === 'ArrowUp' ? -DRAG_SNAP_MINUTES : DRAG_SNAP_MINUTES;
+    if (selectedId !== appointment.id) setSelectedId(appointment.id);
+
+    if (event.shiftKey) {
+      const floor = appointment.service.minimumDurationMinutes ?? DRAG_SNAP_MINUTES;
+      const ceiling = appointment.service.maximumDurationMinutes ?? 8 * 60;
+      setDraftDuration((current) => Math.min(ceiling, Math.max(floor, current + step)));
+      return;
+    }
+    setDraftStartsAt((current) => {
+      const next = new Date(new Date(current).getTime() + step * 60_000);
+      const minutesIntoDay = next.getHours() * 60 + next.getMinutes();
+      if (minutesIntoDay < DAY_START_MINUTES || minutesIntoDay + draftDuration > DAY_END_MINUTES) return current;
+      return inputDateTime(next);
+    });
   };
 
   const withdrawChange = () => {
@@ -1129,11 +1350,23 @@ export default function OperationsStudio({
                               ? 'is-compact'
                               : '',
                             selectedId === appointment.id ? 'is-selected' : '',
+                            appointment.status === 'confirmed' ? 'is-draggable' : '',
+                            drag?.appointmentId === appointment.id && drag.moved ? 'is-dragging' : '',
                           ].join(' ')}
                           key={appointment.id}
                           style={cardStyle}
                           type="button"
                           onClick={() => setSelectedId(appointment.id)}
+                          onPointerDown={(event) => beginDrag(event, appointment, 'move')}
+                          onKeyDown={(event) => nudgeSelected(event, appointment)}
+                          aria-label={
+                            appointment.status === 'confirmed'
+                              ? `${appointment.customer.name}, ${appointment.service.name}, `
+                                + `${formatTime(position.startsAt)} to ${formatTime(position.endsAt)}. `
+                                + 'Drag to move, or use arrow keys. Hold shift and use arrow keys to change the length. '
+                                + 'Press Enter to send the change.'
+                              : undefined
+                          }
                         >
                           <span>{formatTime(position.startsAt)}</span>
                           <strong>{appointment.customer.name}</strong>
@@ -1141,8 +1374,24 @@ export default function OperationsStudio({
                           {appointment.status !== 'confirmed' && (
                             <em>{statusLabel(appointment.status)}</em>
                           )}
-                          {selectedId === appointment.id && appointment.status === 'confirmed' && (
-                            <i className="operations-resize-preview" aria-hidden="true" />
+                          {appointment.status === 'confirmed' && (
+                            /*
+                              * The handle that was already drawn but never wired.
+                              *
+                              * .operations-resize-preview has been in the
+                              * stylesheet from the beginning — a 3px bar at the
+                              * bottom of a selected card, purely decorative, and
+                              * shaped exactly like the grip it now is. It only
+                              * ever appeared on the selected card; it appears on
+                              * every changeable one now, because a control you
+                              * have to select something to discover is not
+                              * discoverable.
+                              */
+                            <i
+                              className="operations-resize-preview"
+                              onPointerDown={(event) => beginDrag(event, appointment, 'resize')}
+                              aria-hidden="true"
+                            />
                           )}
                         </button>
                       );
