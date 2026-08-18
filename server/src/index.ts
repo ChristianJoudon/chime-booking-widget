@@ -52,7 +52,25 @@ const stripe = process.env.STRIPE_SECRET_KEY
 assertWorkspaceIsCoherent();
 const allowDemoPayments = process.env.CHIME_ALLOW_DEMO_PAYMENTS === 'true';
 
-app.set('trust proxy', true);
+/*
+ * How many proxies sit in front of this, and no more.
+ *
+ * This was `true`, which trusts every hop in X-Forwarded-For — so anyone could
+ * prepend an address of their choosing and get a fresh rate-limit bucket on
+ * every request, which is the whole limit gone. express-rate-limit refuses to
+ * accept the setting for exactly that reason, and said so the first time this
+ * ran anywhere other than my own machine.
+ *
+ * The safe default is to trust nothing: correct when the process is exposed
+ * directly, and correct in development. Behind one load balancer set
+ * CHIME_TRUST_PROXY_HOPS=1; behind a CDN in front of a balancer, 2. It has to
+ * be the real number — one too many is the bypass again.
+ */
+const trustedProxyHops = Number(process.env.CHIME_TRUST_PROXY_HOPS ?? 0);
+if (!Number.isInteger(trustedProxyHops) || trustedProxyHops < 0) {
+  throw new Error('CHIME_TRUST_PROXY_HOPS must be a whole number of proxies, e.g. 1.');
+}
+app.set('trust proxy', trustedProxyHops === 0 ? false : trustedProxyHops);
 
 /*
  * Mounted before express.json, deliberately.

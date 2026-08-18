@@ -162,9 +162,16 @@ address per ten minutes. Reads are deliberately unlimited — a customer
 refreshing available times should never be told to slow down, and the widget
 polls them.
 
-The count is per address, which depends on `trust proxy` being set. Behind a
-load balancer without it, every request appears to come from the balancer and
-one busy customer locks out everyone.
+The count is per address, so **`CHIME_TRUST_PROXY_HOPS` has to match your
+deployment**. Directly exposed, leave it at 0. Behind one load balancer, set 1.
+Behind a CDN in front of a balancer, 2.
+
+Both ways of getting it wrong are real. Too low and every request appears to
+come from the proxy, so one busy customer locks out everyone. Too high — and
+`true` is the worst case of too high — and anyone can prepend an address to
+`X-Forwarded-For` to get a fresh bucket on every request, which is the limit
+gone entirely. It was `true` until the first build-agent run, where
+express-rate-limit refused it and said so.
 
 ## Knowing the notification worker is alive
 

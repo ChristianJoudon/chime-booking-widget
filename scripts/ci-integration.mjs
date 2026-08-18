@@ -215,7 +215,11 @@ async function step(name, work) {
 
 try {
   console.log('--- schema and data ---');
-  await run('node', ['scripts/migrate.mjs']);
+  // --with-demo-data, because a build agent starts from an empty
+  // Postgres. Locally the organisation came from compose's initdb months ago,
+  // which is why running everything and then seeding worked here and failed
+  // there on the very first attempt.
+  await run('node', ['scripts/migrate.mjs', '--with-demo-data']);
   await run('node', ['scripts/seed-demo.mjs']);
 
   const identities = await readIdentities();
@@ -244,6 +248,39 @@ try {
   });
   env.CHIME_ADMIN_TOKEN = env.CHIME_ADMIN_OWNER_TOKEN;
   console.log(`  minted an owner and a viewer session`);
+
+  /*
+   * Publish the schedule before anything books against it.
+   *
+   * A fresh database has availability *rules* but no published slots for the
+   * administrator's services — which is correct product behaviour: a new
+   * business has to publish its hours before customers can book them. Three
+   * suites need bookable time and none of them publishes it.
+   *
+   * On this machine they passed for a year because an earlier run of the
+   * availability suite had left slots behind, and the suites happen to run in
+   * an order where that one comes fifth. The first run against an empty
+   * database said "requires two available slots" three times.
+   *
+   * Doing it here rather than reordering the suites: a test that only works
+   * because another test ran first is a test that will fail the day someone
+   * runs it alone.
+   */
+  console.log('\n--- publishing the schedule ---');
+  const publish = await fetch(`${env.CHIME_ADMIN_API_BASE_URL}/availability/publish`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.CHIME_ADMIN_OWNER_TOKEN}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': `ci-publish-${identities.organizationId}`,
+    },
+    body: JSON.stringify({ horizonDays: 60 }),
+  });
+  if (!publish.ok) {
+    throw new Error(`Could not publish availability: ${publish.status} ${await publish.text()}`);
+  }
+  const published = await publish.json();
+  console.log(`  published ${JSON.stringify(published.summary ?? published)}`);
 
   console.log('\n--- suites ---');
   await step('admin API', () => run('node', ['scripts/admin-api-smoke.mjs']));

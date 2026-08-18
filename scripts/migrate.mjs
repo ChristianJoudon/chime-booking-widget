@@ -54,6 +54,40 @@ const MIGRATIONS_DIR = join(HERE, '..', 'database', 'migrations');
 const BASE_SCHEMA = join(HERE, '..', 'database', 'postgres-schema.sql');
 const BASE_SCHEMA_NAME = '000-postgres-schema.sql';
 
+/*
+ * The demo data, applied where docker-compose applies it.
+ *
+ * The comment at the top of this file explains why the position matters and
+ * says the consequence was "confirmed by doing it" — and then this runner had
+ * no way to do it, which meant nobody could build a working database from the
+ * runner alone. The first time CI ran, twenty-three migrations applied cleanly
+ * and the very next step failed on a foreign key to an organisation that does
+ * not exist. This machine only worked because compose's initdb had created one
+ * long before.
+ *
+ * Off by default, because a production database must not be given a demo
+ * organisation. `--with-demo-data` is for a machine that needs the same
+ * database compose builds: a fresh checkout, or a build agent.
+ *
+ * Recorded in the ledger under its compose position, so the ordering is tracked
+ * like everything else rather than living in a comment.
+ */
+const DEMO_FILES = [
+  // Between the base schema and 001, as compose has it at position 02.
+  { after: '001-', file: 'seed-demo.sql', name: '000a-seed-demo.sql' },
+  // Both admin seeds sit between 001 and 002 — compose positions 04 and 05.
+  // The organisation comes first; the second adds the read-only user that
+  // several suites need in order to check a role is actually refused.
+  { after: '002-', file: 'seed-admin-demo.sql', name: '001a-seed-admin-demo.sql' },
+  { after: '002-', file: 'seed-admin-test.sql', name: '001b-seed-admin-test.sql' },
+  // After everything, because it needs the organisation and its team, and the
+  // slots it produces are generated from the rules it writes. Without it a
+  // fresh database has no bookable time at all — which reads, in three
+  // different suites, as "requires two available slots".
+  { after: null, file: 'seeds/003-demo-availability.sql', name: '999-demo-availability.sql' },
+];
+const withDemoData = process.argv.includes('--with-demo-data');
+
 const DATABASE_URL = process.env.CHIME_DATABASE_URL
   ?? process.env.DATABASE_URL
   ?? 'postgres://chime:chime@127.0.0.1:5534/chime';
@@ -67,8 +101,13 @@ function baseSchema() {
   return { name: BASE_SCHEMA_NAME, sql, checksum: createHash('sha256').update(sql).digest('hex') };
 }
 
+function demoFile(entry) {
+  const sql = readFileSync(join(HERE, '..', 'database', entry.file), 'utf8');
+  return { name: entry.name, sql, checksum: createHash('sha256').update(sql).digest('hex') };
+}
+
 function migrationFiles() {
-  return [baseSchema(), ...readdirSync(MIGRATIONS_DIR)
+  const numbered = [...readdirSync(MIGRATIONS_DIR)
     .filter((name) => name.endsWith('.sql'))
     // Names are zero-padded (001-, 002-, ... 015-), so a plain sort is the
     // intended order. Reject anything that would sort unpredictably.
@@ -80,6 +119,35 @@ function migrationFiles() {
       const sql = readFileSync(join(MIGRATIONS_DIR, name), 'utf8');
       return { name, sql, checksum: createHash('sha256').update(sql).digest('hex') };
     })];
+
+  if (!withDemoData) return [baseSchema(), ...numbered];
+
+  /*
+   * Interleaved exactly where docker-compose interleaves them.
+   *
+   * Migrations 007, 008, 011, 012 and 013 seed organisation-scoped rows with
+   * `SELECT ... FROM chime_app.organizations`. Run them before an organisation
+   * exists and they insert nothing — a database with no notification templates,
+   * which then fails much later and somewhere unrelated.
+   *
+   * Getting this wrong is not hypothetical: the first version of this flag
+   * placed only the organisation seed, and the suite stopped on "the seeded
+   * organisation has no viewer" — a guard written for exactly the case where a
+   * permission test can only ever exercise the half that is allowed.
+   */
+  const ordered = [baseSchema(), ...numbered];
+  for (const entry of DEMO_FILES) {
+    if (entry.after === null) {
+      ordered.push(demoFile(entry));
+      continue;
+    }
+    const at = ordered.findIndex((item) => item.name.startsWith(entry.after));
+    if (at === -1) {
+      throw new Error(`Expected a ${entry.after} migration to place ${entry.file} before.`);
+    }
+    ordered.splice(at, 0, demoFile(entry));
+  }
+  return ordered;
 }
 
 async function ensureLedger(client) {
