@@ -12,7 +12,9 @@
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "set-password": "tsx src/admin/set-password.ts"
+    "set-password": "tsx src/admin/set-password.ts",
+    "start:admin": "node dist/admin/index.js",
+    "start:worker": "node dist/notifications/worker.js"
   },
   "dependencies": {
     "cors": "2.8.5",

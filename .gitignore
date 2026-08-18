@@ -20,3 +20,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Real production secrets. The .example alongside it is the template.
+.env.production
+backups/

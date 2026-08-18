@@ -1,0 +1,100 @@
+# Production topology for one Chime deployment.
+#
+# Deliberately different from docker-compose.yml, which is the development
+# database only. Nothing here mounts the repository: the image carries the
+# built code, so what runs is what was built.
+#
+# Ports bind to 127.0.0.1. A reverse proxy terminating TLS is expected in front
+# of the two APIs; neither should ever be reachable directly from the internet.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+name: chime-production
+
+services:
+  database:
+    image: postgres:16-alpine
+    container_name: chime-prod-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    volumes:
+      - chime-prod-data:/var/lib/postgresql/data
+      # Backups land on the host, not inside the container's volume, so
+      # destroying the container cannot take the backups with it.
+      - ./backups:/backups
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5535}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Runs the migrations, then exits. Everything else waits for it to succeed,
+  # so no process ever serves traffic against a schema it does not match.
+  migrate:
+    build: .
+    image: chime:latest
+    container_name: chime-prod-migrate
+    restart: 'no'
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      CHIME_DATABASE_URL: ${CHIME_DATABASE_URL:?set CHIME_DATABASE_URL}
+    command: ['node', 'scripts/migrate.mjs']
+
+  customer-api:
+    build: .
+    image: chime:latest
+    container_name: chime-prod-customer-api
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: [.env.production]
+    environment:
+      PORT: 8787
+    ports:
+      - '127.0.0.1:${CUSTOMER_API_PORT:-8787}:8787'
+    command: ['node', 'server/dist/index.js']
+
+  admin-api:
+    build: .
+    image: chime:latest
+    container_name: chime-prod-admin-api
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: [.env.production]
+    environment:
+      # The administrator API reads CHIME_ADMIN_PORT, not PORT. Setting PORT
+      # here looked right and left it listening on its default instead, which
+      # the proxy would not have found.
+      CHIME_ADMIN_PORT: 8788
+      # Inside a container the boundary is the container. Without this the
+      # process would listen on loopback and the proxy could not reach it.
+      CHIME_ADMIN_BIND_HOST: 0.0.0.0
+    ports:
+      - '127.0.0.1:${ADMIN_API_PORT:-8788}:8788'
+    command: ['node', 'server/dist/admin/index.js']
+
+  # Confirmations and reminders. Separate from the APIs so a slow provider
+  # cannot make a customer's booking request hang.
+  notifications:
+    build: .
+    image: chime:latest
+    container_name: chime-prod-notifications
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: [.env.production]
+    command: ['node', 'server/dist/notifications/worker.js']
+
+volumes:
+  chime-prod-data:
+    name: chime-production-data

@@ -1,0 +1,15 @@
+# Keeps the build context small and secrets out of the image.
+node_modules
+server/node_modules
+dist
+dist-admin
+dist-embed
+dist-approval
+.git
+.env
+.env.*
+server/.env
+server/.env.*
+config/admin/.env*
+*.log
+docs

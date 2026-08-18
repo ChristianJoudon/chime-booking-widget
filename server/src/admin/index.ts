@@ -157,8 +157,17 @@ const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => 
 };
 app.use(errorHandler);
 
-const server = app.listen(port, '127.0.0.1', () => {
-  console.log(`Chime admin API listening on http://127.0.0.1:${port}`);
+/*
+ * Loopback by default, because on a workstation this API should not be
+ * reachable from the network. In a container the boundary is the container
+ * itself and the process has to accept connections from the proxy in front of
+ * it, so the address is configurable — but it stays loopback unless something
+ * deliberately says otherwise.
+ */
+const host = process.env.CHIME_ADMIN_BIND_HOST ?? '127.0.0.1';
+
+const server = app.listen(port, host, () => {
+  console.log(`Chime admin API listening on http://${host}:${port}`);
 });
 
 async function shutdown(signal: string) {

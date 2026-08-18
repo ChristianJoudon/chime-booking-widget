@@ -28,7 +28,10 @@
     "test:accessibility": "node scripts/accessibility-smoke.mjs",
     "test:contracts": "node scripts/cross-workspace-contract.mjs",
     "test:embed-host-styles": "node scripts/embed-host-styles.mjs",
-    "seed:demo": "node scripts/seed-demo.mjs"
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "backup": "node scripts/backup-database.mjs",
+    "provision": "node scripts/provision-organization.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "3.7.0",
