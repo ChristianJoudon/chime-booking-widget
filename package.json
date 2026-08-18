@@ -33,9 +33,11 @@
     "backup": "node scripts/backup-database.mjs",
     "provision": "node scripts/provision-organization.mjs",
     "ci:integration": "node scripts/ci-integration.mjs",
-    "test:widget-narrow": "node scripts/widget-narrow-layout.mjs"
+    "test:widget-narrow": "node scripts/widget-narrow-layout.mjs",
+    "test:browser-reporting": "node scripts/browser-reporting-check.mjs"
   },
   "dependencies": {
+    "@sentry/browser": "^8.55.2",
     "@stripe/react-stripe-js": "3.7.0",
     "@stripe/stripe-js": "7.3.1",
     "date-fns": "4.1.0",

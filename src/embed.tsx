@@ -16,6 +16,53 @@ import '@/index.css';
  * @param config Optional widget config; assigned to `window.CHIME_WIDGET_CONFIG`
  *   before the widget renders.
  */
+/*
+ * Read from the page at runtime, never from a build-time variable.
+ *
+ * A VITE_ variable would be inlined into this bundle and copied onto every
+ * customer's website — src/lib/widgetConfig.ts does a bare `import.meta.env`
+ * read, so Vite bakes the whole env object in, and vite.embed.config.ts loads
+ * the repository root. window.CHIME_WIDGET_CONFIG is the contract host pages
+ * already use for everything else the widget needs to know.
+ */
+type HostConfig = { sentryDsn?: unknown; supportLine?: unknown };
+
+function readHostConfig(): HostConfig {
+  try {
+    return ((window as unknown as { CHIME_WIDGET_CONFIG?: HostConfig }).CHIME_WIDGET_CONFIG) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function readWidgetSupportLine(): string | null {
+  const value = readHostConfig().supportLine;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+/*
+ * Nothing is loaded, requested or reported unless the host page asked for it.
+ *
+ * This runs on other people's websites. The SDK arrives through a dynamic
+ * import, so a site that sets no DSN downloads none of it, and a site that sets
+ * one but blocks the request carries on with a booking form that works.
+ */
+function startWidgetReporting(): void {
+  const dsn = readHostConfig().sentryDsn;
+  if (typeof dsn !== 'string' || !dsn.trim()) return;
+  void initBrowserReporting({ dsn, surface: 'booking-widget' }).then((on) => {
+    if (!on) return;
+    window.addEventListener('error', (event) => {
+      reportBrowserError(event.error ?? event.message, { surface: 'booking-widget', kind: 'uncaught' });
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+      reportBrowserError(event.reason, { surface: 'booking-widget', kind: 'unhandledRejection' });
+    });
+  });
+}
+
+startWidgetReporting();
+
 export function mount(
   target: string | HTMLElement,
   config?: WidgetConfigInput,
@@ -43,7 +90,27 @@ export function mount(
   const root = ReactDOM.createRoot(container);
   root.render(
     <React.StrictMode>
-      <App />
+      {/*
+        * A booking form that fails silently is a lost customer who thinks the
+        * business is shut. Whatever else breaks, the phone number stays on
+        * screen — the host page supplies it in the same configuration object
+        * everything else here comes from.
+        */}
+      <ErrorBoundary
+        surface="booking-widget"
+        fallback={(retry) => (
+          <div className="chime-widget chime-crash" role="alert">
+            <h2>This booking form could not load</h2>
+            <p>
+              {readWidgetSupportLine()
+                ?? 'Please contact the business directly to make your appointment.'}
+            </p>
+            <button type="button" onClick={retry}>Try again</button>
+          </div>
+        )}
+      >
+        <App />
+      </ErrorBoundary>
     </React.StrictMode>,
   );
 
@@ -86,3 +153,5 @@ if (document.readyState === 'loading') {
   autoMount();
 }
 import { mountConfiguredElement } from './embedPresentation';
+import { ErrorBoundary } from './observability/ErrorBoundary';
+import { initBrowserReporting, reportBrowserError } from './observability/browserReporting';

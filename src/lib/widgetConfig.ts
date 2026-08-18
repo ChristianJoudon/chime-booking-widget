@@ -64,8 +64,47 @@ You agree to review all service estimates, payment requirements, warranties, and
 
 By scrolling to the bottom and accepting this document, you acknowledge that you have read and agree to these booking terms.`;
 
+/*
+ * Every value this file reads, named one at a time.
+ *
+ * It used to be `return import.meta.env ?? {}`, and that one line put every
+ * VITE_ variable in the repository root into dist-embed/chime-widget.js — the
+ * file that gets copied onto customers' websites. Vite replaces
+ * `import.meta.env` with a literal of the whole object whenever it cannot see
+ * which key you want, and a function returning the object hides that from it
+ * completely. The shipped bundle carried `{BASE_URL:"/",DEV:!1,...}` as proof.
+ *
+ * The project's answer until now was a rule — never put a secret in a VITE_
+ * variable — repeated in ISOLATION.md, in adminConnection.ts and in a comment
+ * in config/admin/.env.local, because careful handling at the call sites had
+ * been tried against a sentinel and it shipped every time.
+ *
+ * Naming the keys is what makes Vite able to see them. Only these fourteen are
+ * substituted now; anything else in the root environment stays out of the
+ * bundle whether or not someone remembers the rule.
+ *
+ * ADDING A READ MEANS ADDING A LINE HERE. That is the cost, and it is the point:
+ * a new variable cannot reach a customer's website by accident.
+ */
+const ENV = {
+  DEV: import.meta.env.DEV,
+  VITE_CHIME_API_BASE_URL: import.meta.env.VITE_CHIME_API_BASE_URL,
+  VITE_CHIME_AVAILABILITY_URL: import.meta.env.VITE_CHIME_AVAILABILITY_URL,
+  VITE_CHIME_BOOKING_URL: import.meta.env.VITE_CHIME_BOOKING_URL,
+  VITE_CHIME_CURRENCY: import.meta.env.VITE_CHIME_CURRENCY,
+  VITE_CHIME_DEPOSIT_REQUIRED: import.meta.env.VITE_CHIME_DEPOSIT_REQUIRED,
+  VITE_CHIME_LOCATION: import.meta.env.VITE_CHIME_LOCATION,
+  VITE_CHIME_ORGANIZATION_SLUG: import.meta.env.VITE_CHIME_ORGANIZATION_SLUG,
+  VITE_CHIME_PAYMENT_DEMO_MODE: import.meta.env.VITE_CHIME_PAYMENT_DEMO_MODE,
+  VITE_CHIME_PAYMENT_INTENT_URL: import.meta.env.VITE_CHIME_PAYMENT_INTENT_URL,
+  VITE_CHIME_SERVICES_URL: import.meta.env.VITE_CHIME_SERVICES_URL,
+  VITE_CHIME_STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_CHIME_STRIPE_PUBLISHABLE_KEY,
+  VITE_CHIME_USE_DEMO_DATA: import.meta.env.VITE_CHIME_USE_DEMO_DATA,
+  VITE_CHIME_WIDGET_SLUG: import.meta.env.VITE_CHIME_WIDGET_SLUG,
+} as const;
+
 function getEnv() {
-  return import.meta.env ?? {};
+  return ENV;
 }
 
 function shouldUseDemoData(): boolean {

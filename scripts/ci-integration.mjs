@@ -266,6 +266,11 @@ try {
     // Needs no servers: it renders the built widget under host stylesheets.
     await step('embed host styles', () => run('node', ['scripts/embed-host-styles.mjs']));
 
+    // Builds the widget with a sentinel DSN in the root environment and greps
+    // the artifact for it. The failure it guards against is invisible: a root
+    // VITE_ variable used to be copied into every customer's website.
+    await step('widget reporting', () => run('node', ['scripts/browser-reporting-check.mjs']));
+
     // Needs only Vite — the widget's dev entry renders from sample data, so this
     // measures the widget's shape without depending on a seed or a database.
     background('widget', 'npx', ['vite', '--port', String(WIDGET_PORT), '--strictPort']);

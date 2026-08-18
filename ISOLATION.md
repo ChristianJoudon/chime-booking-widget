@@ -59,11 +59,11 @@ Administrators sign in with a password; there is no environment path for a
 token at all. `POST /api/chime/admin/session` issues a short-lived session,
 held in `sessionStorage` for the life of the tab.
 
-**Never put a secret in a `VITE_*` variable in this project.** The admin bundle
-reaches `src/lib/widgetConfig.ts` through Widget Designer's live preview, and
-that module does a bare `import.meta.env` read, which makes Vite inline the
-*entire* env object — every `VITE_*` value — into the built JavaScript as a
-plain object literal. Careful handling on the admin side does not help: a
+**Never put a secret in a `VITE_*` variable in this project.** The rule stands,
+but the mechanism behind it has been closed — see "The env leak, closed" below.
+`src/lib/widgetConfig.ts` used to do a bare `import.meta.env` read, which made
+Vite inline the *entire* env object — every `VITE_*` value — into the built
+JavaScript as a plain object literal. Careful handling on the admin side does not help: a
 `import.meta.env.DEV` guard, static property access, and dead-code elimination
 were all tried against a sentinel token and it shipped every time, because a
 different module pulls the object in. `widgetConfig.ts` belongs to the widget
@@ -320,3 +320,43 @@ top of `index.css` since the beginning and has never once applied, because
 beats a container query at any width. That is the third time this file has done
 it — after `.booking-flow-grid` and `.calendar-day__status`. **Layout rules for
 narrow widths belong at the end of the file, and nowhere else.**
+
+### The env leak, closed
+
+`src/lib/widgetConfig.ts` now names each of the fourteen environment values it
+reads, one line each, instead of returning `import.meta.env` wholesale. Vite can
+only substitute a key it can see; a function returning the object hid every key
+from it, so it substituted all of them.
+
+That is the difference between a rule people have to remember and a property of
+the build. `npm run test:browser-reporting` proves it: it puts a sentinel DSN in
+the repository root, builds the widget, and greps the artifact. Before the
+change the sentinel shipped. After it, it does not.
+
+**Adding a new `VITE_` read to that file means adding a line to the `ENV`
+object.** That is the cost, and it is the point — a new variable cannot reach a
+customer's website by accident.
+
+### Error reporting in the browser
+
+Both browser surfaces report faults, and each takes its DSN from a different
+place because they are not in the same danger.
+
+The **administrator studio** reads `VITE_CHIME_SENTRY_DSN`, which lives in
+`config/admin/.env.local`. `vite.admin.config.ts` scopes `envDir` there, so it
+cannot reach any other bundle.
+
+The **customer widget** takes `sentryDsn` from `window.CHIME_WIDGET_CONFIG` at
+runtime — the contract host pages already use — and never from a build-time
+variable. The SDK arrives through a dynamic import, so a site that sets no DSN
+downloads none of it. Reporting is off by default on every embed.
+
+Both scrub before sending: no request bodies, no query strings, no cookies, no
+user, and **no breadcrumbs** — the SDK records every field a person touches, and
+on a booking form that is the whole of what they typed.
+
+Neither had an error boundary before this; there was not a single class
+component in the tree, so any render error blanked the whole app. The studio now
+offers to retry the screen or reload, and the widget shows the business's own
+support line, because a booking form that fails silently is a lost customer who
+thinks the business is shut.
