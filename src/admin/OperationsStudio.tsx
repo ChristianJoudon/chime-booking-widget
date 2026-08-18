@@ -118,11 +118,21 @@ type Notification = {
   createdAt: string;
 };
 
+type BookableService = {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  bufferBeforeMinutes: number;
+  bufferAfterMinutes: number;
+  isActive: boolean;
+};
+
 type OperationsPayload = {
   appointments: Appointment[];
   staff: StaffMember[];
   locations: Location[];
   notifications: Notification[];
+  services: BookableService[];
 };
 
 class OperationsApiError extends Error {}
@@ -284,6 +294,7 @@ export default function OperationsStudio({
     staff: [],
     locations: [],
     notifications: [],
+    services: [],
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [staffFilter, setStaffFilter] = useState<string>('all');
@@ -298,7 +309,127 @@ export default function OperationsStudio({
   const [changeReason, setChangeReason] = useState('');
   const [conflicts, setConflicts] = useState<ScheduleConflict[] | null>(null);
   const [decisionNote, setDecisionNote] = useState('');
+
+  /*
+   * Writing down a booking taken over the phone.
+   *
+   * Closed by default and opened from the header, rather than living on screen:
+   * the common case for this screen is reading the week, and a form that is
+   * always open pushes the schedule down to make room for something used a few
+   * times a day.
+   */
+  const [addOpen, setAddOpen] = useState(false);
+  const [addServiceId, setAddServiceId] = useState('');
+  const [addStaffId, setAddStaffId] = useState('');
+  const [addLocationId, setAddLocationId] = useState('');
+  const [addStartsAt, setAddStartsAt] = useState('');
+  const [addDuration, setAddDuration] = useState(30);
+  const [addCustomerName, setAddCustomerName] = useState('');
+  const [addCustomerPhone, setAddCustomerPhone] = useState('');
+  const [addCustomerEmail, setAddCustomerEmail] = useState('');
+  const [addNotes, setAddNotes] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
   const { confirm: confirmAction, element: previewElement } = useActionPreview();
+
+  const chosenAddService = payload.services.find((service) => service.id === addServiceId) ?? null;
+
+  function resetAddForm() {
+    setAddServiceId('');
+    setAddStaffId('');
+    setAddLocationId('');
+    setAddStartsAt('');
+    setAddDuration(30);
+    setAddCustomerName('');
+    setAddCustomerPhone('');
+    setAddCustomerEmail('');
+    setAddNotes('');
+    setAddError(null);
+  }
+
+  async function submitNewAppointment(event: React.FormEvent) {
+    event.preventDefault();
+    setAddError(null);
+
+    const service = payload.services.find((item) => item.id === addServiceId);
+    const member = payload.staff.find((item) => item.id === addStaffId);
+    if (!service || !member || !addStartsAt || !addCustomerName.trim()) {
+      setAddError('Fill in the service, the team member, the time, and who it is for.');
+      return;
+    }
+
+    // datetime-local has no zone, so it is read as the browser's — which is the
+    // right guess: the person typing it is standing in the business.
+    const startsAt = new Date(addStartsAt);
+    if (Number.isNaN(startsAt.getTime())) {
+      setAddError('That date and time could not be read.');
+      return;
+    }
+
+    const preview = await confirmAction({
+      title: 'Add this appointment',
+      summary: `Books ${addCustomerName.trim()} in with ${member.name} and takes that time off your booking page.`,
+      changes: [
+        { label: 'Service', after: service.name },
+        { label: 'Team member', after: member.name },
+        {
+          label: 'When',
+          after: `${startsAt.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })} · ${addDuration} min`,
+        },
+        {
+          label: 'Customer',
+          after: addCustomerPhone.trim() || addCustomerEmail.trim()
+            ? `${addCustomerName.trim()} (${[addCustomerPhone.trim(), addCustomerEmail.trim()].filter(Boolean).join(' · ')})`
+            : addCustomerName.trim(),
+        },
+        { label: 'Your booking page', after: 'Stops offering this time to customers' },
+      ],
+      // Nobody is written to. A phone booking is agreed on the phone, and a
+      // confirmation the customer did not ask for, to an address the owner just
+      // typed from memory, is as likely to reach a stranger as the customer.
+      notifies: null,
+      paymentEffect: null,
+      reversible: {
+        kind: 'recoverable',
+        detail: 'Cancel it from the schedule and the time goes back on your booking page.',
+      },
+      confirmLabel: 'Add appointment',
+    });
+    if (!preview.confirmed) return;
+
+    setSaving(true);
+    try {
+      await operationsRequest('/appointments', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          serviceId: service.id,
+          staffMemberId: member.id,
+          locationId: addLocationId || null,
+          startsAt: startsAt.toISOString(),
+          durationMinutes: addDuration,
+          customerName: addCustomerName.trim(),
+          customerPhone: addCustomerPhone.trim() || null,
+          customerEmail: addCustomerEmail.trim() || null,
+          notes: addNotes.trim() || null,
+        }),
+      });
+      resetAddForm();
+      setAddOpen(false);
+      // The week the appointment landed in, which is not necessarily the week
+      // being looked at — otherwise a booking three weeks out saves and then
+      // appears nowhere, which reads as a failure.
+      setWeekStart(startOfWeek(startsAt));
+      await load();
+    } catch (caught) {
+      setAddError(
+        caught instanceof OperationsApiError
+          ? caught.message
+          : 'Chime could not add that appointment.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -656,6 +787,18 @@ export default function OperationsStudio({
         </div>
         <div className="operations-header-actions">
           <button
+            className="operations-add-button"
+            type="button"
+            onClick={() => {
+              setAddOpen((open) => !open);
+              setAddError(null);
+            }}
+            aria-expanded={addOpen}
+            aria-controls="operations-add-form"
+          >
+            {addOpen ? 'Close' : 'Add appointment'}
+          </button>
+          <button
             className="operations-today-button"
             type="button"
             onClick={() => setWeekStart(startOfWeek(new Date()))}
@@ -681,6 +824,156 @@ export default function OperationsStudio({
           </div>
         </div>
       </header>
+
+      {addOpen ? (
+        <form className="operations-add-form" id="operations-add-form" onSubmit={submitNewAppointment}>
+          <h2>Add an appointment</h2>
+          <p className="operations-add-form__intro">
+            For a booking taken over the phone or in person. It goes straight into the schedule and
+            the time stops being offered on your booking page.
+          </p>
+
+          <div className="operations-add-form__grid">
+            <label>
+              <span>Service</span>
+              <select
+                value={addServiceId}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setAddServiceId(next);
+                  // The service's own length, so the common case is one fewer
+                  // field to think about. Still editable — a phone booking is
+                  // exactly where "she needs a bit longer" comes up.
+                  const service = payload.services.find((item) => item.id === next);
+                  if (service) setAddDuration(service.durationMinutes);
+                }}
+                required
+              >
+                <option value="">Choose a service</option>
+                {payload.services.map((service) => (
+                  <option key={service.id} value={service.id}>
+                    {service.name}
+                    {service.isActive ? '' : ' (hidden from customers)'}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Team member</span>
+              <select value={addStaffId} onChange={(event) => setAddStaffId(event.target.value)} required>
+                <option value="">Choose a team member</option>
+                {payload.staff.filter((member) => member.isActive).map((member) => (
+                  <option key={member.id} value={member.id}>{member.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Starts</span>
+              <input
+                type="datetime-local"
+                value={addStartsAt}
+                onChange={(event) => setAddStartsAt(event.target.value)}
+                required
+              />
+            </label>
+
+            <label>
+              <span>Minutes</span>
+              <input
+                type="number"
+                min={5}
+                max={480}
+                step={5}
+                value={addDuration}
+                onChange={(event) => setAddDuration(Number(event.target.value))}
+                required
+              />
+            </label>
+
+            {payload.locations.length > 1 ? (
+              <label>
+                <span>Location</span>
+                <select value={addLocationId} onChange={(event) => setAddLocationId(event.target.value)}>
+                  <option value="">No particular location</option>
+                  {payload.locations.filter((location) => location.isActive).map((location) => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            <label>
+              <span>Customer name</span>
+              <input
+                type="text"
+                value={addCustomerName}
+                onChange={(event) => setAddCustomerName(event.target.value)}
+                placeholder="Who is coming in"
+                required
+              />
+            </label>
+
+            <label>
+              <span>Phone</span>
+              <input
+                type="tel"
+                value={addCustomerPhone}
+                onChange={(event) => setAddCustomerPhone(event.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+
+            <label>
+              <span>Email</span>
+              <input
+                type="email"
+                value={addCustomerEmail}
+                onChange={(event) => setAddCustomerEmail(event.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+          </div>
+
+          <label className="operations-add-form__notes">
+            <span>Note for your team</span>
+            <textarea
+              value={addNotes}
+              onChange={(event) => setAddNotes(event.target.value)}
+              rows={2}
+              placeholder="Anything worth remembering about this booking"
+            />
+          </label>
+
+          <p className="operations-add-form__hint">
+            A phone or email matching a customer you already have will be linked to them rather than
+            making a second record. Nobody is emailed or texted — you have already spoken to them.
+            {chosenAddService && !chosenAddService.isActive
+              ? ' This service is hidden from customers; booking it here does not put it back on your page.'
+              : ''}
+          </p>
+
+          {addError ? (
+            <p className="operations-add-form__error" role="alert">{addError}</p>
+          ) : null}
+
+          <div className="operations-add-form__actions">
+            <button type="submit" className="operations-add-form__submit" disabled={saving}>
+              {saving ? 'Adding…' : 'Review and add'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetAddForm();
+                setAddOpen(false);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : null}
 
       <div className="operations-summary" aria-label="Schedule summary">
         <article>

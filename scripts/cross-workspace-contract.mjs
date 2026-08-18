@@ -475,6 +475,107 @@ async function restoreService(restore) {
   }
 }
 
+/*
+ * An appointment written down in the studio takes that time off the widget.
+ *
+ * This is the contract that used to be broken in the one direction nothing
+ * could reach: a customer booking always left a record the widget's own
+ * capacity query understood, so the two sides agreed by accident rather than by
+ * design. The moment an administrator can enter a phone booking, the accident
+ * stops covering it.
+ *
+ * Measured on the same team member's own slots, before and after, and then the
+ * appointment is removed and the capacity has to come back. A check that only
+ * looked at "after" would pass just as happily against a slot that was never
+ * available in the first place.
+ */
+async function checkStudioBookingBlocksTheWidget(pool) {
+  const name = 'a studio appointment takes that time off the widget';
+
+  const { rows: staffRows } = await pool.query(
+    `SELECT candidate.staff_member_id, candidate.slot_id, candidate.busy_starts_at, candidate.busy_ends_at,
+            slot.capacity, slot.status
+       FROM public.chime_slot_candidates candidate
+       JOIN public.chime_availability_slots slot ON slot.id = candidate.slot_id
+      WHERE candidate.organization_id = $1
+        AND slot.source = 'admin'
+        AND slot.starts_at > now() + interval '10 days'
+        AND slot.status = 'available'
+      ORDER BY slot.starts_at
+      LIMIT 1`,
+    [ORGANIZATION_ID],
+  );
+  const target = staffRows[0];
+  if (!target) {
+    check(name, false, 'no future published slot with a candidate to test against');
+    return;
+  }
+
+  const service = (await pool.query(
+    `SELECT id, default_duration_minutes FROM chime_app.services
+      WHERE organization_id = $1 AND origin <> 'test' AND is_active ORDER BY name LIMIT 1`,
+    [ORGANIZATION_ID],
+  )).rows[0];
+  if (!service) {
+    check(name, false, 'no active service to book');
+    return;
+  }
+
+  const capacityOf = async () =>
+    Number(
+      (await pool.query('SELECT capacity FROM public.chime_availability_slots WHERE id = $1', [target.slot_id]))
+        .rows[0].capacity,
+    );
+
+  const before = await capacityOf();
+  let created = null;
+  try {
+    created = await adminRequest('/appointments', {
+      method: 'POST',
+      body: {
+        serviceId: service.id,
+        staffMemberId: target.staff_member_id,
+        startsAt: new Date(target.busy_starts_at).toISOString(),
+        durationMinutes: service.default_duration_minutes,
+        customerName: `Contract probe ${Date.now()}`,
+      },
+    });
+    const after = await capacityOf();
+
+    check(
+      name,
+      after === before - 1,
+      `capacity was ${before} and is ${after}; booking the only candidate for that slot should have taken one off`,
+    );
+  } catch (error) {
+    check(name, false, `creating the appointment failed: ${error.message}`);
+  } finally {
+    if (created?.appointment?.id) {
+      const appointmentId = created.appointment.id;
+      await pool.query('DELETE FROM chime_app.audit_events WHERE entity_id = $1', [appointmentId]);
+      await pool.query('DELETE FROM chime_app.outbox_events WHERE aggregate_id = $1', [appointmentId]);
+      await pool.query('DELETE FROM chime_app.appointment_staff WHERE appointment_id = $1', [appointmentId]);
+      const customer = await pool.query(
+        'DELETE FROM chime_app.appointments WHERE id = $1 RETURNING customer_id',
+        [appointmentId],
+      );
+      if (customer.rows[0]) {
+        await pool.query('DELETE FROM chime_app.customers WHERE id = $1', [customer.rows[0].customer_id]);
+      }
+      await pool.query('SELECT public.chime_refresh_generated_slot_capacities($1)', [ORGANIZATION_ID]);
+
+      // The other half of the contract, and the one a careless implementation
+      // fails: cancelling has to give the hour back.
+      const restored = await capacityOf();
+      check(
+        'removing that appointment puts the time back',
+        restored === before,
+        `capacity started at ${before} and came back as ${restored}`,
+      );
+    }
+  }
+}
+
 async function main() {
   const pool = new Pool({ connectionString: DATABASE_URL });
   let restore = null;
@@ -485,6 +586,7 @@ async function main() {
     await checkAvailabilityAgrees();
     await checkWidgetAppearanceAgrees();
     await checkProjectionHandlesEveryCase(pool);
+    await checkStudioBookingBlocksTheWidget(pool);
   } finally {
     await restoreService(restore);
     await pool.end();

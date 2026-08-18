@@ -212,3 +212,42 @@ It migrates, seeds, starts both APIs, the worker and the studio, mints an owner
 and a viewer session, runs all eleven suites, and shuts down. The browser suites
 are skipped — loudly, and listed as skipped — when no Chrome is found, so a
 smaller green never reads as a full one.
+
+## Bookings taken over the phone
+
+**Appointments → Schedule → Add appointment.** For a booking agreed on the
+phone or at the counter: service, team member, when, and who it is for. It goes
+into the schedule immediately and stops that time being offered on your booking
+page.
+
+Three things it does that are easy to miss:
+
+- **It refuses a double booking.** The same check the reschedule flow uses,
+  including each service's before and after buffers — so a ninety-minute
+  appointment with a fifteen-minute buffer blocks the two hours it really
+  occupies, not just the ninety minutes.
+- **It links to a customer you already have** when the phone number or email
+  matches one, rather than making a second record. Matched on contact details,
+  never on name: two people can share a name, and merging strangers is worse
+  than a duplicate.
+- **Nobody is emailed or texted.** You have just spoken to them, and a
+  confirmation sent to an address typed from memory is as likely to reach a
+  stranger as the customer.
+
+A service hidden from customers can still be booked here. Hidden means "not
+offered on the website", not "retired", and the people already asking for it
+still have to be written down.
+
+### The bridge this closed
+
+The widget's availability was already aware of who is busy — it counts the team
+members who could take a slot and are free, and marks it booked when none are.
+What it counted as "busy" was only ever a record left behind by a widget
+booking.
+
+Nothing a customer could do reached that gap, because until now nothing but the
+widget could create an appointment. Entering one by hand would have walked
+straight into it: booked solid in the studio, still bookable on the website.
+Migration 022 teaches that one query about appointments as well, so both sides
+now answer the same question the same way, and `npm run test:contracts` checks
+it in both directions — a booking takes the time, and removing it gives it back.

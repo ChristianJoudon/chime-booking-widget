@@ -1141,3 +1141,143 @@
   line-height: 1.45;
   color: var(--admin-ink-soft);
 }
+
+/* ---------------------------------------------------------------------------
+ * Adding an appointment by hand
+ *
+ * For a booking taken on the phone. Styled as a panel above the week rather
+ * than as a modal: the owner is usually reading the schedule off the screen
+ * while they talk, and a dialog would cover the one thing they are looking at.
+ * ------------------------------------------------------------------------- */
+/*
+ * Scoped under .operations-studio, and that is not decoration.
+ *
+ * `.operations-studio button { color: inherit }` above has specificity (0,1,1)
+ * and beats a bare class, so `.operations-add-button { color: #fff }` lost and
+ * the label rendered in dark ink on a green field — 2.46:1, which the
+ * accessibility suite caught. The existing primary in this file
+ * (.operations-filter-row button.is-active) already carries the extra
+ * qualifier for the same reason.
+ *
+ * Painted with --ops-ink rather than a mid green, because that pairing is
+ * already proven here and white on a mid green sits close enough to the 4.5
+ * threshold to fail on a rounding difference.
+ */
+.operations-studio .operations-add-button {
+  background: var(--ops-ink);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  box-shadow: 0 9px 24px rgba(31, 71, 61, 0.12);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9108rem;
+  font-weight: 750;
+  padding: 11px 16px;
+}
+
+.operations-studio .operations-add-button:hover {
+  filter: brightness(1.25);
+}
+
+.operations-add-form {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--ops-line);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(31, 71, 61, 0.07);
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 20px;
+}
+
+.operations-add-form h2 {
+  font-size: 1.15rem;
+  font-weight: 780;
+  margin: 0;
+}
+
+.operations-add-form__intro,
+.operations-add-form__hint {
+  color: var(--ops-muted, #5a6f68);
+  font-size: 0.86rem;
+  margin: 0;
+}
+
+/*
+ * auto-fit rather than a fixed column count, so the form reflows on a narrow
+ * window without a breakpoint of its own. The studio is used on laptops with
+ * the browser at half width as often as full.
+ */
+.operations-add-form__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.operations-add-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.operations-add-form label > span {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.operations-add-form input,
+.operations-add-form select,
+.operations-add-form textarea {
+  background: #fff;
+  border: 1px solid var(--ops-line);
+  border-radius: 11px;
+  font: inherit;
+  font-size: 0.92rem;
+  /* Comfortably past the 24px floor the accessibility suite enforces, and
+   * enough for a finger on a touchscreen laptop. */
+  min-height: 42px;
+  padding: 9px 11px;
+  width: 100%;
+}
+
+.operations-add-form textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.operations-add-form__error {
+  background: rgba(190, 60, 60, 0.08);
+  border: 1px solid rgba(190, 60, 60, 0.24);
+  border-radius: 11px;
+  color: #8f2f2f;
+  font-size: 0.88rem;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.operations-add-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.operations-add-form__actions button {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--ops-line);
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 42px;
+  padding: 10px 18px;
+}
+
+.operations-studio .operations-add-form__submit {
+  background: var(--ops-ink);
+  border-color: transparent;
+  color: #fff;
+}
+
+.operations-add-form__submit:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}

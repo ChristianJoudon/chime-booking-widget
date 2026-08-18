@@ -353,6 +353,320 @@ async function writeEvent(
   }
 }
 
+/*
+ * Creating an appointment from the studio — a booking taken over the phone.
+ *
+ * Until now nothing but the widget could create one. An appointment appeared
+ * only as a side effect of a row in public.chime_bookings, which needs a
+ * published slot; a customer who rings at four and agrees on quarter past three
+ * next Tuesday has no slot, so there was no way to write them down. A small
+ * business that cannot enter a phone booking is a small business that keeps a
+ * paper diary next to the software, and then the two disagree.
+ *
+ * Written directly to chime_app.appointments rather than faked through the
+ * widget's tables. The alternative — inventing a slot and a booking row so the
+ * projection trigger fires — would record the appointment as source 'widget',
+ * which is untrue, would let the assignment trigger pick the team member
+ * instead of the person on the phone, and would leave a slot behind that exists
+ * only to have been consumed.
+ *
+ * The two things that would otherwise be lost by not going through the trigger
+ * are handled explicitly: the staff assignment (which is what the conflict
+ * check keys on, and what takes the time off the widget through the trigger
+ * added in migration 022) and the audit record.
+ */
+type NewAppointmentInput = {
+  serviceId: string;
+  staffMemberId: string;
+  startsAt: Date;
+  durationMinutes: number;
+  locationId: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  notes: string | null;
+};
+
+function parseNewAppointmentInput(value: unknown): NewAppointmentInput {
+  if (!value || typeof value !== 'object') {
+    throw new AdminApiError(400, 'INVALID_APPOINTMENT', 'Appointment details are required.');
+  }
+  const input = value as Record<string, unknown>;
+  const customerId = parseOptionalUuid(input.customerId, 'customerId');
+  const customerName = typeof input.customerName === 'string' ? input.customerName.trim() : '';
+
+  // Either an existing customer or enough to make one. Refusing both here
+  // rather than letting the insert fail on a null foreign key, so the message
+  // says what to do about it.
+  if (!customerId && !customerName) {
+    throw new AdminApiError(
+      400,
+      'CUSTOMER_REQUIRED',
+      'Choose an existing customer, or give a name for a new one.',
+    );
+  }
+
+  return {
+    serviceId: parseUuid(String(input.serviceId ?? ''), 'serviceId'),
+    staffMemberId: parseUuid(String(input.staffMemberId ?? ''), 'staffMemberId'),
+    startsAt: parseDate(input.startsAt, 'startsAt'),
+    durationMinutes: parsePositiveInteger(input.durationMinutes, 'durationMinutes'),
+    locationId: parseOptionalUuid(input.locationId, 'locationId'),
+    customerId,
+    customerName: customerName || null,
+    customerEmail: typeof input.customerEmail === 'string' ? input.customerEmail.trim() || null : null,
+    customerPhone: typeof input.customerPhone === 'string' ? input.customerPhone.trim() || null : null,
+    notes: typeof input.notes === 'string' ? input.notes.trim().slice(0, 600) || null : null,
+  };
+}
+
+async function createAppointment(
+  pool: Pool,
+  input: NewAppointmentInput,
+  context: MutationContext,
+) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    /*
+     * A repeat of the same request returns the appointment it made the first
+     * time, rather than making a second one or refusing.
+     *
+     * A phone call written down twice because the studio was tapped twice is
+     * worse than one that fails: the duplicate is invisible until someone turns
+     * up to a double booking. Refusing the retry would be safe but wrong — the
+     * caller cannot tell "already saved" from "not saved", which is the
+     * question they retried to answer.
+     *
+     * The outbox is the ledger for this, the same one service mutations use.
+     */
+    const replayed = await client.query<{ appointment: Record<string, unknown> }>(
+      `SELECT payload -> 'appointment' AS appointment
+         FROM chime_app.outbox_events
+        WHERE organization_id = $1
+          AND idempotency_key = $2
+          AND event_type = 'appointment.created'
+        LIMIT 1`,
+      [context.organizationId, context.idempotencyKey],
+    );
+    if (replayed.rows[0]?.appointment) {
+      await client.query('COMMIT');
+      return { appointment: replayed.rows[0].appointment, replayed: true };
+    }
+
+    const service = await client.query<{
+      id: string;
+      name: string;
+      confirmation_mode: string;
+      change_approval_mode: string;
+      buffer_before_minutes: number;
+      buffer_after_minutes: number;
+      is_active: boolean;
+    }>(
+      `SELECT id, name, confirmation_mode, change_approval_mode,
+              buffer_before_minutes, buffer_after_minutes, is_active
+         FROM chime_app.services
+        WHERE organization_id = $1 AND id = $2`,
+      [context.organizationId, input.serviceId],
+    );
+    if (service.rowCount === 0) {
+      throw new AdminApiError(404, 'SERVICE_NOT_FOUND', 'That service was not found.');
+    }
+    // An inactive service can still be booked by the owner on the phone — it is
+    // hidden from customers, not retired. Blocking it here would mean a service
+    // taken off the website could not be honoured for the people already asking
+    // for it.
+    const chosenService = service.rows[0];
+
+    const staff = await client.query<{ id: string; display_name: string; is_active: boolean }>(
+      `SELECT id, display_name, is_active
+         FROM chime_app.staff_members
+        WHERE organization_id = $1 AND id = $2`,
+      [context.organizationId, input.staffMemberId],
+    );
+    if (staff.rowCount === 0) {
+      throw new AdminApiError(404, 'STAFF_NOT_FOUND', 'That team member was not found.');
+    }
+    if (!staff.rows[0].is_active) {
+      throw new AdminApiError(
+        400,
+        'STAFF_INACTIVE',
+        `${staff.rows[0].display_name} is no longer active. Choose someone else.`,
+      );
+    }
+
+    const endsAt = new Date(input.startsAt.getTime() + input.durationMinutes * 60_000);
+
+    /*
+     * The same conflict check the reschedule path uses, deliberately.
+     *
+     * A second implementation would be a second opinion, and the two would
+     * disagree the first time either changed. Passing a null appointmentId
+     * because there is no appointment yet to exclude from the comparison.
+     */
+    const conflicts = await findScheduleConflicts(client, {
+      organizationId: context.organizationId,
+      appointmentId: null,
+      staffMemberId: input.staffMemberId,
+      startsAt: input.startsAt,
+      endsAt,
+      bufferBeforeMinutes: chosenService.buffer_before_minutes,
+      bufferAfterMinutes: chosenService.buffer_after_minutes,
+    });
+    if (conflicts.length) {
+      throw new AdminApiError(
+        409,
+        'APPOINTMENT_OVERLAP',
+        `${staff.rows[0].display_name} already has ${conflicts[0].referenceCode} during this time.`,
+        { conflicts },
+      );
+    }
+
+    let customerId = input.customerId;
+    if (customerId) {
+      const existing = await client.query(
+        'SELECT id FROM chime_app.customers WHERE organization_id = $1 AND id = $2',
+        [context.organizationId, customerId],
+      );
+      if (existing.rowCount === 0) {
+        throw new AdminApiError(404, 'CUSTOMER_NOT_FOUND', 'That customer was not found.');
+      }
+    } else {
+      /*
+       * Look for this person before inventing them.
+       *
+       * The same regular rings every month. Without this, each call would add
+       * another "Maya Kealoha" and the history that makes the customer record
+       * worth having — how often they come, what they asked for last time —
+       * would be split across a growing pile of near-duplicates that someone
+       * has to merge by hand later.
+       *
+       * Matched on email or phone, never on name: two customers can share a
+       * name, and merging strangers is a worse mistake than a duplicate.
+       */
+      if (input.customerEmail || input.customerPhone) {
+        const matched = await client.query<{ id: string }>(
+          `SELECT id
+             FROM chime_app.customers
+            WHERE organization_id = $1
+              AND (
+                ($2::text IS NOT NULL AND lower(email) = lower($2))
+                OR ($3::text IS NOT NULL AND phone = $3)
+              )
+            ORDER BY created_at
+            LIMIT 1`,
+          [context.organizationId, input.customerEmail, input.customerPhone],
+        );
+        if (matched.rows[0]) customerId = matched.rows[0].id;
+      }
+    }
+
+    if (!customerId) {
+      const created = await client.query<{ id: string }>(
+        `INSERT INTO chime_app.customers (
+           organization_id, display_name, email, phone, time_zone, origin, version
+         ) VALUES ($1, $2, $3, $4, $5, $6, 1)
+         RETURNING id`,
+        [
+          context.organizationId,
+          input.customerName,
+          input.customerEmail,
+          input.customerPhone,
+          process.env.CHIME_TIME_ZONE ?? 'Pacific/Honolulu',
+          // Matches the workspace this server is configured for, so a phone
+          // booking entered while practising does not land among real records.
+          process.env.CHIME_WORKSPACE_ENV === 'demo'
+            ? 'demo'
+            : process.env.CHIME_WORKSPACE_ENV === 'test'
+              ? 'test'
+              : 'business',
+        ],
+      );
+      customerId = created.rows[0].id;
+    }
+
+    const appointmentId = randomUUID();
+    // The same shape the projection trigger synthesises, so a reference code
+    // means the same thing whichever way the appointment arrived.
+    const referenceCode = `CH-${appointmentId.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+
+    const inserted = await client.query(
+      `INSERT INTO chime_app.appointments (
+         id, organization_id, reference_code, service_id, customer_id, location_id,
+         starts_at, ends_at, time_zone, status, source,
+         confirmation_mode, change_approval_mode, internal_notes, origin
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'confirmed', 'admin', $10, $11, $12, $13)
+       RETURNING *`,
+      [
+        appointmentId,
+        context.organizationId,
+        referenceCode,
+        input.serviceId,
+        customerId,
+        input.locationId,
+        input.startsAt,
+        endsAt,
+        process.env.CHIME_TIME_ZONE ?? 'Pacific/Honolulu',
+        chosenService.confirmation_mode,
+        chosenService.change_approval_mode,
+        input.notes,
+        process.env.CHIME_WORKSPACE_ENV === 'demo'
+          ? 'demo'
+          : process.env.CHIME_WORKSPACE_ENV === 'test'
+            ? 'test'
+            : 'business',
+      ],
+    );
+
+    /*
+     * Not optional, and not a detail.
+     *
+     * This row is what the conflict check reads, so without it the same time
+     * could be booked again immediately. It is also what migration 022's
+     * trigger watches to take the hour off the widget — so it is the difference
+     * between an appointment the owner can see and an appointment the world
+     * agrees about.
+     */
+    await client.query(
+      `INSERT INTO chime_app.appointment_staff (organization_id, appointment_id, staff_member_id, role)
+       VALUES ($1, $2, $3, 'assigned')`,
+      [context.organizationId, appointmentId, input.staffMemberId],
+    );
+
+    await writeAudit(client, context, 'appointment.created', appointmentId, {}, {
+      referenceCode,
+      serviceId: input.serviceId,
+      staffMemberId: input.staffMemberId,
+      startsAt: input.startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      source: 'admin',
+    });
+
+    const appointment = mapAppointment(inserted.rows[0]);
+    await client.query(
+      `INSERT INTO chime_app.outbox_events (
+         organization_id, event_type, aggregate_type, aggregate_id, payload, idempotency_key
+       ) VALUES ($1, 'appointment.created', 'appointment', $2, $3::jsonb, $4)`,
+      [
+        context.organizationId,
+        appointmentId,
+        JSON.stringify({ appointment, actorUserId: context.userId, requestId: context.requestId }),
+        context.idempotencyKey,
+      ],
+    );
+
+    await client.query('COMMIT');
+    return { appointment, replayed: false };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function writeAudit(
   client: PoolClient,
   context: MutationContext,
@@ -391,7 +705,7 @@ async function listOperations(
   startsAt: Date,
   endsAt: Date,
 ) {
-  const [appointments, staff, locations, notifications] = await Promise.all([
+  const [appointments, staff, locations, notifications, services] = await Promise.all([
     pool.query(
       `${appointmentSelect}
        WHERE appointment.organization_id = $1
@@ -439,6 +753,24 @@ async function listOperations(
        LIMIT 80`,
       [organizationId],
     ),
+    /*
+     * Services, so a booking can be written down without a second request.
+     *
+     * Inactive ones are included and flagged rather than filtered. A service
+     * taken off the website is hidden from customers, not retired — the people
+     * already ringing about it still have to be booked in, and refusing to
+     * offer it here would send the owner to the Services screen to switch it
+     * back on, which would put it back in front of customers too.
+     */
+    pool.query(
+      `SELECT id, name, default_duration_minutes, buffer_before_minutes,
+              buffer_after_minutes, is_active
+       FROM chime_app.services
+       WHERE organization_id = $1
+         AND origin <> 'test'
+       ORDER BY is_active DESC, name`,
+      [organizationId],
+    ),
   ]);
 
   return {
@@ -456,6 +788,14 @@ async function listOperations(
       id: row.id,
       name: row.name,
       timeZone: row.time_zone,
+      isActive: row.is_active,
+    })),
+    services: services.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      durationMinutes: row.default_duration_minutes,
+      bufferBeforeMinutes: row.buffer_before_minutes,
+      bufferAfterMinutes: row.buffer_after_minutes,
       isActive: row.is_active,
     })),
     notifications: notifications.rows.map((row) => ({
@@ -617,7 +957,17 @@ async function findScheduleConflicts(
   executor: Pick<Pool, 'query'> | Pick<PoolClient, 'query'>,
   params: {
     organizationId: string;
-    appointmentId: string;
+    /*
+     * The appointment to leave out of the comparison, or null when there is not
+     * one yet — a new appointment cannot clash with itself because it does not
+     * exist.
+     *
+     * Null has to be handled in the SQL rather than passed through. `other.id
+     * <> NULL` is NULL, not true, so every row would be filtered out and the
+     * check would find no conflicts at all: a booking that silently succeeded
+     * on top of another. Exactly the kind of green that means nothing.
+     */
+    appointmentId: string | null;
     staffMemberId: string;
     startsAt: Date;
     endsAt: Date;
@@ -645,7 +995,7 @@ async function findScheduleConflicts(
          ON customer.organization_id = other.organization_id
         AND customer.id = other.customer_id
       WHERE other.organization_id = $1
-        AND other.id <> $2
+        AND ($2::uuid IS NULL OR other.id <> $2)
         AND other_assignment.staff_member_id = $3
         AND other.status IN ('pending_approval', 'confirmed', 'change_pending')
         AND tstzrange(
@@ -1164,6 +1514,19 @@ export function createOperationsRouter(pool: Pool) {
         },
         endsAt: endsAt.toISOString(),
       });
+    }),
+  );
+
+  router.post(
+    '/appointments',
+    requireRoles('owner', 'admin', 'manager'),
+    asyncRoute(async (request, response) => {
+      const result = await createAppointment(
+        pool,
+        parseNewAppointmentInput(request.body),
+        mutationContext(request),
+      );
+      response.status(result.replayed ? 200 : 201).json(result);
     }),
   );
 
