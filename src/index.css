@@ -1771,7 +1771,15 @@
     display: none;
   }
 
-  .time-slot-grid,
+  /*
+   * .time-slot-grid used to be in this list and is not any more.
+   *
+   * Everything still here holds something that genuinely needs the full width —
+   * a name field, an address, a receipt line. A time does not: "9:00 AM" is
+   * eight characters, and giving it a 224px row meant sixteen openings became
+   * sixteen rows and about a thousand pixels of scrolling on a phone. Its own
+   * base rule two columns up is right at every width.
+   */
   .details-form__grid,
   .details-form__actions,
   .terms-actions,
@@ -2078,6 +2086,19 @@
   background: rgba(255, 255, 255, 0.78);
 }
 
+
+/*
+ * The narrow-width day controls, off by default.
+ *
+ * Declared here rather than only inside the container query so that the wide
+ * layout is unchanged: above 620px these two never render visibly, and the
+ * month grid beside the times is exactly what it was.
+ */
+.calendar-day-nav,
+.view-toggle {
+  display: none !important;
+}
+
 .calendar-icon-button,
 .view-toggle,
 .calendar-day,
@@ -2269,4 +2290,168 @@
   font-size: calc(0.85 * var(--chime-root)) !important;
   margin: 0 !important;
   text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * Month or day, at phone width
+ *
+ * Below 620px of container the widget shows one thing at a time: the times for
+ * a chosen day, or the month grid used to choose one. Both together cost
+ * roughly nineteen hundred pixels of scrolling at 320px — a month grid stacked
+ * on top of every time in the day, about three phone screens to pick one
+ * appointment. Nothing was broken; it was simply more than a person will do.
+ *
+ * APPENDED AT THE END OF THIS FILE ON PURPOSE. Container queries add no
+ * specificity of their own, so a block that sits earlier loses to any later
+ * rule on the same selector — and this stylesheet has been caught by that
+ * twice already. `.calendar-board` is set to two tracks at :969 and the 720
+ * block re-declares the calendar at :1711, both after the 620 block at :87.
+ * Source order is what makes these rules apply; do not move them.
+ *
+ * The queries ask about `chime-widget`, not the month card's own container.
+ * A card hidden with `display: none` has no inline size, so a rule keyed to it
+ * could never fire to bring it back.
+ * ------------------------------------------------------------------------- */
+@container chime-widget (max-width: 620px) {
+  /*
+   * The month arrows only exist while a month does.
+   *
+   * The toolbar's ‹ › page visibleMonth, which is fine when the grid is on
+   * screen and meaningless when it is not: in day view they would change a
+   * month nobody can see, and the customer's own day arrows sit a few pixels
+   * below doing something different with the same two glyphs. Two pairs of
+   * identical arrows with different meanings, one of them inert, is worse than
+   * either alone.
+   *
+   * Opening the month brings them back, which is exactly when they work.
+   */
+  .calendar-toolbar .calendar-month-controls {
+    display: none;
+  }
+
+  /*
+   * :has, because the state lives on the board and the arrows live in the
+   * toolbar above it — a sibling the board cannot reach with a combinator.
+   *
+   * Where :has is unsupported the arrows simply stay hidden at this width,
+   * which is a safe way to lose: the month toggle, the day arrows and
+   * "Next opening" are all still there, and none of them depend on this rule.
+   */
+  .calendar-shell:has(.calendar-board[data-month-open='true']) .calendar-month-controls {
+    display: flex;
+  }
+
+  /*
+   * The footer's restatement of the step goes.
+   *
+   * It reads "Choose a time / Pick an available day, then select a slot" —
+   * directly below the times the customer has just scrolled through, and word
+   * for word the job of the stage heading at the top of the same step. On a
+   * wide screen it sits beside the button and costs nothing; on a phone it is
+   * sixty-five pixels of being told what you are plainly already doing.
+   *
+   * The button keeps its own label, which is the part that says what happens
+   * next.
+   */
+  .stage-footer__copy {
+    display: none;
+  }
+
+  /*
+   * The step indicator becomes three numbered markers in a row.
+   *
+   * It was costing 240 pixels on a phone — three cards stacked one above the
+   * other, each with an eyebrow and a label — to say "you are on step two of
+   * three". Stacking is the worst possible layout for a progress indicator: it
+   * takes the most room to convey the least, and what it pushes off screen is
+   * the step itself.
+   *
+   * Nothing is lost by dropping the words here. The marker already reads
+   * 1 / 2 / 3 and turns to a tick when done, the stage heading directly below
+   * names the current step in full, and the wording the eye no longer sees is
+   * still read aloud: each item carries an sr-only "Completed / Current step /
+   * Upcoming" (ProgressSteps.tsx:33-35) and aria-current="step" (:31).
+   */
+  .chime-progress {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px !important;
+  }
+
+  .chime-progress__item {
+    gap: 0;
+    justify-content: center;
+    min-height: 48px;
+    padding: 8px !important;
+  }
+
+  .chime-progress__eyebrow,
+  .chime-progress__label {
+    display: none;
+  }
+
+  .calendar-day-nav {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* A row, not a column. The span is a flex item of the nav, which says nothing
+   * about how its own two buttons stack. */
+  .calendar-day-nav__steps {
+    display: flex;
+    gap: 8px;
+  }
+
+  /*
+   * With the grid open, the day arrows have nothing to show — the times they
+   * step between are not on screen. Leaving them would be two ways to choose a
+   * day, one of them invisible in its effect. The toggle stays, because it is
+   * the way back.
+   */
+  .calendar-board[data-month-open='true'] .calendar-day-nav__steps {
+    display: none;
+  }
+
+  .view-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 14px !important;
+    border: 1px solid rgba(44, 120, 85, 0.15);
+    font-size: calc(0.875 * var(--chime-root)) !important;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* One or the other, never both. */
+  .calendar-board[data-month-open='false'] .calendar-month-card {
+    display: none;
+  }
+
+  .calendar-board[data-month-open='true'] .time-panel {
+    display: none;
+  }
+
+  /*
+   * With the times gone, the grid has the full width back — so give the day
+   * cells their availability count again.
+   *
+   * Two rules hide `.calendar-day__status` at narrow widths, and they were
+   * right when the grid was sharing the screen. Alone, the grid can afford it,
+   * and it is the entire reason to open the month: a customer looking for
+   * "some Saturday" needs to see which Saturdays have anything, not just tap
+   * through them one at a time. Without this the month view answers a question
+   * nobody asked.
+   */
+  .calendar-board[data-month-open='true'] .calendar-day__status {
+    display: block;
+    font-size: calc(0.625 * var(--chime-root)) !important;
+  }
+
+  .calendar-board[data-month-open='true'] .calendar-day {
+    min-height: 52px;
+  }
 }

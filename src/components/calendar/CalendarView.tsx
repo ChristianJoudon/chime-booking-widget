@@ -1,4 +1,4 @@
-import { type FC, useEffect, useMemo, useState } from 'react';
+import { type FC, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addMonths,
   endOfMonth,
@@ -87,6 +87,22 @@ const CalendarView: FC<CalendarViewProps> = ({
   });
   const [activeDate, setActiveDate] = useState<Date | null>(selectedDate ?? null);
 
+  /*
+   * Whether the customer has asked to see the month grid.
+   *
+   * Deliberately not "which view are we in". Whether this flag matters at all is
+   * decided in CSS by a container query, so the component never learns how wide
+   * it is: no ResizeObserver, no matchMedia — which would be wrong anyway, since
+   * the widget sizes from its container and not from the window — and no
+   * width-derived state that can fall out of step with the layout.
+   *
+   * Above 620px of container the flag is inert and the layout is byte for byte
+   * what it was: month grid beside the times.
+   */
+  const [monthOpen, setMonthOpen] = useState(false);
+  const dayHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const wasMonthOpen = useRef(false);
+
   const slotsByDate = useMemo(() => {
     return availability.reduce<Record<string, Slot[]>>((acc, day) => {
       acc[toDateKey(day.date)] = day.slots;
@@ -101,6 +117,17 @@ const CalendarView: FC<CalendarViewProps> = ({
 
   const availableDateKeys = useMemo(
     () => new Set(availability.filter((day) => countAvailable(day.slots) > 0).map((day) => toDateKey(day.date))),
+    [availability],
+  );
+
+  /*
+   * The same days the key set holds, in order, so the day arrows can step
+   * between them. Derived from one source with one predicate, because two
+   * definitions of "available" that drift apart would make an arrow offer a day
+   * that handleDayPick then refuses.
+   */
+  const availableDates = useMemo(
+    () => availability.filter((day) => countAvailable(day.slots) > 0).map((day) => day.date),
     [availability],
   );
 
@@ -152,10 +179,61 @@ const CalendarView: FC<CalendarViewProps> = ({
     const key = toDateKey(day);
     if (!availableDateKeys.has(key)) return;
     setActiveDate(day);
+    // Picking a day is the answer to the question the month grid asked, so the
+    // grid stands down and the times come back. Inert above 620px, where the
+    // grid and the times are on screen together and neither ever hides.
+    setMonthOpen(false);
     if (!selectedDate || !isSameDay(day, selectedDate)) {
       onDayChanged?.(day);
     }
   }
+
+  /*
+   * Step to the previous or next day that actually has openings.
+   *
+   * Skipping empty days rather than walking the calendar one square at a time:
+   * an arrow that lands on "no openings" three times running is an arrow that
+   * feels broken, and the customer has no way to know how many more presses it
+   * will take.
+   *
+   * It goes through handleDayPick rather than calling setActiveDate itself, and
+   * that is load-bearing. handleDayPick clears a committed slot when the day
+   * changes, which both keeps a time from a different day out of the Continue
+   * button and — because the effect above forces activeDate back to
+   * selectedDate whenever one is set — is the only thing that stops these
+   * arrows appearing to do nothing. The same trap is documented on
+   * jumpToNextAvailable below.
+   */
+  function stepDay(direction: -1 | 1) {
+    if (!activeDate) return;
+    const index = availableDates.findIndex((day) => isSameDay(day, activeDate));
+    if (index === -1) return;
+    const next = availableDates[index + direction];
+    if (next) handleDayPick(next);
+  }
+
+  const activeDateIndex = activeDate
+    ? availableDates.findIndex((day) => isSameDay(day, activeDate))
+    : -1;
+  const hasPreviousDay = activeDateIndex > 0;
+  const hasNextDay = activeDateIndex > -1 && activeDateIndex < availableDates.length - 1;
+
+  /*
+   * Catch focus when the month grid disappears.
+   *
+   * Tapping a day inside the grid hides the grid, which means the element the
+   * customer just activated stops existing. Focus would fall to the shadow
+   * root and a keyboard or switch user would be stranded with no way back into
+   * the flow. Focus moves to the day heading, which reads the date they chose —
+   * so the rescue also answers "what did I just pick?".
+   *
+   * Only on close. Opening the month leaves the toggle on screen, and standard
+   * disclosure behaviour is for focus to stay put.
+   */
+  useEffect(() => {
+    if (wasMonthOpen.current && !monthOpen) dayHeadingRef.current?.focus();
+    wasMonthOpen.current = monthOpen;
+  }, [monthOpen]);
 
   function jumpToNextAvailable() {
     if (!firstAvailableDate) return;
@@ -195,8 +273,51 @@ const CalendarView: FC<CalendarViewProps> = ({
         </div>
       </div>
 
-      <div className="calendar-board">
-        <section className="calendar-month-card" aria-label={`${format(visibleMonth, 'MMMM yyyy')} calendar`}>
+      <div className="calendar-board" data-month-open={monthOpen ? 'true' : 'false'}>
+        {/*
+          * A sibling of both the month card and the times, not a child of
+          * either — because it is the control that hides them, and a button
+          * inside the thing it hides takes itself off screen with it. Put in
+          * the times panel first, opening the month took "Back to times" away
+          * with the panel and left no way back but picking a day.
+          *
+          * Only rendered visibly below 620px. Above that the grid and the times
+          * are both on screen and this would be a second way to do what the
+          * grid already does.
+          */}
+        <div className="calendar-day-nav" aria-label="Calendar navigation">
+          <span className="calendar-day-nav__steps">
+            <button
+              type="button"
+              className="calendar-icon-button"
+              onClick={() => stepDay(-1)}
+              disabled={!hasPreviousDay}
+              aria-label="Previous day with openings"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="calendar-icon-button"
+              onClick={() => stepDay(1)}
+              disabled={!hasNextDay}
+              aria-label="Next day with openings"
+            >
+              ›
+            </button>
+          </span>
+          <button
+            type="button"
+            className="view-toggle"
+            onClick={() => setMonthOpen((open) => !open)}
+            aria-expanded={monthOpen}
+            aria-controls="chime-month-card"
+          >
+            {monthOpen ? 'Back to times' : format(visibleMonth, 'MMMM')}
+          </button>
+        </div>
+
+        <section id="chime-month-card" className="calendar-month-card" aria-label={`${format(visibleMonth, 'MMMM yyyy')} calendar`}>
           <div className="calendar-month-card__header">
             <div>
               <p className="chime-kicker">Month view</p>
@@ -260,12 +381,24 @@ const CalendarView: FC<CalendarViewProps> = ({
         <aside className="time-panel">
           <div className="time-panel__header">
             <p className="chime-kicker">Available times</p>
-            <h3>{activeDate ? format(activeDate, 'EEEE, MMM d') : 'Choose a day'}</h3>
+            {/* tabIndex -1 so the focus rescue above can land here. Not in the
+              * tab order — this is a heading, not a control. */}
+            <h3 ref={dayHeadingRef} tabIndex={-1}>
+              {activeDate ? format(activeDate, 'EEEE, MMM d') : 'Choose a day'}
+            </h3>
             <p role="status" aria-live="polite">
               {activeDate
                 ? countAvailable(activeSlots) > 0
-                  ? `${countAvailable(activeSlots)} openings available.`
-                  : 'No remaining openings for this day.'
+                  /*
+                   * The date leads, so stepping days announces itself.
+                   *
+                   * This region already existed and already re-read on every day
+                   * change; it just said "6 openings available", which is the
+                   * same sentence for every day and so told a screen reader
+                   * nothing about which day the arrow had reached.
+                   */
+                  ? `${format(activeDate, 'EEEE, MMMM d')} — ${countAvailable(activeSlots)} openings available.`
+                  : `${format(activeDate, 'EEEE, MMMM d')} — no remaining openings for this day.`
                 : 'Select an available day to view exact appointment times.'}
             </p>
           </div>

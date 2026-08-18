@@ -32,7 +32,8 @@
     "preflight": "node scripts/preflight.mjs",
     "backup": "node scripts/backup-database.mjs",
     "provision": "node scripts/provision-organization.mjs",
-    "ci:integration": "node scripts/ci-integration.mjs"
+    "ci:integration": "node scripts/ci-integration.mjs",
+    "test:widget-narrow": "node scripts/widget-narrow-layout.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "3.7.0",

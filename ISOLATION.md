@@ -109,6 +109,11 @@ remaining host-style conditions, then move to Shadow DOM. The files touched are
 `src/embedIsolation.ts`. See "Host-page style leakage" below for what they do
 and why. `dist-embed/` was rebuilt from them.
 
+A fourth request followed: a month/day toggle for the calendar, and less
+wording on small screens. That added `src/components/calendar/CalendarView.tsx`
+and `src/components/ui/ProgressSteps.tsx` (read only — its markup did not
+change) to the same exception. See "Month or day, on a phone" below.
+
 Nothing else in widget territory was touched, and nothing outside this folder
 was touched — the other Chime checkouts on this machine are unaffected. The
 boundary above still stands for everything else.
@@ -202,3 +207,56 @@ stylesheet for its side effect, because embed snippets already in the wild link
 that file. Nothing inside a shadow root reads it — `embedIsolation` injects its
 own copy — but a 404 in a customer's console is a poor way to ship an
 improvement.
+
+### Month or day, on a phone
+
+Below 620px of container the widget shows one thing at a time: the times for a
+chosen day, or the month grid used to choose one. `‹ ›` step to the previous or
+next day that actually has openings, and a button reading the month name swaps
+in the grid.
+
+The measured cost of showing both was four phone screens of scrolling to pick
+one appointment — a month grid stacked on top of every time in the day. Nothing
+overflowed and nothing clipped; every check pointed sideways, and the problem
+was vertical. `npm run test:widget-narrow` is the check that can see it, and it
+budgets each step in screens of scrolling rather than pixels.
+
+Four things came out of that pass, in descending order of what they saved:
+
+| | at 320px |
+|---|---|
+| step indicator: three stacked cards → three markers in a row | −180px |
+| time slots: one 224px column → two columns | −250px |
+| month grid hidden while the times are shown | −500px |
+| footer's restatement of the step, and the dead month arrows | −140px |
+
+**The state is one boolean, and it does not know the width.** `monthOpen` means
+"the customer asked to see the month", not "we are in month mode"; whether it
+matters at all is decided by a container query. There is no `ResizeObserver` and
+no `matchMedia` — which would be wrong anyway, since the widget sizes from its
+container and not from the window.
+
+**No gesture code.** The customer path still has zero touch handlers. A swipe is
+invisible, has no keyboard equivalent, and would need somewhere to translate,
+which `.chime-app-shell { overflow-x: clip }` deliberately does not provide.
+Arrows work for mouse, touch, keyboard and switch control.
+
+**Two things that are load-bearing and easy to undo by accident:**
+
+- The new rules are **appended at the end of `src/index.css`**. Container
+  queries add no specificity, so a block placed earlier loses to any later rule
+  on the same selector — `.calendar-board` is re-declared at :969 and the whole
+  calendar again at :1711, both after the 620px block near the top. Moving these
+  rules up the file silently disables them.
+- The day navigation is a **sibling of both the month card and the times**, not
+  a child of either. It was in the times panel first, and opening the month took
+  "Back to times" off screen along with the panel, leaving no way back except
+  picking a day.
+
+Nothing is lost by hiding the step labels at that width. The markers already
+read 1 / 2 / 3 and turn to a tick, the stage heading names the step in full, and
+each item still carries an sr-only "Completed / Current step / Upcoming" plus
+`aria-current="step"`. Focus is caught when the grid collapses — it would
+otherwise fall to the shadow root and strand a keyboard user — and the times
+panel's existing live region now leads with the date, so stepping days announces
+which day it reached.

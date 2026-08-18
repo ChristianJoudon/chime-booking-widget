@@ -38,6 +38,7 @@ if (!databaseUrl) {
 const BOOKING_PORT = Number(process.env.CHIME_CI_BOOKING_PORT ?? 8887);
 const ADMIN_PORT = Number(process.env.CHIME_CI_ADMIN_PORT ?? 8888);
 const STUDIO_PORT = Number(process.env.CHIME_CI_STUDIO_PORT ?? 4374);
+const WIDGET_PORT = Number(process.env.CHIME_CI_WIDGET_PORT ?? 5373);
 
 /*
  * The browser suites run only where there is a browser.
@@ -125,6 +126,7 @@ const env = {
   CHIME_CUSTOMER_APPROVAL_URL: 'http://127.0.0.1:4375',
   CHIME_REQUIRE_DEPOSIT: 'false',
   CHIME_STUDIO_URL: `http://localhost:${STUDIO_PORT}/admin.html`,
+  CHIME_WIDGET_URL: `http://localhost:${WIDGET_PORT}/`,
   ...(CHROME ? { CHIME_CHROME_PATH: CHROME } : {}),
 };
 
@@ -260,6 +262,12 @@ try {
   } else {
     // Needs no servers: it renders the built widget under host stylesheets.
     await step('embed host styles', () => run('node', ['scripts/embed-host-styles.mjs']));
+
+    // Needs only Vite — the widget's dev entry renders from sample data, so this
+    // measures the widget's shape without depending on a seed or a database.
+    background('widget', 'npx', ['vite', '--port', String(WIDGET_PORT), '--strictPort']);
+    await waitForHealth('widget dev server', `http://localhost:${WIDGET_PORT}/`, 90_000);
+    await step('narrow layout', () => run('node', ['scripts/widget-narrow-layout.mjs']));
 
     // Needs the studio itself, which is the one thing not already running.
     background('studio', 'npx', ['vite', '--config', 'vite.admin.config.ts', '--port', String(STUDIO_PORT), '--strictPort']);
