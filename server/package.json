@@ -14,9 +14,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "set-password": "tsx src/admin/set-password.ts",
     "start:admin": "node dist/admin/index.js",
-    "start:worker": "node dist/notifications/worker.js"
+    "start:worker": "node dist/notifications/worker.js",
+    "test:observability": "tsx src/observabilitySmoke.ts"
   },
   "dependencies": {
+    "@sentry/node": "^8.55.2",
     "cors": "2.8.5",
     "dotenv": "16.5.0",
     "express": "5.1.0",

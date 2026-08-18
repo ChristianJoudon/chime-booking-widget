@@ -255,6 +255,9 @@ try {
   await step('booking projection', () => run('node', ['scripts/booking-projection-smoke.mjs']));
   await step('cross-workspace contracts', () => run('node', ['scripts/cross-workspace-contract.mjs']));
   await step('payment safety', () => run('npx', ['tsx', 'src/paymentSafetySmoke.ts'], { cwd: 'server' }));
+  // Needs nothing running: it checks that reporting stays dormant without a DSN
+  // and that a customer's details never reach a report when it is on.
+  await step('error reporting', () => run('npx', ['tsx', 'src/observabilitySmoke.ts'], { cwd: 'server' }));
 
   if (!CHROME) {
     console.log('\n  SKIP  browser suites — no Chrome or Chromium found. Set CHIME_CHROME_PATH to include them.');

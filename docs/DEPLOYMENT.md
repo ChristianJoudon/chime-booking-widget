@@ -251,3 +251,65 @@ straight into it: booked solid in the studio, still bookable on the website.
 Migration 022 teaches that one query about appointments as well, so both sides
 now answer the same question the same way, and `npm run test:contracts` checks
 it in both directions — a booking takes the time, and removing it gives it back.
+
+## Finding out when something breaks
+
+Put a Sentry DSN in `CHIME_SENTRY_DSN` and both APIs and the worker start
+reporting faults. Leave it empty and nothing happens at all — no SDK starts, no
+network calls, no behaviour change. That is the default, and it is a supported
+way to run: a business on one box with no error service should not pay for
+wiring it does not use.
+
+```bash
+npm run test:observability --prefix server
+```
+
+**Customer details never leave the building.** This is a booking system, so a
+request body is somebody's name, email, phone and the hour they will be alone in
+a building; on the administrator side it is that plus notes a business wrote
+about them. An error report carrying those is a data breach with a stack trace
+attached, and it is the *default* behaviour of the SDK underneath.
+
+So before anything is sent:
+
+- **the body is dropped whole**, not filtered. A filter is a list of the fields
+  somebody thought of, and the next field added to a form is not on it
+- **the query string goes**, because the customer-approval links carry tokens in
+  it, and the URL is truncated at the `?`
+- **cookies go**, and every header except `accept`, `accept-encoding`,
+  `content-type`, `content-length`, `user-agent`, `origin` and `referer`
+- **a user is an id**, never an email or a name
+- **performance tracing is off**, because sampling request URLs and timings for
+  every customer collects a lot about people to answer a question nobody asked
+
+What survives is the path, the method, the status and the stack — which is what
+tells you which code broke. If a particular value is needed to understand a
+fault, attach it at the call site on purpose.
+
+The smoke test above hands the real scrub a report shaped like a real booking
+and fails if any of a customer's name, email, phone, payment intent, session
+token or approval token survives it.
+
+### Two things that came with it
+
+Both APIs now **shut down on a signal**. The customer API had no handler at all,
+so a redeploy sent SIGTERM, nothing answered, and the runtime killed it ten
+seconds later — cutting off whatever booking was in flight. They now close the
+listener, flush any queued report and exit.
+
+All three services **catch unhandled rejections and uncaught exceptions**, which
+nothing did before. They are logged whether or not reporting is on, because a
+crash reason in the container log still beats a silent restart. An uncaught
+exception deliberately does *not* exit the process: Express has already answered
+the request in flight, and a booking API that kills itself over one bad code
+path turns a single failed request into an outage for everyone mid-booking. The
+health check decides when a process is beyond help.
+
+### What this does not cover
+
+The **customer widget** is not reporting. It runs on other people's websites, so
+turning it on means shipping a reporting SDK to every host site that embeds the
+booking page — a size and privacy decision for those site owners as much as for
+you, and one worth making deliberately rather than as a side effect. The
+administrator studio is a separate question and also not wired yet; say the word
+and either can be.

@@ -6,6 +6,12 @@ import Stripe from 'stripe';
 
 import { createStripeWebhookRouter } from './stripeWebhookRoutes.js';
 import rateLimit from 'express-rate-limit';
+import {
+  flushErrorReports,
+  initErrorReporting,
+  installProcessGuards,
+  reportError,
+} from './observability.js';
 import { readWorkerStatus } from './notifications/heartbeat.js';
 import { createCustomerApprovalRouter } from './customerApprovalRoutes.js';
 import { createPublicWidgetConfigRouter } from './widgetConfigRoutes.js';
@@ -14,6 +20,16 @@ import { assertWorkspaceIsCoherent } from './admin/workspaceEnvironment.js';
 const { Pool } = pg;
 
 const app = express();
+/*
+ * Started before anything else can fail.
+ *
+ * Reporting installed after the first import that throws would miss exactly the
+ * faults hardest to diagnose — the ones that happen before the service is
+ * listening and leave nothing but an exit code.
+ */
+initErrorReporting('chime-booking-api');
+installProcessGuards('chime-booking-api');
+
 const port = Number(process.env.PORT ?? 8887);
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -599,9 +615,30 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   }
 
   console.error('Unhandled request error', error);
+  reportError(error, { service: 'chime-booking-api', path: _req.path, method: _req.method });
   res.status(500).json({ error: 'Something went wrong. Please try again.' });
 });
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Chime API listening on http://localhost:${port}`);
 });
+
+/*
+ * Shut down on a signal rather than being killed.
+ *
+ * There was no handler here at all, so a redeploy sent SIGTERM, nothing
+ * answered, and the container runtime killed the process ten seconds later —
+ * cutting off whatever booking was mid-flight and losing any queued error
+ * report explaining why the last one failed.
+ */
+async function shutdown(signal: string) {
+  console.log(`${signal} received; closing Chime booking API.`);
+  server.close(async () => {
+    await flushErrorReports();
+    await pool.end();
+    process.exit(0);
+  });
+}
+
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));

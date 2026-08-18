@@ -11,8 +11,19 @@ import { createSessionRouter } from './sessionRoutes.js';
 import { AdminApiError } from './types.js';
 import { assertWorkspaceIsCoherent } from './workspaceEnvironment.js';
 import { readWorkerStatus } from '../notifications/heartbeat.js';
+import { flushErrorReports, initErrorReporting, installProcessGuards, reportError } from '../observability.js';
 
 assertWorkspaceIsCoherent();
+
+/*
+ * Started before anything else can fail.
+ *
+ * Reporting installed after the first import that throws would miss exactly the
+ * faults hardest to diagnose — the ones that happen before the service is
+ * listening and leave nothing but an exit code.
+ */
+initErrorReporting('chime-admin-api');
+installProcessGuards('chime-admin-api');
 
 const port = Number(process.env.CHIME_ADMIN_PORT ?? 8888);
 const connectionString = process.env.CHIME_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -171,6 +182,7 @@ const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => 
   }
 
   console.error('Chime admin API error', error);
+  reportError(error, { service: 'chime-admin-api' });
   response.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'The administrator request could not be completed.' } });
 };
 app.use(errorHandler);
@@ -191,6 +203,9 @@ const server = app.listen(port, host, () => {
 async function shutdown(signal: string) {
   console.log(`${signal} received; closing Chime admin API.`);
   server.close(async () => {
+    // Queued reports go before the process does, or the fault that prompted the
+    // restart is the one report that never arrives.
+    await flushErrorReports();
     await pool.end();
     process.exit(0);
   });

@@ -7,7 +7,23 @@ import {
   processNotificationBatch,
 } from './service.js';
 import { Heartbeat } from './heartbeat.js';
+import {
+  flushErrorReports,
+  initErrorReporting,
+  installProcessGuards,
+  reportError,
+} from '../observability.js';
 import { startWorkerHealthServer } from './healthServer.js';
+
+/*
+ * Started before anything else can fail.
+ *
+ * Reporting installed after the first import that throws would miss exactly the
+ * faults hardest to diagnose — the ones that happen before the service is
+ * listening and leave nothing but an exit code.
+ */
+initErrorReporting('chime-notifications');
+installProcessGuards('chime-notifications');
 
 const connectionString = process.env.CHIME_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!connectionString) throw new Error('CHIME_DATABASE_URL or DATABASE_URL is required.');
@@ -44,6 +60,7 @@ async function run() {
     } catch (error) {
       console.error('Notification worker batch failed', error);
       heartbeat.recordFailure(error);
+      reportError(error, { service: 'chime-notifications' });
     }
     // After the batch, so a cycle that never returns stops the beat. A worker
     // wedged on a query is still a worker that has stopped sending reminders.
@@ -57,6 +74,9 @@ async function shutdown(signal: string) {
   stopping = true;
   console.log(`${signal} received; closing Chime notification worker.`);
   await health?.close();
+  // Reports are queued, so a worker that stops on the same batch that failed
+  // would otherwise take the explanation with it.
+  await flushErrorReports();
   await pool.end();
 }
 
