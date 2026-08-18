@@ -12,14 +12,22 @@
 name: CI
 
 on:
+  # Every branch, not just main.
+  #
+  # This was `branches: [main]` first, which is the conventional shape and the
+  # wrong one here: the work on this project lives on a long-running branch and
+  # main is where it eventually lands. Pushing eight commits triggered nothing
+  # at all, and a workflow that does not run is indistinguishable from a
+  # workflow that passes.
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
 concurrency:
-  # A newer push makes an in-flight run of the same branch irrelevant.
-  group: ci-${{ github.ref }}
+  # A newer push makes an in-flight run of the same branch irrelevant. The event
+  # name is in the key so that a pull request and the push behind it do not
+  # cancel each other — they are the same ref and would otherwise collide.
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
