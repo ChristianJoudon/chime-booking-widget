@@ -125,3 +125,90 @@ a build pipeline than a production box.
 - **The session token is readable by JavaScript** in the studio. Acceptable for
   a small number of trusted operators; revisit before a wider rollout.
 - **No rate limiting** beyond the sign-in throttle.
+
+## Payments confirmed by Stripe, not by the browser
+
+`POST /api/chime/stripe/webhook` is the server's own account of what happened to
+a payment. Until it is configured, the only thing telling this system a card
+succeeded is the customer's browser, which is the least trustworthy party in the
+transaction and the one most likely to close the tab halfway through.
+
+Point a Stripe endpoint at `https://your-host/api/chime/stripe/webhook`,
+subscribe it to `payment_intent.succeeded`, `payment_intent.payment_failed`,
+`payment_intent.canceled` and `charge.refunded`, and put the signing secret in
+`STRIPE_WEBHOOK_SECRET`. Without that variable the endpoint answers 503 rather
+than accepting unverified events.
+
+Three things worth knowing about how it behaves:
+
+- **It is mounted before the JSON parser.** Stripe signs the exact bytes it
+  sent, and a parser that has already consumed the stream leaves nothing to
+  verify against. If the route is ever moved below `express.json`, every event
+  will fail its signature and the reason will not be obvious.
+- **Every event id is recorded before it is acted on.** Stripe retries, and
+  retries arrive after restarts and at other containers, so remembering in
+  process memory would not be remembering at all. A repeat is answered
+  `{"received":true,"duplicate":true}` and changes nothing.
+- **Money with no appointment is flagged, not fixed.** If Stripe reports a
+  payment succeeded and there is no booking for it, the hold is marked with
+  `needs_attention_reason` and left for a person. Creating the missing
+  appointment automatically would mean inventing a time the customer never
+  chose.
+
+## Limits on the two endpoints that cost something
+
+`POST /bookings` and `POST /create-payment-intent` allow twenty attempts per
+address per ten minutes. Reads are deliberately unlimited — a customer
+refreshing available times should never be told to slow down, and the widget
+polls them.
+
+The count is per address, which depends on `trust proxy` being set. Behind a
+load balancer without it, every request appears to come from the balancer and
+one busy customer locks out everyone.
+
+## Knowing the notification worker is alive
+
+The worker has no port and no request log, so when it stops, nothing visible
+changes: the API still answers, the studio still loads, and reminders simply
+stop being sent. The first person to notice is a customer who did not get one.
+
+It now writes to `chime_app.worker_heartbeats` at the end of every cycle — the
+end, so that a cycle wedged on a query that never returns stops the beat too.
+A process that is running but stuck is exactly the case a liveness check misses.
+
+Three places show it:
+
+```bash
+curl -s https://your-host/api/chime/admin/health | jq '{degraded, notificationWorker}'
+```
+
+- `GET /api/chime/admin/health` reports `degraded: true` and says notifications
+  are not being sent. The status code stays 200, because the admin API is fine.
+- `GET /api/chime/health` reports the worker but never changes its own status
+  code for it. Pulling an instance out of rotation because reminders are stuck
+  would turn a delayed message into an outage.
+- The worker's own port answers 503 when its beat is late, and
+  `docker-compose.prod.yml` health-checks it, so a wedged worker is restarted.
+
+A beat is late after four intervals plus thirty seconds — about fifty seconds at
+the default poll. Generous on purpose: nobody acts on a notification worker
+being ten seconds behind, and false alarms are how monitoring gets ignored.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request: types, lint and all four
+builds in one job, and the full integration suite against a real Postgres in
+another.
+
+Most of it lives in `scripts/ci-integration.mjs` rather than in the workflow
+file, because a workflow can only be exercised by pushing a branch and waiting,
+while a script can be run before anyone depends on it. Run the same thing here:
+
+```bash
+npm run ci:integration
+```
+
+It migrates, seeds, starts both APIs, the worker and the studio, mints an owner
+and a viewer session, runs all eleven suites, and shuts down. The browser suites
+are skipped — loudly, and listed as skipped — when no Chrome is found, so a
+smaller green never reads as a full one.

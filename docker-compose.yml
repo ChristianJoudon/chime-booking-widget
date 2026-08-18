@@ -45,10 +45,12 @@ services:
       - ./database/migrations/017-customer-duplicates.sql:/docker-entrypoint-initdb.d/21-customer-duplicates.sql:ro
       - ./database/migrations/018-action-reasons.sql:/docker-entrypoint-initdb.d/22-action-reasons.sql:ro
       - ./database/migrations/019-service-projection.sql:/docker-entrypoint-initdb.d/23-service-projection.sql:ro
-      - ./database/seeds/001-demo-customers.sql:/docker-entrypoint-initdb.d/24-demo-customers.sql:ro
-      - ./database/seeds/002-demo-schedule.sql:/docker-entrypoint-initdb.d/25-demo-schedule.sql:ro
-      - ./database/seeds/003-demo-availability.sql:/docker-entrypoint-initdb.d/26-demo-availability.sql:ro
-      - ./database/seeds/004-demo-activity.sql:/docker-entrypoint-initdb.d/27-demo-activity.sql:ro
+      - ./database/migrations/020-stripe-webhook-events.sql:/docker-entrypoint-initdb.d/24-stripe-webhook-events.sql:ro
+      - ./database/migrations/021-worker-heartbeats.sql:/docker-entrypoint-initdb.d/25-worker-heartbeats.sql:ro
+      - ./database/seeds/001-demo-customers.sql:/docker-entrypoint-initdb.d/26-demo-customers.sql:ro
+      - ./database/seeds/002-demo-schedule.sql:/docker-entrypoint-initdb.d/27-demo-schedule.sql:ro
+      - ./database/seeds/003-demo-availability.sql:/docker-entrypoint-initdb.d/28-demo-availability.sql:ro
+      - ./database/seeds/004-demo-activity.sql:/docker-entrypoint-initdb.d/29-demo-activity.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chime -d chime"]
       interval: 5s

@@ -10,6 +10,7 @@ import { createAdminRouter } from './routes.js';
 import { createSessionRouter } from './sessionRoutes.js';
 import { AdminApiError } from './types.js';
 import { assertWorkspaceIsCoherent } from './workspaceEnvironment.js';
+import { readWorkerStatus } from '../notifications/heartbeat.js';
 
 assertWorkspaceIsCoherent();
 
@@ -98,10 +99,27 @@ const signInThrottle: RequestHandler = (request, response, next) => {
   next();
 };
 
+/*
+ * `ok` is about this service; `degraded` is about the system.
+ *
+ * They are kept apart because they have different audiences. A load balancer
+ * reads the status code and should only ever remove an instance that genuinely
+ * cannot answer. A person reads `degraded`, which is where a stopped
+ * notification worker shows up — the studio works perfectly while reminders
+ * quietly go unsent, so it needs somewhere to be seen.
+ */
 app.get('/api/chime/admin/health', async (_request, response, next) => {
   try {
     await pool.query('SELECT 1');
-    response.json({ ok: true, service: 'chime-admin-api' });
+    const worker = await readWorkerStatus(pool, 'notifications').catch(() => null);
+    const degraded = worker !== null && !worker.running;
+    response.json({
+      ok: true,
+      service: 'chime-admin-api',
+      degraded,
+      ...(degraded ? { attention: ['Notifications are not being sent.'] } : {}),
+      notificationWorker: worker,
+    });
   } catch (error) {
     next(error);
   }

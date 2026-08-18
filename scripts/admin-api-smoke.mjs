@@ -140,7 +140,10 @@ await request(`/services/${created.id}`, {
   method: 'DELETE',
 });
 
-const archivedList = await request('/services');
+// includeTest, because the service this run created carries the test origin and
+// business views filter that out by design. Asking without it checked whether
+// quarantine works, not whether archiving keeps a service visible.
+const archivedList = await request('/services?includeTest=true');
 const archived = archivedList.body.services.find((service) => service.id === created.id);
 assert(archived, 'Archived services must remain visible to administrators.');
 assert.equal(archived.isActive, false, 'Archived services must be inactive.');

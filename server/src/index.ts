@@ -3,6 +3,10 @@ import cors from 'cors';
 import express from 'express';
 import pg from 'pg';
 import Stripe from 'stripe';
+
+import { createStripeWebhookRouter } from './stripeWebhookRoutes.js';
+import rateLimit from 'express-rate-limit';
+import { readWorkerStatus } from './notifications/heartbeat.js';
 import { createCustomerApprovalRouter } from './customerApprovalRoutes.js';
 import { createPublicWidgetConfigRouter } from './widgetConfigRoutes.js';
 import { assertWorkspaceIsCoherent } from './admin/workspaceEnvironment.js';
@@ -33,7 +37,43 @@ assertWorkspaceIsCoherent();
 const allowDemoPayments = process.env.CHIME_ALLOW_DEMO_PAYMENTS === 'true';
 
 app.set('trust proxy', true);
+
+/*
+ * Mounted before express.json, deliberately.
+ *
+ * Stripe signs the exact bytes it sent. Once a JSON parser has consumed the
+ * stream the original body is gone, and re-serialising the parsed object
+ * produces different bytes — different key order, different whitespace — so the
+ * signature never verifies. This route parses its own raw body, and can only do
+ * that if nothing has read the stream first.
+ */
+app.use('/api/chime/stripe/webhook', createStripeWebhookRouter(pool, stripe));
+
 app.use(express.json({ limit: '1mb' }));
+
+/*
+ * Limits on the two endpoints that cost something to call.
+ *
+ * Creating a booking writes to the calendar and creating a payment intent
+ * spends a Stripe API call, so both are worth a script's while. Reads are not
+ * limited: a customer refreshing available times should never be told to slow
+ * down, and the widget polls them.
+ *
+ * Counted per address. Behind a proxy that depends on `trust proxy`, set above,
+ * or every request would appear to come from the proxy and one busy customer
+ * would lock out everyone.
+ */
+const writeLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  // Generous on purpose. A person booking an appointment, changing their mind
+  // and booking again is normal; twenty attempts in ten minutes is not.
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    error: 'Too many booking attempts from this connection. Wait a few minutes and try again.',
+  },
+});
 app.use(
   cors({
     origin: process.env.CHIME_CORS_ORIGIN?.split(',').map((origin) => origin.trim()) ?? true,
@@ -89,8 +129,37 @@ function requireString(value: unknown, name: string): string {
   return value.trim();
 }
 
-app.get('/api/chime/health', (_req, res) => {
-  res.json({ ok: true });
+/*
+ * Whether this instance can serve bookings.
+ *
+ * It used to answer `{ ok: true }` unconditionally, which meant an instance
+ * that had lost the database still told the load balancer to send it customers.
+ * Every booking it received then failed. Health has to depend on the thing the
+ * service needs, so it queries.
+ *
+ * The notification worker is reported here but deliberately does not affect the
+ * status code. Reminders being stuck is a real problem, and it is not a reason
+ * to stop letting customers book — pulling this instance out of rotation over
+ * it would turn a delayed reminder into an outage.
+ */
+app.get('/api/chime/health', async (_req, res) => {
+  const [database, worker] = await Promise.all([
+    pool
+      .query('SELECT 1')
+      .then(() => ({ ok: true as const }))
+      .catch((error: unknown) => ({
+        ok: false as const,
+        reason: error instanceof Error ? error.message : 'Database unreachable.',
+      })),
+    readWorkerStatus(pool, 'notifications').catch(() => null),
+  ]);
+
+  res.status(database.ok ? 200 : 503).json({
+    ok: database.ok,
+    service: 'chime-booking-api',
+    database,
+    notificationWorker: worker,
+  });
 });
 
 app.use('/api/chime/customer-actions', createCustomerApprovalRouter(pool));
@@ -213,7 +282,7 @@ app.get('/api/chime/calendar-events', async (req, res, next) => {
   }
 });
 
-app.post('/api/chime/create-payment-intent', async (req, res, next) => {
+app.post('/api/chime/create-payment-intent', writeLimiter, async (req, res, next) => {
   try {
     if (!stripe) {
       res.status(503).json({ error: 'Stripe is not configured on this server.' });
@@ -293,7 +362,7 @@ app.post('/api/chime/create-payment-intent', async (req, res, next) => {
   }
 });
 
-app.post('/api/chime/bookings', async (req, res, next) => {
+app.post('/api/chime/bookings', writeLimiter, async (req, res, next) => {
   let client: import('pg').PoolClient | null = null;
 
   try {

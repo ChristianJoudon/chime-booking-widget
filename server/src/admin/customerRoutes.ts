@@ -566,9 +566,32 @@ export function createCustomerRouter(pool: Pool): Router {
       }
       if (!emailEnabled || !smsEnabled || nextLifecycle === 'blocked' || nextLifecycle === 'archived') {
         const contacts = [updated.rows[0].email, updated.rows[0].phone].filter(Boolean);
+        /*
+         * The reason is written here, not left blank.
+         *
+         * Suppressing a message requires a recorded reason — a database
+         * constraint, not a convention — and this path used to omit it. The
+         * update then failed and the whole request returned 500, so the person
+         * turning a customer's email off saw an error, assumed nothing had
+         * saved, and the queued emails went out anyway. Exactly backwards.
+         *
+         * A typed justification would be the wrong shape here. On the explicit
+         * suppress button a person is overriding the system and has to say why;
+         * here the reason simply *is* the preference they just set, and asking
+         * them to restate it in a box would be ceremony. It is still attributed
+         * to them by name and time, which is what the requirement was for.
+         */
+        const suppressionReason =
+          nextLifecycle === 'blocked' || nextLifecycle === 'archived'
+            ? `Customer marked ${nextLifecycle}; queued messages withdrawn.`
+            : 'Customer turned off this channel in their contact preferences.';
         await pool.query(
           `UPDATE chime_app.notification_deliveries
-           SET status = 'suppressed', last_error = 'Suppressed by customer contact preference',
+           SET status = 'suppressed',
+             suppressed_reason = $7,
+             suppressed_by_user_id = $8,
+             suppressed_at = now(),
+             last_error = NULL,
              completed_at = now(), updated_at = now()
            WHERE organization_id = $1
              AND status IN ('pending', 'retrying')
@@ -581,7 +604,16 @@ export function createCustomerRouter(pool: Pool): Router {
                OR ($5::boolean = false AND channel = 'sms')
                OR $6::boolean = true
              )`,
-          [session.organizationId, customerId, contacts, emailEnabled, smsEnabled, nextLifecycle === 'blocked' || nextLifecycle === 'archived'],
+          [
+            session.organizationId,
+            customerId,
+            contacts,
+            emailEnabled,
+            smsEnabled,
+            nextLifecycle === 'blocked' || nextLifecycle === 'archived',
+            suppressionReason,
+            session.subject,
+          ],
         );
       }
       response.json({ customer: mapCustomer(updated.rows[0]) });

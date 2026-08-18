@@ -1,0 +1,99 @@
+# What has to be true before anything is merged.
+#
+# The heavy lifting is in scripts/ci-integration.mjs rather than in steps here,
+# because a workflow file can only be exercised by pushing a branch and waiting
+# to see what happens, while a script can be run at a keyboard before anyone
+# depends on it. Keeping the untestable part small is the point.
+#
+# Run the same thing locally with:
+#   docker compose up -d
+#   npm run ci:integration
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A newer push makes an in-flight run of the same branch irrelevant.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Types, lint and builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+
+      # Two configurations on purpose: the widget keeps its original ES2020
+      # settings and the standalone code raises them, so a single run would
+      # either relax the widget or fail the studio.
+      - run: npm run typecheck
+      - run: npm run typecheck:widget
+      - run: npm run typecheck --prefix server
+
+      - run: npm run lint
+
+      # Every bundle, because the four builds have different entry points and
+      # different configs, and a break in any one of them ships broken.
+      - run: npm run build
+      - run: npm run build:admin
+      - run: npm run build:approval
+      - run: npm run build:embed
+
+  integration:
+    name: Integration suite
+    runs-on: ubuntu-latest
+    services:
+      database:
+        image: postgres:16
+        env:
+          POSTGRES_USER: chime
+          POSTGRES_PASSWORD: chime
+          POSTGRES_DB: chime
+        ports: ['5534:5432']
+        # Without this the job races the database and fails on connection
+        # refused rather than on anything about the code.
+        options: >-
+          --health-cmd "pg_isready -U chime"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CHIME_DATABASE_URL: postgres://chime:chime@127.0.0.1:5534/chime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+
+      # The embed bundle, because the host-style checks measure the built
+      # widget rather than the source it came from.
+      - run: npm run build:embed
+
+      # Migrates, seeds, starts the APIs, the worker and the studio, mints
+      # sessions, runs every suite, and shuts down. Skips the browser suites
+      # loudly if Chrome is missing rather than reporting a smaller green.
+      - run: npm run ci:integration

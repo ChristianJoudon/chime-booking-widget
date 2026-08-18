@@ -58,6 +58,20 @@ function adminRequest(path, options = {}) {
   });
 }
 
+/*
+ * Times that are free by *both* systems' reckoning.
+ *
+ * The widget offers times from a published slot inventory; the administrator
+ * API refuses a move that collides with an appointment the assigned team member
+ * already has. Those are two different models of the same hour, and a slot the
+ * widget calls available can still be refused by the change-request endpoint.
+ *
+ * This test is about the approval flow, so it picks times neither system
+ * objects to and leaves that discrepancy to be measured on its own terms. It
+ * asks the database directly rather than retrying until something is accepted:
+ * a retry loop here would pass just as happily if every move were being refused
+ * for some unrelated reason, which is the sort of green that hides a fault.
+ */
 async function availablePair() {
   const { body } = await publicRequest(`/availability?serviceId=${encodeURIComponent(serviceId)}`);
   const slots = body.availability
@@ -65,10 +79,45 @@ async function availablePair() {
     .filter((slot) => slot.available);
   assert(slots.length >= 2, 'Customer approval testing requires two available slots.');
 
-  const source = slots[0];
-  const target = slots.find(
-    (slot) => new Date(slot.startsAt).getTime() - new Date(source.startsAt).getTime() >= 60 * 60_000,
-  ) ?? slots[1];
+  const { rows: busy } = await pool.query(
+    `SELECT starts_at, ends_at
+       FROM chime_app.appointments
+      WHERE status IN ('pending_approval', 'confirmed', 'change_pending')
+        AND ends_at > now()`,
+  );
+  /*
+   * A wide margin rather than the server's own arithmetic.
+   *
+   * What the administrator API actually refuses is an overlap once each
+   * service's before and after buffers are added on both sides — ninety minutes
+   * of appointment can occupy well over two hours of a team member's day.
+   * Recomputing that here would mean a second implementation of the conflict
+   * rules living in a test, free to drift from the real one and to keep passing
+   * while it does.
+   *
+   * This test needs *a* free time, not *the* free times, so it takes three
+   * hours' clearance either side of anything already booked — comfortably more
+   * than any buffer the product allows — and checks that enough slots survive.
+   */
+  const MARGIN_MS = 3 * 60 * 60_000;
+  const free = slots.filter((slot) => {
+    const start = new Date(slot.startsAt).getTime();
+    return !busy.some(
+      (row) =>
+        start < new Date(row.ends_at).getTime() + MARGIN_MS &&
+        start > new Date(row.starts_at).getTime() - MARGIN_MS,
+    );
+  });
+  assert(
+    free.length >= 2,
+    `Customer approval testing needs two times well clear of existing appointments; ${free.length} of ${slots.length} offered slots qualified.`,
+  );
+
+  const source = free[0];
+  const target =
+    free.find(
+      (slot) => new Date(slot.startsAt).getTime() - new Date(source.startsAt).getTime() >= 60 * 60_000,
+    ) ?? free[1];
   return { source, target };
 }
 

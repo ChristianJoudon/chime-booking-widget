@@ -190,12 +190,32 @@ try {
   assert.equal(retried.rows[0].attempt_count, 0);
   assert.equal(retried.rows[0].last_error, null);
 
-  await request(`/communications/${ids.failedDelivery}/suppress`, { method: 'POST' });
+  // Suppressing requires a stated reason, and the reason is recorded against the
+  // person who gave it. Both halves are checked: sending none has to be refused,
+  // and sending one has to end up on the row.
+  const withoutReason = await request(`/communications/${ids.failedDelivery}/suppress`, {
+    expected: 400,
+    method: 'POST',
+  });
+  assert.equal(
+    withoutReason.body?.error?.code,
+    'REASON_REQUIRED',
+    'Suppressing without a reason must be refused.',
+  );
+
+  const reason = 'Duplicate of an earlier message; the customer already replied.';
+  await request(`/communications/${ids.failedDelivery}/suppress`, {
+    body: JSON.stringify({ reason }),
+    method: 'POST',
+  });
   const suppressed = await pool.query(
-    'SELECT status FROM chime_app.notification_deliveries WHERE id = $1',
+    'SELECT status, suppressed_reason, suppressed_by_user_id, suppressed_at FROM chime_app.notification_deliveries WHERE id = $1',
     [ids.failedDelivery],
   );
   assert.equal(suppressed.rows[0].status, 'suppressed');
+  assert.equal(suppressed.rows[0].suppressed_reason, reason, 'The reason given must be what is stored.');
+  assert.ok(suppressed.rows[0].suppressed_by_user_id, 'A suppression must name who did it.');
+  assert.ok(suppressed.rows[0].suppressed_at, 'A suppression must record when.');
 
   const templates = await request('/communications/templates');
   const smokeTemplate = templates.body.templates.find((item) => item.id === ids.template);
