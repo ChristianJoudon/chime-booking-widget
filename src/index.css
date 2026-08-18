@@ -2424,6 +2424,127 @@
   }
 
   /*
+   * The reserve step's four-step stepper wraps to two rows.
+   *
+   * Four across a 340px column gives each about 78px, and the labels ran into
+   * each other — the rendered result was literally "2 Cont3 Dep4 Done".
+   *
+   * There is already a rule for this near the top of the file, and it has never
+   * once applied: `.booking-mini-stepper { grid-auto-flow: column }` is
+   * re-declared at top level further down, and top level beats a container
+   * query of any width. Third time this file has done that. The fix belongs
+   * here, after every other declaration, and nowhere else.
+   */
+  .booking-mini-stepper {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /*
+   * Each service card says the deposit once, not twice.
+   *
+   * The meta line read "30 min • Refundable deposit" and the pill below it read
+   * "Deposit $20.00" — the same fact, and the pill is the one carrying the
+   * amount. In a 340px column the meta wrapped to three lines and left the
+   * separator stranded at the end of one of them: "30 min •".
+   */
+  .service-card__meta-deposit {
+    display: none;
+  }
+
+  /*
+   * "Tap to choose" survives only on the card you chose, where it reads
+   * "Selected" and is the only thing saying so.
+   *
+   * On the others it is an instruction repeated once per card, next to an arrow
+   * that already means the same thing, on a control that is a button and
+   * announces itself as one.
+   */
+  .service-card:not([aria-pressed='true']) .service-card__select-text {
+    display: none;
+  }
+
+  /* ---------------------------------------------------------------------
+   * Finishing the booking on a phone
+   *
+   * Measured before touching it: the Continue button on the terms step sat at
+   * 2248px on an 844px screen, disabled until a checkbox further up had been
+   * found, on a page 2428px long. Almost three screens of scrolling to reach
+   * the control that finishes the booking, and no way to tell from the top
+   * that it was there.
+   *
+   * None of it was the terms document, which already scrolls inside its own
+   * 439px window. It was everything stacked above: the same appointment stated
+   * three times over, and a Back button that appears twice.
+   * --------------------------------------------------------------------- */
+
+  /*
+   * The receipt above the terms stays one column, and that was tried the other
+   * way first.
+   *
+   * Two across looked like the same win the time slots gave — four pairs of
+   * short strings each taking a full-width row. Measured, the columns come out
+   * 84px wide inside their padding, and "Consultation" alone needs 104. A
+   * single word cannot wrap, so it simply hung out of its box; "Appointment"
+   * overflowed its label by 18px. Half the height for text that runs off the
+   * edge is not a trade worth making on the step where someone is agreeing to
+   * terms.
+   */
+
+  /*
+   * "Terms & Conditions" above "Read the full terms document" is a label above
+   * a heading that already says it. The instruction underneath stays — it is
+   * the only thing that explains why the checkbox is locked.
+   */
+  .terms-review__intro .chime-kicker {
+    display: none;
+  }
+
+  /*
+   * The summary goes under the form, not over it.
+   *
+   * Beside the form on a desktop it is genuinely useful — glance right, confirm
+   * you picked the right day. Stacked above it on a phone it is 430px of what
+   * you have just been told, between you and the thing you came here to finish.
+   * Moved rather than hidden: on the details and deposit steps it is the only
+   * place the appointment is written down.
+   */
+  .booking-flow-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .booking-summary-card {
+    order: 2;
+  }
+
+  /*
+   * One Back button, next to the thing it goes back from.
+   *
+   * The panel header carries one and every sub-step carries its own beside its
+   * primary action. On a desktop they are far enough apart to read as two
+   * different offers; in a single column they are the same words twice, and the
+   * one at the top is the one a thumb never reaches.
+   */
+  .booking-flow-panel__header .booking-back-button {
+    display: none;
+  }
+
+  /*
+   * The panel's explanation goes too — the terms step opens with its own
+   * "The checkbox stays locked until you scroll to the bottom", which says the
+   * same thing and says it where it applies.
+   */
+  .booking-flow-panel__header p:not(.chime-kicker) {
+    display: none;
+  }
+
+  .booking-flow-panel__header h2 {
+    font-size: calc(1.35 * var(--chime-root)) !important;
+    line-height: 1.1 !important;
+  }
+
+  /*
    * The step indicator becomes three numbered markers in a row.
    *
    * It was costing 240 pixels on a phone — three cards stacked one above the

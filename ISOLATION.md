@@ -282,3 +282,41 @@ were wrong both times:
 - The **time and its label are stacked** below 620px. Side by side in a
   half-width column, "9:00 AM" broke after "9:00". Stacking made the step
   shorter, not taller, because nothing wraps any more.
+
+### The other two steps, and what finally measured the right thing
+
+Choosing a service and finishing the booking got the same treatment. The
+reserve step was the one an owner reported they could not scroll to the end of,
+and the measurement explains why: its Continue button sat **2248px down an
+844px screen**, disabled until a checkbox further up had been found.
+
+Nothing above it was the terms document, which already scrolls inside its own
+439px window. It was the same appointment stated three times over — a 430px
+summary card, the panel's own explanation, and a receipt — plus a "Back to
+calendar" that appeared twice, once in the panel header and once beside the
+action where every sub-step already has its own.
+
+The summary is **moved below the form, not removed**: beside the form on a
+desktop it is genuinely useful, and on the details and deposit steps it is the
+only place the appointment is written down. Continue now sits at 1595px.
+
+`npm run test:widget-narrow` gained the measurement that actually sees this:
+**how far down the button that finishes the step is**. Page height alone would
+not have caught it — reverting the fixes leaves the reserve step at 3.5 screens
+against a 3.5 budget, a pass, while the action sits 3.2 screens down against
+2.8. A page may be long for good reasons; a legal document is one. What a
+customer cannot afford is the *action* being far away.
+
+Two smaller things on the service step: each card stated its deposit twice, once
+in a meta line that wrapped to three lines and stranded its separator
+("30 min ·") and once in the pill below carrying the actual amount; and "Tap to
+choose" appeared once per card beside an arrow meaning the same thing. The label
+now survives only on the chosen card, where it reads "Selected".
+
+**A third dead rule surfaced.** The reserve step's four-part stepper rendered as
+"2 Cont3 Dep4 Done" at 340px. A rule to wrap it to two rows has existed near the
+top of `index.css` since the beginning and has never once applied, because
+`.booking-mini-stepper` is re-declared at top level further down and top level
+beats a container query at any width. That is the third time this file has done
+it — after `.booking-flow-grid` and `.calendar-day__status`. **Layout rules for
+narrow widths belong at the end of the file, and nowhere else.**

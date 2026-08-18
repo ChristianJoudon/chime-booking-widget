@@ -54,10 +54,47 @@ const WIDGET_URL = process.env.CHIME_WIDGET_URL ?? 'http://localhost:5373/';
  * to three thousand pixels again, not to police a fifty-pixel change.
  */
 const PHONE_SCREEN = 700;
+/*
+ * The reserve step gets the same allowance at every width, and the others
+ * tighten as the container grows.
+ *
+ * Because the reserve step does not reflow. A month grid gets wider and
+ * shorter; a terms document, a receipt and a checkbox are a vertical stack of
+ * fixed things whether the container is 320px or 600px — measured at 2377,
+ * 2239 and 2136, which is nearly flat. Giving 600px a tighter number was a
+ * guess made before that step had ever been measured, and it failed for that
+ * reason rather than for anything about the layout.
+ */
 const BUDGETS = {
-  320: { service: 3.0, calendar: 2.5, details: 3.0 },
-  375: { service: 3.0, calendar: 2.5, details: 3.0 },
-  600: { service: 2.5, calendar: 2.5, details: 2.5 },
+  320: { service: 3.0, calendar: 2.5, terms: 3.5 },
+  375: { service: 3.0, calendar: 2.5, terms: 3.5 },
+  600: { service: 2.5, calendar: 2.5, terms: 3.5 },
+};
+
+/*
+ * How far down the button that finishes the step sits.
+ *
+ * The more useful number, and the one that found the real problem. The terms
+ * step measured 2428px, which is bad but survivable — what made it unusable was
+ * that the button finishing it sat at 2248px, disabled until a checkbox further
+ * up had been found. Almost three screens down, with nothing at the top to say
+ * so.
+ *
+ * A page can be long for good reasons; a legal document is one. What a customer
+ * cannot afford is the *action* being long away. Terms get more room because
+ * the document above the button is the point of the step.
+ */
+/*
+ * Terms gets more room than the others on purpose. Its action sits below a
+ * document the customer is required to scroll through — that height is the
+ * step working, not waste. The others have nothing below them that has to be
+ * read, so 2.5 screens is already generous there.
+ */
+const REACH_BUDGET = { service: 2.5, calendar: 2.5, terms: 2.75 };
+const PRIMARY_ACTION = {
+  service: /Continue to calendar/i,
+  calendar: /Continue to terms/i,
+  terms: /Continue to contact details/i,
 };
 
 const WIDTHS = Object.keys(BUDGETS).map(Number);
@@ -118,8 +155,16 @@ try {
 
   const settle = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const measure = () =>
-    page.evaluate(() => {
+  const measure = (stepName) =>
+    page.evaluate((pattern) => {
+      const action = pattern
+        ? [...document.querySelectorAll('.chime-widget button')]
+            .find((button) => new RegExp(pattern, 'i').test(button.textContent || ''))
+        : null;
+      const actionTop = action
+        ? Math.round(action.getBoundingClientRect().top - document.querySelector('.chime-widget').getBoundingClientRect().top)
+        : null;
+      return { actionTop, ...(() => {
       const root = document.querySelector('.chime-widget');
       const stage = root.querySelector('.chime-stage') ?? root;
       const tallest = [...stage.querySelectorAll('*')]
@@ -135,7 +180,8 @@ try {
         stageHeight: Math.round(stage.getBoundingClientRect().height),
         tallest,
       };
-    });
+      })() };
+    }, PRIMARY_ACTION[stepName]?.source ?? null);
 
   for (const width of WIDTHS) {
     // Back to the start for each width, so a step is always measured from the
@@ -145,20 +191,46 @@ try {
     await settle();
 
     const steps = [];
-    steps.push({ name: 'service', ...(await measure()) });
+    steps.push({ name: 'service', ...(await measure('service')) });
 
     const picked = await clickText('min\\s*•|Consultation|Repair|Installation');
     await settle(400);
     const advanced = picked && (await clickText('Continue to calendar|Continue'));
     await settle(1600);
-    if (advanced) steps.push({ name: 'calendar', ...(await measure()) });
+    if (advanced) steps.push({ name: 'calendar', ...(await measure('calendar')) });
+
+    // A time, then the reserve step — the one a customer said they could not
+    // scroll to the end of, and the only one with a gated action.
+    const slot = advanced && (await page.evaluate(() => {
+      const button = document.querySelector('.chime-widget .time-slot-button:not([disabled])');
+      if (!button) return false;
+      button.click();
+      return true;
+    }));
+    await settle(700);
+    const reserved = slot && (await clickText('Continue to terms'));
+    await settle(1600);
+    if (reserved) steps.push({ name: 'terms', ...(await measure('terms')) });
 
     for (const step of steps) {
       const budget = BUDGETS[width][step.name];
       if (budget === undefined) continue;
       const screens = step.widgetHeight / PHONE_SCREEN;
-      const ok = screens <= budget;
-      findings.push({ width, step: step.name, height: step.widgetHeight, screens, budget, ok, tallest: step.tallest });
+      const reachScreens = step.actionTop === null ? null : step.actionTop / PHONE_SCREEN;
+      const reachBudget = REACH_BUDGET[step.name];
+      const ok =
+        screens <= budget && (reachScreens === null || reachScreens <= reachBudget);
+      findings.push({
+        width,
+        step: step.name,
+        height: step.widgetHeight,
+        screens,
+        budget,
+        reachScreens,
+        reachBudget,
+        ok,
+        tallest: step.tallest,
+      });
     }
   }
 } catch (error) {
@@ -178,9 +250,13 @@ const measured = findings.filter((entry) => !entry.fatal);
 
 for (const entry of measured) {
   const mark = entry.ok ? 'ok  ' : 'FAIL';
+  const reach =
+    entry.reachScreens === null || entry.reachScreens === undefined
+      ? ''
+      : `  action ${entry.reachScreens.toFixed(1)} down (budget ${entry.reachBudget.toFixed(1)})`;
   console.log(
     `  ${mark}  ${String(entry.width).padStart(3)}px  ${entry.step.padEnd(9)} ` +
-      `${String(entry.height).padStart(5)}px  ${entry.screens.toFixed(1)} screens (budget ${entry.budget.toFixed(1)})`,
+      `${String(entry.height).padStart(5)}px  ${entry.screens.toFixed(1)} screens (budget ${entry.budget.toFixed(1)})${reach}`,
   );
   if (!entry.ok) {
     for (const item of entry.tallest) console.log(`          tallest: .${item.className} ${item.height}px`);

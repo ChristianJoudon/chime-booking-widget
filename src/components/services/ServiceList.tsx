@@ -66,10 +66,14 @@ export default function ServiceList({ services, selectedId, currency, onSelect }
                 <div className="service-card__meta">
                   {durationLabel && <span>{durationLabel}</span>}
                   {depositAmount > 0 && (
-                    <>
+                    /* Wrapped and named so the narrow-width rules can take it
+                     * away as a unit. Hiding the words alone would leave the
+                     * separator behind, and "30 min ·" trailing off into
+                     * nothing is worse than either. */
+                    <span className="service-card__meta-deposit">
                       <span aria-hidden="true">•</span>
                       <span>Refundable deposit</span>
-                    </>
+                    </span>
                   )}
                 </div>
               </div>
