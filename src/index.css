@@ -2314,6 +2314,72 @@
  * ------------------------------------------------------------------------- */
 @container chime-widget (max-width: 620px) {
   /*
+   * The time on its own line, the label under it.
+   *
+   * Side by side in a half-width column there is not enough room for both, so
+   * "9:00 AM" broke after "9:00" and every slot read as two ragged lines. A
+   * time is the one thing on this button that must never be ambiguous.
+   *
+   * Stacking rather than dropping the label: "Booked" and a service's own
+   * "Popular" both say something the time does not, and the strike-through on a
+   * taken slot is too quiet to carry that alone.
+   */
+  .time-slot-button {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    justify-content: center;
+  }
+
+  .time-slot-button > span {
+    white-space: nowrap;
+  }
+
+  /*
+   * Four pieces of wording that say something already on screen.
+   *
+   * On a phone the calendar step was stacking: a logo reading "Chime", an
+   * eyebrow reading "Appointment concierge", a title reading "Chime" again;
+   * then a card naming the chosen service and its length, and directly beneath
+   * it a line naming the chosen service and its length. Each is defensible on a
+   * wide screen where they sit side by side. Stacked in a 340px column they
+   * read as a stutter, and they push the calendar itself below the fold.
+   *
+   * Only duplicates go. Everything removed here is stated somewhere else in the
+   * same view — the selected-service card keeps the name, the duration and the
+   * deposit; the header keeps the business's own title.
+   */
+  .chime-header__eyebrow,
+  .calendar-subtitle {
+    display: none;
+  }
+
+  /*
+   * The step heading, sized for the column it is actually in.
+   *
+   * Its clamp bottoms out at 1.8rem, which was chosen for a wide card and turns
+   * "Choose a date and time" into three lines of very large type in a phone
+   * column. The floor is the part that needed to move, not the ceiling.
+   */
+  .chime-stage__header h2 {
+    font-size: calc(1.45 * var(--chime-root)) !important;
+    line-height: 1.08 !important;
+  }
+
+  /*
+   * The month arrows keep to themselves.
+   *
+   * The toolbar becomes a single-column grid at this width, which stretches
+   * the controls to the full 278px; with space-between still in force, ‹ and ›
+   * ended up at opposite ends of the screen looking like two unrelated buttons
+   * rather than one pair.
+   */
+  .calendar-month-controls {
+    justify-content: flex-start;
+    width: max-content;
+  }
+
+  /*
    * The month arrows only exist while a month does.
    *
    * The toolbar's ‹ › page visibleMonth, which is fine when the grid is on
@@ -2435,23 +2501,34 @@
     display: none;
   }
 
-  /*
-   * With the times gone, the grid has the full width back — so give the day
-   * cells their availability count again.
-   *
-   * Two rules hide `.calendar-day__status` at narrow widths, and they were
-   * right when the grid was sharing the screen. Alone, the grid can afford it,
-   * and it is the entire reason to open the month: a customer looking for
-   * "some Saturday" needs to see which Saturdays have anything, not just tap
-   * through them one at a time. Without this the month view answers a question
-   * nobody asked.
-   */
+  .calendar-board[data-month-open='true'] .calendar-day {
+    min-height: 52px;
+  }
+}
+
+/*
+ * The availability count comes back on a day cell, but only where it fits.
+ *
+ * With the times panel gone the month grid has the full column, which is the
+ * argument for showing "3 open" again: someone looking for "some Saturday"
+ * wants to see which Saturdays have anything, not tap through them one at a
+ * time.
+ *
+ * The threshold is measured, not guessed, and the first two guesses were both
+ * wrong. Seven columns of a 278px card give 44px cells, where "13 open"
+ * truncates to "1…" — worse than silence, because it looks broken and says
+ * nothing. It still truncated at 56px cells. It stops at about 68, which is
+ * where a 480px card content box lands.
+ *
+ * Note this queries the *card's* container, not the widget's, and container
+ * queries measure the content box — so this fires around 512px of card
+ * including its padding, and wider still of widget. Below it, the tone colours
+ * and the legend underneath answer the same question, which is why hiding it
+ * was right to begin with.
+ */
+@container (min-width: 480px) {
   .calendar-board[data-month-open='true'] .calendar-day__status {
     display: block;
     font-size: calc(0.625 * var(--chime-root)) !important;
-  }
-
-  .calendar-board[data-month-open='true'] .calendar-day {
-    min-height: 52px;
   }
 }

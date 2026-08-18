@@ -386,17 +386,33 @@ const CalendarView: FC<CalendarViewProps> = ({
             <h3 ref={dayHeadingRef} tabIndex={-1}>
               {activeDate ? format(activeDate, 'EEEE, MMM d') : 'Choose a day'}
             </h3>
-            <p role="status" aria-live="polite">
+            {/*
+              * Said once on screen, said in full to a screen reader.
+              *
+              * The visible line carries only what the heading above it does not
+              * already say — the count. Putting the date in both made a phone
+              * read "Tuesday, Aug 18" and then "Tuesday, August 18 — 13
+              * openings available" directly beneath it.
+              *
+              * The announcement still needs the date, though, and for the
+              * opposite reason: it fires on every day the arrows step to, and
+              * "13 openings available" is the same sentence for every day, so
+              * on its own it never tells anyone which day was reached. Hence a
+              * second copy that is only ever heard.
+              *
+              * Exactly one of the two is a live region. Two would announce
+              * everything twice.
+              */}
+            <p>
               {activeDate
                 ? countAvailable(activeSlots) > 0
-                  /*
-                   * The date leads, so stepping days announces itself.
-                   *
-                   * This region already existed and already re-read on every day
-                   * change; it just said "6 openings available", which is the
-                   * same sentence for every day and so told a screen reader
-                   * nothing about which day the arrow had reached.
-                   */
+                  ? `${countAvailable(activeSlots)} openings available.`
+                  : 'No remaining openings for this day.'
+                : 'Select an available day to view exact appointment times.'}
+            </p>
+            <p className="sr-only" role="status" aria-live="polite">
+              {activeDate
+                ? countAvailable(activeSlots) > 0
                   ? `${format(activeDate, 'EEEE, MMMM d')} — ${countAvailable(activeSlots)} openings available.`
                   : `${format(activeDate, 'EEEE, MMMM d')} — no remaining openings for this day.`
                 : 'Select an available day to view exact appointment times.'}

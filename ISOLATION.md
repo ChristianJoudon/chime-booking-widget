@@ -229,6 +229,7 @@ Four things came out of that pass, in descending order of what they saved:
 | time slots: one 224px column → two columns | −250px |
 | month grid hidden while the times are shown | −500px |
 | footer's restatement of the step, and the dead month arrows | −140px |
+| four duplicated lines of wording, and time labels stacked | −65px |
 
 **The state is one boolean, and it does not know the width.** `monthOpen` means
 "the customer asked to see the month", not "we are in month mode"; whether it
@@ -260,3 +261,24 @@ each item still carries an sr-only "Completed / Current step / Upcoming" plus
 otherwise fall to the shadow root and strand a keyboard user — and the times
 panel's existing live region now leads with the date, so stepping days announces
 which day it reached.
+
+Four things say the same thing twice on a phone and one of each now goes: the
+header eyebrow above a logo that already carries the name, the service line
+under a card that already names the service and its length, the footer's
+restatement of the step the heading states at the top, and the status line's
+repeat of the date directly under the date heading. Only the last needed care —
+the announcement still carries the date, in an `sr-only` copy, because it fires
+on every day the arrows reach and "13 openings available" is otherwise the same
+sentence for all of them. Exactly one of the two is a live region.
+
+Two thresholds in this work were measured rather than reasoned, after guesses
+were wrong both times:
+
+- The **month grid's availability count** ("3 open") comes back only above 480px
+  of *card content*. It truncated to "1…" at 44px cells, and still truncated at
+  56px. It stops at about 68. That query is on the card's own container, and
+  container queries measure the content box, so it fires around 512px of card
+  and wider still of widget.
+- The **time and its label are stacked** below 620px. Side by side in a
+  half-width column, "9:00 AM" broke after "9:00". Stacking made the step
+  shorter, not taller, because nothing wraps any more.
