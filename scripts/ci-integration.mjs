@@ -21,7 +21,7 @@
 
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { once } from 'node:events';
 import { createRequire } from 'node:module';
 import process from 'node:process';
@@ -227,6 +227,29 @@ try {
   env.CHIME_PUBLIC_ORGANIZATION_ID = identities.organizationId;
   env.CHIME_ADMIN_USER_ID = identities.ownerUserId;
   console.log(`  running against organisation ${identities.organizationId}`);
+
+  /*
+   * The studio needs to know where its API is, and the file that says so is
+   * gitignored.
+   *
+   * config/admin/.env.local holds local configuration, so a fresh checkout has
+   * none — and Vite reads that folder rather than the environment, because
+   * vite.admin.config.ts scopes envDir there deliberately. Without it the
+   * studio renders "Chime is not connected" and the accessibility suite
+   * dutifully checks an error screen: 81 controls on a build agent against 157
+   * here, and passing on a screen nobody wants to ship.
+   *
+   * Written only if absent, so a developer's own file is never overwritten.
+   */
+  const studioEnvPath = new URL('../config/admin/.env.local', import.meta.url);
+  if (!existsSync(studioEnvPath)) {
+    mkdirSync(new URL('../config/admin/', import.meta.url), { recursive: true });
+    writeFileSync(
+      studioEnvPath,
+      `VITE_CHIME_ADMIN_API_URL=http://127.0.0.1:${ADMIN_PORT}\n`,
+    );
+    console.log('  wrote config/admin/.env.local so the studio can find its API');
+  }
 
   console.log('\n--- servers ---');
   background('booking', 'npx', ['tsx', 'src/index.ts'], { cwd: 'server' });

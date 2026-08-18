@@ -58,8 +58,24 @@
   background: var(--admin-coral-soft);
 }
 
+/*
+ * A darker coral than the border and background use.
+ *
+ * --admin-coral on --admin-coral-soft measures 2.36:1, well under the 4.5
+ * threshold, and this is the heading of an alert — the one line on the screen
+ * that has to be readable when everything else has gone wrong.
+ *
+ * The two lighter shades were both tried and both measured: the peach icon
+ * colour already in the stylesheet reaches 3.64, and #a8503a reaches 4.46 and
+ * still fails. This one is 5.10.
+ *
+ * Caught by a build agent, not here: the studio only reaches this state when it
+ * cannot find its API, which never happens on a machine that has a
+ * config/admin/.env.local — and that file is gitignored, so a fresh checkout
+ * lands on this screen immediately.
+ */
 .studio-state--problem strong {
-  color: var(--admin-coral);
+  color: #9c4832;
 }
 
 .studio-state--problem span {
